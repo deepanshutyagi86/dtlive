@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bone: #f2f1ec;
+  --ink: #191913;
+  --ink-soft: #41403a;
+  --muted: #8b8a80;
+  --card: #ffffff;
+  --line: #dedcd2;
+  --marigold: #f5a300;
+  --marigold-deep: #d98e00;
+  --live: #ff3b30;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--bone);
+  color: var(--ink);
+}
+
+::selection {
+  background: var(--marigold);
+  color: var(--ink);
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.8);
+  }
+}
+.live-dot {
+  animation: pulse 1.6s infinite;
+}
+
+@keyframes tick {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.ticker-track {
+  animation: tick 30s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track {
+    animation: none;
+  }
+  .live-dot {
+    animation: none;
+  }
+}
