@@ -126,11 +126,11 @@ async function main() {
       { quote: "Store, cart and Cashfree live in two weeks, exactly as promised.", who: "D2C founder" },
     ])}),
     ('footerLinks', ${JSON.stringify({
-      whatsapp: "https://wa.me/910000000000",
+      whatsapp: "https://wa.me/919870600903",
       instagram: "https://www.instagram.com/thedeepanshutyagii",
       youtube: "https://www.youtube.com/@thedeepanshutyagi",
       linkedin: "https://linkedin.com/in/deepanshutyagi86",
-      email: "deepanshutyagi0784@gmail.com",
+      email: "dtyagi.main@gmail.com",
     })})
   `;
 

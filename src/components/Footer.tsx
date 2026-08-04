@@ -45,8 +45,16 @@ export default function Footer({ links }: { links: FooterLinks }) {
             </a>
           )}
         </div>
-        <div className="flex flex-wrap justify-between gap-2 mt-16 pt-5 border-t border-[#33322b] font-mono text-[11px] text-[#8b8a80]">
-          <span>© {new Date().getFullYear()} Deepanshu Tyagi · New Delhi</span>
+        <div className="flex flex-wrap gap-x-5 gap-y-2 mt-14 font-mono text-[11px] text-[#8b8a80]">
+          <Link href="/contact" className="hover:text-marigold">Contact</Link>
+          <Link href="/terms" className="hover:text-marigold">Terms</Link>
+          <Link href="/privacy" className="hover:text-marigold">Privacy</Link>
+          <Link href="/refund-policy" className="hover:text-marigold">Refund &amp; Cancellation</Link>
+          <Link href="/shipping-policy" className="hover:text-marigold">Shipping &amp; Delivery</Link>
+        </div>
+
+        <div className="flex flex-wrap justify-between gap-2 mt-5 pt-5 border-t border-[#33322b] font-mono text-[11px] text-[#8b8a80]">
+          <span>© {new Date().getFullYear()} Deepanshu, trading as Deepanshu Empire · Meerut, UP</span>
           <Link href="/admin" className="hover:text-marigold">
             admin · deepanshutyagi.live
           </Link>
