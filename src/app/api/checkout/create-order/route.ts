@@ -6,7 +6,7 @@ import type { CourseDetails, WorkshopDetails } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
   try {
-    const { itemId, name, email, phone } = await req.json();
+    const { itemId, name, email, phone, fbc, fbp, eventSourceUrl } = await req.json();
 
     if (!itemId || !name || !email || !phone) {
       return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
@@ -20,12 +20,22 @@ export async function POST(req: NextRequest) {
     const details = item.details as CourseDetails | WorkshopDetails;
     const amount = details.price;
 
+    // x-forwarded-for can carry a "client, proxy1, proxy2" chain — the
+    // first entry is the buyer's IP, which is what Meta expects.
+    const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+    const clientUserAgent = req.headers.get("user-agent");
+
     const order = await createOrder({
       itemId: item.id,
       buyerName: name,
       buyerEmail: email,
       buyerPhone: phone,
       amount: amount * 100, // store in paise
+      fbc: typeof fbc === "string" ? fbc : null,
+      fbp: typeof fbp === "string" ? fbp : null,
+      clientIp,
+      clientUserAgent,
+      eventSourceUrl: typeof eventSourceUrl === "string" ? eventSourceUrl : null,
     });
 
     const cfOrder = await createCashfreeOrder({

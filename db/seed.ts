@@ -1,3 +1,4 @@
+import "./load-env";
 import { sql } from "../src/lib/db";
 import { randomUUID } from "crypto";
 

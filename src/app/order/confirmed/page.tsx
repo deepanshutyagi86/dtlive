@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Nav from "@/components/Nav";
 import Footer, { FooterLinks } from "@/components/Footer";
+import MetaPixelPurchase from "@/components/MetaPixelPurchase";
 import { getOrderById, setOrderStatus } from "@/lib/admin-repo";
 import { getSetting } from "@/lib/items";
 import { fetchCashfreeOrder } from "@/lib/cashfree";
@@ -18,7 +19,9 @@ export default async function OrderConfirmedPage({
   let order = orderId ? await getOrderById(orderId) : null;
 
   // If our webhook hasn't landed yet, double-check directly with Cashfree
-  // so the buyer isn't stuck seeing "pending" right after paying.
+  // so the buyer isn't stuck seeing "pending" right after paying. This is
+  // a UX-only status flip — the webhook remains the sole trigger for the
+  // Meta Purchase event (see claimMetaPurchaseEvent in the webhook route).
   if (order && order.status === "pending") {
     try {
       const cfOrder = await fetchCashfreeOrder(order.id);
@@ -45,6 +48,7 @@ export default async function OrderConfirmedPage({
           </>
         ) : paid ? (
           <>
+            <MetaPixelPurchase orderId={order.id} value={order.amount / 100} />
             <span className="inline-flex items-center gap-2 font-mono text-[11px] font-bold tracking-wider text-marigold-deep">
               ✓ PAYMENT CONFIRMED
             </span>

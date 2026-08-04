@@ -85,11 +85,22 @@ export async function createOrder(input: {
   buyerEmail: string;
   buyerPhone: string;
   amount: number;
+  fbc?: string | null;
+  fbp?: string | null;
+  clientIp?: string | null;
+  clientUserAgent?: string | null;
+  eventSourceUrl?: string | null;
 }): Promise<Order> {
   const id = newId();
   const { rows } = await sql<OrderRow>`
-    INSERT INTO orders (id, item_id, buyer_name, buyer_email, buyer_phone, amount, status)
-    VALUES (${id}, ${input.itemId}, ${input.buyerName}, ${input.buyerEmail}, ${input.buyerPhone}, ${input.amount}, 'pending')
+    INSERT INTO orders (
+      id, item_id, buyer_name, buyer_email, buyer_phone, amount, status,
+      fbc, fbp, client_ip, client_user_agent, event_source_url
+    )
+    VALUES (
+      ${id}, ${input.itemId}, ${input.buyerName}, ${input.buyerEmail}, ${input.buyerPhone}, ${input.amount}, 'pending',
+      ${input.fbc ?? null}, ${input.fbp ?? null}, ${input.clientIp ?? null}, ${input.clientUserAgent ?? null}, ${input.eventSourceUrl ?? null}
+    )
     RETURNING *
   `;
   return toOrder(rows[0]);
@@ -97,6 +108,19 @@ export async function createOrder(input: {
 
 export async function setOrderCashfreeId(orderId: string, cashfreeOrderId: string): Promise<void> {
   await sql`UPDATE orders SET cashfree_order_id = ${cashfreeOrderId} WHERE id = ${orderId}`;
+}
+
+// Atomically claims the right to send this order's Meta CAPI Purchase
+// event. Only the caller that flips meta_purchase_sent_at from NULL should
+// send — this keeps the webhook the sole (and exactly-once) trigger even
+// under Cashfree webhook retries or a concurrent /order/confirmed fallback.
+export async function claimMetaPurchaseEvent(orderId: string): Promise<boolean> {
+  const { rows } = await sql`
+    UPDATE orders SET meta_purchase_sent_at = now()
+    WHERE id = ${orderId} AND meta_purchase_sent_at IS NULL
+    RETURNING id
+  `;
+  return rows.length > 0;
 }
 
 export async function getOrderById(id: string): Promise<(Order & { item: { title: string; category: string; details: any } }) | null> {

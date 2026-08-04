@@ -33,6 +33,11 @@ export interface OrderRow {
   cashfree_order_id: string | null;
   status: "pending" | "paid" | "failed";
   receipt_url: string | null;
+  fbc: string | null;
+  fbp: string | null;
+  client_ip: string | null;
+  client_user_agent: string | null;
+  event_source_url: string | null;
   created_at: string;
 }
 
@@ -72,6 +77,11 @@ export interface Order {
   cashfreeOrderId: string | null;
   status: OrderRow["status"];
   receiptUrl: string | null;
+  fbc: string | null;
+  fbp: string | null;
+  clientIp: string | null;
+  clientUserAgent: string | null;
+  eventSourceUrl: string | null;
   createdAt: string;
 }
 
@@ -113,6 +123,11 @@ export function toOrder(r: OrderRow): Order {
     cashfreeOrderId: r.cashfree_order_id,
     status: r.status,
     receiptUrl: r.receipt_url,
+    fbc: r.fbc,
+    fbp: r.fbp,
+    clientIp: r.client_ip,
+    clientUserAgent: r.client_user_agent,
+    eventSourceUrl: r.event_source_url,
     createdAt: r.created_at,
   };
 }

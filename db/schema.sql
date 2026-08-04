@@ -18,17 +18,38 @@ CREATE TABLE IF NOT EXISTS items (
 CREATE INDEX IF NOT EXISTS items_category_live_idx ON items(category, live);
 
 CREATE TABLE IF NOT EXISTS orders (
-  id                 TEXT PRIMARY KEY,
-  item_id            TEXT NOT NULL REFERENCES items(id),
-  buyer_name         TEXT NOT NULL,
-  buyer_email        TEXT NOT NULL,
-  buyer_phone        TEXT NOT NULL,
-  amount             INTEGER NOT NULL,
-  cashfree_order_id  TEXT UNIQUE,
-  status             TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','paid','failed')),
-  receipt_url        TEXT,
-  created_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+  id                  TEXT PRIMARY KEY,
+  item_id             TEXT NOT NULL REFERENCES items(id),
+  buyer_name          TEXT NOT NULL,
+  buyer_email         TEXT NOT NULL,
+  buyer_phone         TEXT NOT NULL,
+  amount              INTEGER NOT NULL,
+  cashfree_order_id   TEXT UNIQUE,
+  status              TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','paid','failed')),
+  receipt_url         TEXT,
+  -- Captured client-side at checkout so the server-to-server Cashfree
+  -- webhook (which never sees the buyer's browser) can still send a
+  -- fully-matched Meta Conversions API Purchase event.
+  fbc                 TEXT,
+  fbp                 TEXT,
+  client_ip           TEXT,
+  client_user_agent   TEXT,
+  event_source_url    TEXT,
+  -- Set the moment the webhook successfully claims this order for a Meta
+  -- CAPI Purchase send. The webhook is the only writer of this column —
+  -- it's what lets it fire the event exactly once even if Cashfree retries
+  -- the webhook or the /order/confirmed fallback flips `status` first.
+  meta_purchase_sent_at TIMESTAMPTZ,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Idempotent for databases created before the Meta CAPI columns existed.
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS fbc TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS fbp TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS client_ip TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS client_user_agent TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS event_source_url TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS meta_purchase_sent_at TIMESTAMPTZ;
 
 CREATE TABLE IF NOT EXISTS leads (
   id          TEXT PRIMARY KEY,

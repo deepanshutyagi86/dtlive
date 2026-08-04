@@ -19,6 +19,14 @@ export default function CheckoutModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Meta Pixel drops these cookies itself; forwarding them lets the
+  // server-side Conversions API call match the same browser/click as the
+  // fbq() Purchase event fired on the confirmation page.
+  function readCookie(name: string): string | null {
+    const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+    return match ? decodeURIComponent(match[1]) : null;
+  }
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     window.addEventListener("keydown", onKey);
@@ -36,7 +44,13 @@ export default function CheckoutModal({
       const res = await fetch("/api/checkout/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ itemId, ...form }),
+        body: JSON.stringify({
+          itemId,
+          ...form,
+          fbc: readCookie("_fbc"),
+          fbp: readCookie("_fbp"),
+          eventSourceUrl: window.location.href,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong");

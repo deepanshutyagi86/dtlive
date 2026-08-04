@@ -92,5 +92,12 @@ export function verifyCashfreeWebhookSignature(
   if (!secret) throw new Error("CASHFREE_WEBHOOK_SECRET not set");
   const payload = timestamp + rawBody;
   const expected = crypto.createHmac("sha256", secret).update(payload).digest("base64");
-  return expected === signature;
+
+  const expectedBuf = Buffer.from(expected);
+  const signatureBuf = Buffer.from(signature);
+  // timingSafeEqual throws on mismatched lengths rather than returning
+  // false — an invalid-length signature is unambiguously invalid, so it's
+  // safe to short-circuit before the constant-time comparison.
+  if (expectedBuf.length !== signatureBuf.length) return false;
+  return crypto.timingSafeEqual(expectedBuf, signatureBuf);
 }

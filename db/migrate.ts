@@ -1,4 +1,5 @@
 // Applies db/schema.sql against DATABASE_URL. Run with `npm run db:push`.
+import "./load-env";
 import { readFileSync } from "fs";
 import { join } from "path";
 import { sql } from "../src/lib/db";
