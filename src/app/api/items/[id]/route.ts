@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/auth";
-import { updateItem, deleteItem, isSlugTaken } from "@/lib/admin-repo";
+import { updateItem, deleteItem, isSlugTaken, DeleteBlockedError } from "@/lib/admin-repo";
 import { getItemById } from "@/lib/items";
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
@@ -40,6 +40,9 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
     await deleteItem(params.id);
     return NextResponse.json({ ok: true });
   } catch (err) {
+    if (err instanceof DeleteBlockedError) {
+      return NextResponse.json({ error: err.message }, { status: 409 });
+    }
     console.error(err);
     return NextResponse.json({ error: "Could not delete item." }, { status: 500 });
   }

@@ -1,5 +1,10 @@
 import { sql, newId, toItem, toOrder, toLead, Item, Order, Lead, ItemRow, OrderRow, LeadRow } from "./db";
 
+// Thrown by deleteItem() when the item is still referenced by orders/leads.
+// The API route maps this to a 409 with the message shown directly to the
+// admin, instead of the raw FK-violation error Postgres would otherwise throw.
+export class DeleteBlockedError extends Error {}
+
 // ---------- Items ----------
 
 export async function listAllItems(): Promise<Item[]> {
@@ -66,7 +71,30 @@ export async function updateItem(id: string, input: Partial<ItemInput>): Promise
   return toItem(rows[0]);
 }
 
+// Orders/leads reference items via a plain FK (no ON DELETE CASCADE, on
+// purpose) so a delete can never silently wipe real customer/registrant
+// records. Instead, check for references up front and block with a message
+// that tells the admin what to do (unpublish) rather than surfacing a raw
+// FK-violation error.
 export async function deleteItem(id: string): Promise<void> {
+  const [{ rows: orderRows }, { rows: leadRows }] = await Promise.all([
+    sql`SELECT COUNT(*)::int as count FROM orders WHERE item_id = ${id}`,
+    sql`SELECT COUNT(*)::int as count FROM leads WHERE item_id = ${id}`,
+  ]);
+  const orderCount = orderRows[0].count as number;
+  const leadCount = leadRows[0].count as number;
+
+  if (orderCount > 0) {
+    throw new DeleteBlockedError(
+      `Can't delete — ${orderCount} order${orderCount === 1 ? " is" : "s are"} linked to this item. Unpublish it (Live toggle off) instead to keep order history intact.`
+    );
+  }
+  if (leadCount > 0) {
+    throw new DeleteBlockedError(
+      `Can't delete — ${leadCount} lead${leadCount === 1 ? " is" : "s are"} linked to this item. Unpublish it (Live toggle off) instead to keep lead history intact.`
+    );
+  }
+
   await sql`DELETE FROM items WHERE id = ${id}`;
 }
 
@@ -161,14 +189,45 @@ export async function orderStats(monthStart: Date) {
 
 // ---------- Leads ----------
 
-export async function createLead(input: { name: string; contact: string; message?: string | null; itemId?: string | null }): Promise<Lead> {
+export async function createLead(input: {
+  name: string;
+  contact: string;
+  message?: string | null;
+  itemId?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  fbc?: string | null;
+  fbp?: string | null;
+  clientIp?: string | null;
+  clientUserAgent?: string | null;
+  eventSourceUrl?: string | null;
+}): Promise<Lead> {
   const id = newId();
   const { rows } = await sql<LeadRow>`
-    INSERT INTO leads (id, name, contact, message, item_id, status)
-    VALUES (${id}, ${input.name}, ${input.contact}, ${input.message ?? null}, ${input.itemId ?? null}, 'new')
+    INSERT INTO leads (
+      id, name, contact, message, item_id, status,
+      email, phone, fbc, fbp, client_ip, client_user_agent, event_source_url
+    )
+    VALUES (
+      ${id}, ${input.name}, ${input.contact}, ${input.message ?? null}, ${input.itemId ?? null}, 'new',
+      ${input.email ?? null}, ${input.phone ?? null}, ${input.fbc ?? null}, ${input.fbp ?? null},
+      ${input.clientIp ?? null}, ${input.clientUserAgent ?? null}, ${input.eventSourceUrl ?? null}
+    )
     RETURNING *
   `;
   return toLead(rows[0]);
+}
+
+// Same exactly-once pattern as claimMetaPurchaseEvent: guards against a
+// double-send if this route ever gets retried (e.g. a client-side network
+// retry re-hitting the same lead).
+export async function claimMetaLeadEvent(leadId: string): Promise<boolean> {
+  const { rows } = await sql`
+    UPDATE leads SET meta_lead_sent_at = now()
+    WHERE id = ${leadId} AND meta_lead_sent_at IS NULL
+    RETURNING id
+  `;
+  return rows.length > 0;
 }
 
 export async function listLeads(): Promise<(Lead & { itemTitle: string | null })[]> {

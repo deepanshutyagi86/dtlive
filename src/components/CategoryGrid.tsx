@@ -56,7 +56,7 @@ export default function CategoryGrid({
         {items.length === 0 ? (
           <div className="mt-16 border border-dashed border-line rounded-card p-10 text-center">
             <p className="font-display font-bold text-xl">Nothing live right now</p>
-            <p className="text-muted mt-2 text-sm">Check back soon, or ping me on WhatsApp to ask what&apos;s next.</p>
+            <p className="text-muted mt-2 text-[16px]">Check back soon, or ping me on WhatsApp to ask what&apos;s next.</p>
           </div>
         ) : (
           <div className="grid md:grid-cols-3 gap-5 mt-12">
@@ -70,7 +70,7 @@ export default function CategoryGrid({
                   {CATEGORY_LABELS[item.category]}
                 </span>
                 <div className="font-display font-bold text-xl tracking-tight">{item.title}</div>
-                <div className="text-sm text-ink-soft flex-1">{item.description}</div>
+                <div className="text-[16px] leading-relaxed text-ink-soft flex-1">{item.description}</div>
                 <div className="font-mono text-[11px] text-muted">{metaLine(item)}</div>
                 <div className="flex items-center justify-between font-semibold text-sm border-t border-line pt-3 group-hover:text-marigold-deep">
                   <span>{CATEGORY_CTA[item.category]}</span>

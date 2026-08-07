@@ -49,6 +49,14 @@ export interface LeadRow {
   item_id: string | null;
   status: "new" | "contacted" | "closed";
   created_at: string;
+  email: string | null;
+  phone: string | null;
+  fbc: string | null;
+  fbp: string | null;
+  client_ip: string | null;
+  client_user_agent: string | null;
+  event_source_url: string | null;
+  meta_lead_sent_at: string | null;
 }
 
 // --- camelCase shapes used throughout the app ---
@@ -93,6 +101,14 @@ export interface Lead {
   itemId: string | null;
   status: LeadRow["status"];
   createdAt: string;
+  email: string | null;
+  phone: string | null;
+  fbc: string | null;
+  fbp: string | null;
+  clientIp: string | null;
+  clientUserAgent: string | null;
+  eventSourceUrl: string | null;
+  metaLeadSentAt: string | null;
 }
 
 export function toItem(r: ItemRow): Item {
@@ -141,5 +157,13 @@ export function toLead(r: LeadRow): Lead {
     itemId: r.item_id,
     status: r.status,
     createdAt: r.created_at,
+    email: r.email,
+    phone: r.phone,
+    fbc: r.fbc,
+    fbp: r.fbp,
+    clientIp: r.client_ip,
+    clientUserAgent: r.client_user_agent,
+    eventSourceUrl: r.event_source_url,
+    metaLeadSentAt: r.meta_lead_sent_at,
   };
 }

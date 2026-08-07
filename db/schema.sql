@@ -61,6 +61,19 @@ CREATE TABLE IF NOT EXISTS leads (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Idempotent for databases created before free-registration (Lead) support
+-- existed. `contact` is kept as-is for backward compat; new registrations
+-- populate email/phone directly instead. Mirrors the Meta CAPI columns
+-- already on `orders`.
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS fbc TEXT;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS fbp TEXT;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS client_ip TEXT;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS client_user_agent TEXT;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS event_source_url TEXT;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS meta_lead_sent_at TIMESTAMPTZ;
+
 CREATE TABLE IF NOT EXISTS settings (
   key    TEXT PRIMARY KEY,
   value  JSONB NOT NULL

@@ -22,7 +22,7 @@ export default function LegalPage({
         </h1>
         <p className="font-mono text-[11px] text-muted mt-3">Last updated: {updated}</p>
 
-        <div className="legal-body mt-10 text-ink-soft text-[15px] leading-relaxed">
+        <div className="legal-body mt-10 text-ink-soft text-[16px] leading-relaxed">
           {children}
         </div>
       </main>

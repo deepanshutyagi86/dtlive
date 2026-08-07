@@ -41,7 +41,7 @@ function Card({ item }: { item: StreamItem }) {
         </span>
       </div>
       <div className="font-display font-bold text-[21px] tracking-tight leading-tight">{item.title}</div>
-      <div className="text-[13.5px] leading-relaxed text-ink-soft flex-1">{item.description}</div>
+      <div className="text-[16px] leading-relaxed text-ink-soft flex-1">{item.description}</div>
       <div className="font-mono text-[11px] text-muted">{item.meta}</div>
       <div className="flex items-center justify-between font-semibold text-sm border-t border-line pt-3 mt-0.5 group-hover:text-marigold-deep">
         <span>{CATEGORY_CTA[item.category]}</span>

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Nav from "@/components/Nav";
 import Footer, { FooterLinks } from "@/components/Footer";
 import CheckoutModal from "@/components/CheckoutModal";
+import RegisterModal from "@/components/RegisterModal";
 import { getItemBySlug, getSetting } from "@/lib/items";
 import type { CourseDetails, WorkshopDetails } from "@/lib/types";
 import type { Metadata } from "next";
@@ -35,6 +36,10 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
     ? (d as WorkshopDetails).agenda
     : (d as CourseDetails).curriculum;
   const priceLabel = `₹${price}`;
+  // Free workshops skip payment entirely — a lead-capture registration
+  // instead of a checkout. Courses aren't part of this flow.
+  const isFreeWorkshop = isWorkshop && price === 0;
+  const triggerLabel = isFreeWorkshop ? "Reserve my free seat" : isWorkshop ? "Reserve my seat" : "Enroll now";
 
   return (
     <>
@@ -45,13 +50,23 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
         <div className="hidden md:flex items-center gap-3.5 min-w-0">
           <span className="font-semibold text-sm truncate max-w-[34vw]">{item!.title}</span>
           <span className="font-mono text-[13px] text-marigold-deep font-bold whitespace-nowrap">{priceLabel}</span>
-          <CheckoutModal
-            itemId={item!.id}
-            title={item!.title}
-            priceLabel={priceLabel}
-            triggerLabel={isWorkshop ? "Reserve my seat" : "Enroll now"}
-            triggerClassName="bg-marigold border border-marigold text-ink font-semibold text-sm px-[18px] py-[10px] rounded-full hover:bg-ink hover:text-bone hover:border-ink transition-colors"
-          />
+          {isFreeWorkshop ? (
+            <RegisterModal
+              itemId={item!.id}
+              title={item!.title}
+              workshopDate={(d as WorkshopDetails).date}
+              triggerLabel={triggerLabel}
+              triggerClassName="bg-marigold border border-marigold text-ink font-semibold text-sm px-[18px] py-[10px] rounded-full hover:bg-ink hover:text-bone hover:border-ink transition-colors"
+            />
+          ) : (
+            <CheckoutModal
+              itemId={item!.id}
+              title={item!.title}
+              priceLabel={priceLabel}
+              triggerLabel={triggerLabel}
+              triggerClassName="bg-marigold border border-marigold text-ink font-semibold text-sm px-[18px] py-[10px] rounded-full hover:bg-ink hover:text-bone hover:border-ink transition-colors"
+            />
+          )}
         </div>
       </nav>
 
@@ -99,7 +114,7 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
                     +
                   </span>
                 </summary>
-                <div className="pb-4 px-1 text-sm leading-relaxed text-ink-soft max-w-[640px]">{block.body}</div>
+                <div className="pb-4 px-1 text-[16px] leading-relaxed text-ink-soft max-w-[640px]">{block.body}</div>
               </details>
             ))}
           </div>
@@ -113,7 +128,7 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
             </div>
             <div>
               <b className="font-display text-[17px]">Deepanshu Tyagi</b>
-              <p className="text-sm leading-relaxed text-ink-soft mt-1.5">
+              <p className="text-[16px] leading-relaxed text-ink-soft mt-1.5">
                 Equity in two D2C brands, 15+ stores and sites shipped for clients, 3 apps on the Play
                 Store, and 500+ students taught. Everything here is something I did this month, not
                 something I read.
@@ -132,13 +147,23 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
             </small>
           )}
         </div>
-        <CheckoutModal
-          itemId={item!.id}
-          title={item!.title}
-          priceLabel={priceLabel}
-          triggerLabel={isWorkshop ? "Reserve my seat" : "Enroll now"}
-          triggerClassName="bg-marigold text-ink font-semibold text-sm px-5 py-2.5 rounded-full"
-        />
+        {isFreeWorkshop ? (
+          <RegisterModal
+            itemId={item!.id}
+            title={item!.title}
+            workshopDate={(d as WorkshopDetails).date}
+            triggerLabel={triggerLabel}
+            triggerClassName="bg-marigold text-ink font-semibold text-sm px-5 py-2.5 rounded-full"
+          />
+        ) : (
+          <CheckoutModal
+            itemId={item!.id}
+            title={item!.title}
+            priceLabel={priceLabel}
+            triggerLabel={triggerLabel}
+            triggerClassName="bg-marigold text-ink font-semibold text-sm px-5 py-2.5 rounded-full"
+          />
+        )}
       </div>
 
       <Footer links={footerLinks} />

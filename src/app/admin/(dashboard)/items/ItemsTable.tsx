@@ -21,24 +21,37 @@ export default function ItemsTable({ items }: { items: AdminItemRow[] }) {
   const router = useRouter();
   const [rows, setRows] = useState(items);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function toggle(id: string, field: "live" | "featured", value: boolean) {
     setBusyId(id);
+    setError(null);
+    const previous = rows.find((r) => r.id === id)?.[field];
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, [field]: value } : r)));
-    await fetch(`/api/items/${id}`, {
+    const res = await fetch(`/api/items/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ [field]: value }),
     });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error || `Could not update "${field}".`);
+      // Roll back the optimistic update so the UI matches what's actually saved.
+      setRows((prev) => prev.map((r) => (r.id === id ? { ...r, [field]: previous! } : r)));
+    }
     setBusyId(null);
   }
 
   async function remove(id: string, title: string) {
     if (!confirm(`Delete "${title}"? This can't be undone.`)) return;
     setBusyId(id);
+    setError(null);
     const res = await fetch(`/api/items/${id}`, { method: "DELETE" });
     if (res.ok) {
       setRows((prev) => prev.filter((r) => r.id !== id));
+    } else {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error || "Could not delete item.");
     }
     setBusyId(null);
   }
@@ -50,6 +63,15 @@ export default function ItemsTable({ items }: { items: AdminItemRow[] }) {
 
   return (
     <div className="space-y-10">
+      {error && (
+        <div className="flex items-start justify-between gap-3 bg-live/10 border border-live rounded-card px-4 py-3 text-sm text-live">
+          <span>{error}</span>
+          <button onClick={() => setError(null)} aria-label="Dismiss" className="text-live font-bold leading-none">
+            ×
+          </button>
+        </div>
+      )}
+
       {Object.entries(grouped).map(([category, catRows]) => (
         <div key={category}>
           <h2 className="font-display font-bold text-lg capitalize mb-3">{category}s</h2>
