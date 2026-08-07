@@ -22,7 +22,7 @@ export default async function AdminItemEditPage({ params }: { params: { id: stri
       <h1 className="font-display font-extrabold text-3xl tracking-tight mb-8">
         {isNew ? "Add item" : existing!.title}
       </h1>
-      <ItemForm existing={existing} />
+      <ItemForm key={existing?.id ?? "new"} existing={existing} />
     </div>
   );
 }
