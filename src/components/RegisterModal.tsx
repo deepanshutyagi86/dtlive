@@ -140,14 +140,14 @@ export default function RegisterModal({
                   <p className="font-mono text-[10.5px] uppercase tracking-wider text-muted mb-1">When</p>
                   <p className="font-semibold text-[16px]">{dateLabel} · Live on Zoom</p>
                 </div>
-                <p className="text-[15px] leading-relaxed text-ink-soft mt-4">
+                <p className="text-[16px] leading-relaxed text-ink-soft mt-4">
                   We&apos;ll email and WhatsApp the Zoom link before the session starts.
                 </p>
                 <a
                   href={calendarUrl}
                   target="_blank"
                   rel="noopener"
-                  className="block text-center w-full mt-5 py-3.5 rounded-full bg-marigold text-ink font-semibold text-[15px] hover:bg-ink hover:text-bone transition-colors"
+                  className="block text-center w-full mt-5 py-3.5 rounded-full bg-marigold text-ink font-semibold text-[16px] hover:bg-ink hover:text-bone transition-colors"
                 >
                   Add to calendar →
                 </a>
@@ -179,7 +179,7 @@ export default function RegisterModal({
                 <button
                   onClick={register}
                   disabled={loading}
-                  className="w-full py-3.5 rounded-full bg-marigold text-ink font-semibold text-[15px] hover:bg-ink hover:text-bone transition-colors disabled:opacity-60"
+                  className="w-full py-3.5 rounded-full bg-marigold text-ink font-semibold text-[16px] hover:bg-ink hover:text-bone transition-colors disabled:opacity-60"
                 >
                   {loading ? "Reserving…" : "Reserve my free seat →"}
                 </button>

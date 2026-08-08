@@ -103,7 +103,7 @@ export default function CheckoutModal({
                   value={form[field]}
                   onChange={(e) => setForm({ ...form, [field]: e.target.value })}
                   placeholder={field === "phone" ? "+91" : field === "email" ? "you@example.com" : "Your name"}
-                  className="w-full px-3.5 py-3 text-[15px] bg-card border border-line rounded-[10px] focus:outline-none focus:border-marigold focus:ring-2 focus:ring-marigold"
+                  className="w-full px-3.5 py-3 text-[16px] bg-card border border-line rounded-[10px] focus:outline-none focus:border-marigold focus:ring-2 focus:ring-marigold"
                 />
               </div>
             ))}
@@ -113,7 +113,7 @@ export default function CheckoutModal({
             <button
               onClick={pay}
               disabled={loading}
-              className="w-full py-3.5 rounded-full bg-marigold text-ink font-semibold text-[15px] hover:bg-ink hover:text-bone transition-colors disabled:opacity-60"
+              className="w-full py-3.5 rounded-full bg-marigold text-ink font-semibold text-[16px] hover:bg-ink hover:text-bone transition-colors disabled:opacity-60"
             >
               {loading ? "Starting payment…" : `Proceed to pay ${priceLabel} →`}
             </button>

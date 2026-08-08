@@ -41,7 +41,7 @@ export default function AdminLoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="w-full px-3.5 py-3 text-[15px] bg-bone border border-line rounded-[10px] focus:outline-none focus:border-marigold focus:ring-2 focus:ring-marigold"
+            className="w-full px-3.5 py-3 text-[16px] bg-bone border border-line rounded-[10px] focus:outline-none focus:border-marigold focus:ring-2 focus:ring-marigold"
           />
         </div>
         <div className="mb-6">
@@ -51,7 +51,7 @@ export default function AdminLoginPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className="w-full px-3.5 py-3 text-[15px] bg-bone border border-line rounded-[10px] focus:outline-none focus:border-marigold focus:ring-2 focus:ring-marigold"
+            className="w-full px-3.5 py-3 text-[16px] bg-bone border border-line rounded-[10px] focus:outline-none focus:border-marigold focus:ring-2 focus:ring-marigold"
           />
         </div>
 

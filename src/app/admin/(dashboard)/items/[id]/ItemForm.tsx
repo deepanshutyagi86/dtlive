@@ -157,7 +157,7 @@ export default function ItemForm({ existing }: { existing: ExistingItem | null }
         .input {
           width: 100%;
           padding: 10px 14px;
-          font-size: 14px;
+          font-size: 16px;
           background: #fff;
           border: 1px solid var(--line);
           border-radius: 10px;

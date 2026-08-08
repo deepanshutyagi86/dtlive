@@ -75,10 +75,10 @@ export default async function HomePage() {
     <>
       <Nav />
       <header className="max-w-[1200px] mx-auto px-5 pt-[118px] pb-2">
-        <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted mb-4">
+        <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-muted mb-4">
           deepanshutyagi.live — the storefront
         </p>
-        <h1 className="font-display font-semibold tracking-[-0.02em] text-[40px] md:text-[76px] leading-[0.95]">
+        <h1 className="font-display font-extrabold tracking-tight text-[46px] md:text-[104px] leading-[0.95]">
           <span className="inline-block w-[0.35em] h-[0.35em] rounded-full bg-live live-dot mr-[0.18em] align-[0.08em]" />
           Live,
           <br />
@@ -90,11 +90,11 @@ export default async function HomePage() {
       </header>
 
       <div className="max-w-[1200px] mx-auto px-5 flex items-center justify-between gap-3 mt-14 mb-3.5">
-        <div className="flex items-center gap-2.5 font-mono text-[10px] uppercase tracking-[0.16em] font-semibold">
+        <div className="flex items-center gap-2.5 font-mono text-[11px] tracking-[0.14em] uppercase font-semibold">
           <span className="w-2.5 h-2.5 rounded-full bg-live live-dot" />
           The stream
         </div>
-        <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted">drag to scroll →</div>
+        <div className="font-mono text-[11px] tracking-[0.14em] uppercase text-muted">drag to scroll →</div>
       </div>
       <LiveStream items={streamItems} />
 
