@@ -2,7 +2,7 @@ import { sql, toItem, Item, ItemRow } from "./db";
 
 export async function getLiveStreamItems(): Promise<Item[]> {
   const { rows } = await sql<ItemRow>`
-    SELECT * FROM items WHERE live = TRUE ORDER BY "order" ASC
+    SELECT * FROM items WHERE live = true ORDER BY "order" ASC
   `;
   return rows.map(toItem);
 }

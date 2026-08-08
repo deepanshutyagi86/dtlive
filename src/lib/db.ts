@@ -4,7 +4,18 @@ import { randomUUID } from "crypto";
 // fullResults:true makes this return {rows, rowCount, ...} just like the
 // old @vercel/postgres `sql` did, so every call site below reads `.rows`
 // exactly as before.
-export const sql = neon(process.env.DATABASE_URL!, { fullResults: true }) as any;
+//
+// fetchOptions.cache:"no-store" is load-bearing: the driver issues each
+// query as a fetch(), and Next.js auto-caches parameterless GET-style
+// fetches in its Data Cache regardless of a route's dynamic="force-dynamic"
+// (that only governs the route's own render, not fetches inside imported
+// modules). Without this, a zero-argument query's first result gets cached
+// indefinitely — surviving even a from-scratch, no-build-cache redeploy —
+// while an otherwise-identical parameterized query stays fresh.
+export const sql = neon(process.env.DATABASE_URL!, {
+  fullResults: true,
+  fetchOptions: { cache: "no-store" },
+}) as any;
 export const newId = () => randomUUID();
 
 // --- row shapes returned straight from Postgres (snake_case) ---
