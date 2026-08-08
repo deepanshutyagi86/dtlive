@@ -35,7 +35,10 @@ export default async function DiagnosticsPage() {
   const items: DiagnosticItemRow[] = itemsResult.rows;
   const leadCount: number = leadsResult.rows[0].count;
   const orderCount: number = ordersResult.rows[0].count;
-  const serverNow: string = timeResult.rows[0].now;
+  // The neon driver returns timestamptz columns as real Date objects, not
+  // strings — coerce immediately so nothing downstream ever renders a raw
+  // Date (React throws trying to render an object as a child).
+  const serverNow = new Date(timeResult.rows[0].now).toISOString();
 
   return (
     <div>
