@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { DEFAULT_REGISTRATION_FIELDS, type RegistrationField } from "@/lib/types";
 
 declare global {
@@ -31,6 +32,10 @@ export default function RegisterModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [registered, setRegistered] = useState(false);
+  // Portal target (document.body) only exists client-side; without this
+  // guard, SSR/hydration would try to render into a nonexistent node.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   // Meta Pixel drops these cookies itself; forwarding them lets the
   // server-side Conversions API call match the same browser/click as the
@@ -116,16 +121,16 @@ export default function RegisterModal({
         {triggerLabel}
       </button>
 
-      {open && (
+      {mounted && open && createPortal(
         <div
           className="fixed inset-0 bg-ink/55 backdrop-blur-sm flex items-center justify-center z-[200] p-4"
           onClick={(e) => e.target === e.currentTarget && close()}
         >
-          <div className="bg-bone rounded-[18px] w-full max-w-[420px] p-7">
+          <div className="bg-bone rounded-[18px] w-full max-w-[420px] p-7 max-h-[85vh] overflow-y-auto">
             <button
               onClick={close}
               aria-label="Close"
-              className="float-right text-2xl leading-none text-muted hover:text-ink"
+              className="sticky top-0 float-right text-2xl leading-none text-muted hover:text-ink bg-bone"
             >
               ×
             </button>
@@ -186,7 +191,8 @@ export default function RegisterModal({
               </>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
