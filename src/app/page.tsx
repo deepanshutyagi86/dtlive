@@ -6,47 +6,12 @@ import Ticker from "@/components/Ticker";
 import Testimonials, { Testimonial } from "@/components/Testimonials";
 import Footer, { FooterLinks } from "@/components/Footer";
 import { getDoorCounts, getFeaturedItem, getLiveStreamItems, getSetting } from "@/lib/items";
-import type {
-  AgencyDetails,
-  CourseDetails,
-  ShopDetails,
-  VentureDetails,
-  WorkshopDetails,
-} from "@/lib/types";
+import { metaFor, externalFor } from "@/lib/homepage";
+import type { CourseDetails, WorkshopDetails } from "@/lib/types";
 
 // Always fetch fresh — this page changes the moment something goes live
 // or featured in the admin panel.
 export const dynamic = "force-dynamic";
-
-function metaFor(item: Awaited<ReturnType<typeof getLiveStreamItems>>[number]): string {
-  const d = item.details as any;
-  switch (item.category) {
-    case "course":
-      return `₹${(d as CourseDetails).price} · ${(d as CourseDetails).duration ?? "self-paced"}`;
-    case "workshop": {
-      const w = d as WorkshopDetails;
-      const date = new Date(w.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
-      return `${date} · ${w.seatsLeft} seats left`;
-    }
-    case "agency": {
-      const a = d as AgencyDetails;
-      return a.priceType === "quote" ? "Custom quote" : `from ₹${a.priceValue}`;
-    }
-    case "shop":
-      return `${(d as ShopDetails).platform} ↗`;
-    case "venture":
-      return (d as VentureDetails).externalUrl?.replace(/^https?:\/\//, "") ?? "";
-    default:
-      return "";
-  }
-}
-
-function externalFor(item: Awaited<ReturnType<typeof getLiveStreamItems>>[number]): string | null {
-  const d = item.details as any;
-  if (item.category === "shop") return (d as ShopDetails).externalUrl;
-  if (item.category === "venture") return (d as VentureDetails).externalUrl ?? null;
-  return null;
-}
 
 export default async function HomePage() {
   const [items, featured, counts, ticker, testimonials, footerLinks] = await Promise.all([
