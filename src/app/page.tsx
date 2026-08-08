@@ -77,7 +77,7 @@ export default async function HomePage() {
 
   return (
     <>
-      {/* DEBUG: {debugInfo} */}
+      <span id="debug-info" style={{ display: "none" }}>{debugInfo}</span>
       <Nav />
       <header className="max-w-[1200px] mx-auto px-5 pt-[118px] pb-2">
         <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-muted mb-4">
