@@ -201,21 +201,40 @@ export async function createLead(input: {
   clientIp?: string | null;
   clientUserAgent?: string | null;
   eventSourceUrl?: string | null;
+  answers?: Record<string, string> | null;
 }): Promise<Lead> {
   const id = newId();
   const { rows } = await sql<LeadRow>`
     INSERT INTO leads (
       id, name, contact, message, item_id, status,
-      email, phone, fbc, fbp, client_ip, client_user_agent, event_source_url
+      email, phone, fbc, fbp, client_ip, client_user_agent, event_source_url, answers
     )
     VALUES (
       ${id}, ${input.name}, ${input.contact}, ${input.message ?? null}, ${input.itemId ?? null}, 'new',
       ${input.email ?? null}, ${input.phone ?? null}, ${input.fbc ?? null}, ${input.fbp ?? null},
-      ${input.clientIp ?? null}, ${input.clientUserAgent ?? null}, ${input.eventSourceUrl ?? null}
+      ${input.clientIp ?? null}, ${input.clientUserAgent ?? null}, ${input.eventSourceUrl ?? null},
+      ${input.answers ? JSON.stringify(input.answers) : null}
     )
     RETURNING *
   `;
   return toLead(rows[0]);
+}
+
+// Atomic conditional decrement of a workshop's seatsLeft (stored inside the
+// items.details JSONB blob, not a dedicated column). The WHERE guard means
+// concurrent registrations can never drive it below 0, and it's a no-op
+// (returns false) for non-workshops or once seats are exhausted.
+export async function decrementWorkshopSeats(itemId: string): Promise<boolean> {
+  const { rows } = await sql`
+    UPDATE items
+    SET details = jsonb_set(details, '{seatsLeft}', to_jsonb(((details->>'seatsLeft')::int - 1)))
+    WHERE id = ${itemId}
+      AND category = 'workshop'
+      AND COALESCE((details->>'unlimitedSeats')::boolean, false) = false
+      AND (details->>'seatsLeft')::int > 0
+    RETURNING id
+  `;
+  return rows.length > 0;
 }
 
 // Same exactly-once pattern as claimMetaPurchaseEvent: guards against a

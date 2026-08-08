@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { DEFAULT_REGISTRATION_FIELDS, type RegistrationField } from "@/lib/types";
 
 type Category = "course" | "workshop" | "agency" | "shop" | "venture";
 
@@ -241,6 +242,12 @@ function CourseFields({ details, setDetails }: { details: any; setDetails: (d: a
         </Field>
       </div>
       <BlockListEditor label="Curriculum" blocks={details.curriculum ?? []} onChange={(b) => setDetails({ ...details, curriculum: b })} />
+
+      <DisplayToggles details={details} setDetails={setDetails} showSeats={false} />
+      <RegistrationFieldsEditor
+        fields={details.registrationFields ?? DEFAULT_REGISTRATION_FIELDS}
+        onChange={(f) => setDetails({ ...details, registrationFields: f })}
+      />
     </>
   );
 }
@@ -255,12 +262,149 @@ function WorkshopFields({ details, setDetails }: { details: any; setDetails: (d:
         <Field label="Date & time">
           <input type="datetime-local" className="input" value={details.date?.slice(0, 16) ?? ""} onChange={(e) => setDetails({ ...details, date: new Date(e.target.value).toISOString() })} />
         </Field>
-        <Field label="Seats left">
-          <input type="number" className="input" value={details.seatsLeft} onChange={(e) => setDetails({ ...details, seatsLeft: Number(e.target.value) })} />
-        </Field>
+        {!details.unlimitedSeats && (
+          <Field label="Seats left">
+            <input type="number" className="input" value={details.seatsLeft} onChange={(e) => setDetails({ ...details, seatsLeft: Number(e.target.value) })} />
+          </Field>
+        )}
       </div>
       <BlockListEditor label="Agenda" blocks={details.agenda ?? []} onChange={(b) => setDetails({ ...details, agenda: b })} />
+
+      <label className="flex items-center gap-2 text-sm font-medium mt-1 mb-4">
+        <input
+          type="checkbox"
+          checked={!!details.unlimitedSeats}
+          onChange={(e) => setDetails({ ...details, unlimitedSeats: e.target.checked })}
+          className="w-4 h-4"
+        />
+        Unlimited registration
+      </label>
+
+      <DisplayToggles details={details} setDetails={setDetails} showSeats={!details.unlimitedSeats} />
+      <RegistrationFieldsEditor
+        fields={details.registrationFields ?? DEFAULT_REGISTRATION_FIELDS}
+        onChange={(f) => setDetails({ ...details, registrationFields: f })}
+      />
     </>
+  );
+}
+
+function DisplayToggles({
+  details,
+  setDetails,
+  showSeats,
+}: {
+  details: any;
+  setDetails: (d: any) => void;
+  showSeats: boolean;
+}) {
+  return (
+    <div className="mb-5">
+      <p className="font-mono text-[10.5px] uppercase tracking-wider text-muted mb-2">Display on page</p>
+      <div className="flex flex-wrap gap-6">
+        {showSeats && (
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              checked={details.showSeatsBadge !== false}
+              onChange={(e) => setDetails({ ...details, showSeatsBadge: e.target.checked })}
+              className="w-4 h-4"
+            />
+            Seats badge
+          </label>
+        )}
+        <label className="flex items-center gap-2 text-sm font-medium">
+          <input
+            type="checkbox"
+            checked={details.showCountdown !== false}
+            onChange={(e) => setDetails({ ...details, showCountdown: e.target.checked })}
+            className="w-4 h-4"
+          />
+          Countdown
+        </label>
+        <label className="flex items-center gap-2 text-sm font-medium">
+          <input
+            type="checkbox"
+            checked={details.showPriceBadge !== false}
+            onChange={(e) => setDetails({ ...details, showPriceBadge: e.target.checked })}
+            className="w-4 h-4"
+          />
+          Price badge
+        </label>
+      </div>
+    </div>
+  );
+}
+
+function RegistrationFieldsEditor({
+  fields,
+  onChange,
+}: {
+  fields: RegistrationField[];
+  onChange: (f: RegistrationField[]) => void;
+}) {
+  return (
+    <div className="mb-5">
+      <p className="font-mono text-[10.5px] uppercase tracking-wider text-muted mb-2">Registration fields</p>
+      {fields.map((f, i) => (
+        <div key={i} className="flex flex-wrap gap-2 mb-2 items-center">
+          <input
+            className="input flex-1 min-w-[100px]"
+            placeholder="key"
+            value={f.key}
+            onChange={(e) => {
+              const next = [...fields];
+              next[i] = { ...next[i], key: e.target.value };
+              onChange(next);
+            }}
+          />
+          <input
+            className="input flex-1 min-w-[120px]"
+            placeholder="Label"
+            value={f.label}
+            onChange={(e) => {
+              const next = [...fields];
+              next[i] = { ...next[i], label: e.target.value };
+              onChange(next);
+            }}
+          />
+          <select
+            className="input w-auto"
+            value={f.type}
+            onChange={(e) => {
+              const next = [...fields];
+              next[i] = { ...next[i], type: e.target.value as RegistrationField["type"] };
+              onChange(next);
+            }}
+          >
+            <option value="text">Text</option>
+            <option value="email">Email</option>
+            <option value="tel">Phone</option>
+          </select>
+          <label className="flex items-center gap-1.5 text-xs font-medium whitespace-nowrap">
+            <input
+              type="checkbox"
+              checked={f.required}
+              onChange={(e) => {
+                const next = [...fields];
+                next[i] = { ...next[i], required: e.target.checked };
+                onChange(next);
+              }}
+            />
+            Required
+          </label>
+          <button onClick={() => onChange(fields.filter((_, j) => j !== i))} className="text-live px-2">
+            ×
+          </button>
+        </div>
+      ))}
+      <button
+        onClick={() => onChange([...fields, { key: "", label: "", type: "text", required: false }])}
+        className="text-sm font-semibold text-marigold-deep"
+      >
+        + Add field
+      </button>
+    </div>
   );
 }
 

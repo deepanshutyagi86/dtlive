@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { DEFAULT_REGISTRATION_FIELDS, type RegistrationField } from "@/lib/types";
 
 declare global {
   interface Window {
@@ -11,17 +12,22 @@ export default function RegisterModal({
   itemId,
   title,
   workshopDate,
+  registrationFields,
   triggerClassName,
   triggerLabel,
 }: {
   itemId: string;
   title: string;
   workshopDate: string; // ISO datetime
+  registrationFields?: RegistrationField[];
   triggerClassName: string;
   triggerLabel: string;
 }) {
+  const fields =
+    registrationFields && registrationFields.length > 0 ? registrationFields : DEFAULT_REGISTRATION_FIELDS;
+
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", phone: "" });
+  const [form, setForm] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [registered, setRegistered] = useState(false);
@@ -42,9 +48,11 @@ export default function RegisterModal({
 
   async function register() {
     setError(null);
-    if (!form.name || !form.email || !form.phone) {
-      setError("Please fill in all three fields.");
-      return;
+    for (const f of fields) {
+      if (f.required && !form[f.key]?.trim()) {
+        setError("Please fill in all required fields.");
+        return;
+      }
     }
     setLoading(true);
     try {
@@ -52,10 +60,8 @@ export default function RegisterModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: form.name,
-          email: form.email,
-          phone: form.phone,
           itemId,
+          answers: form,
           fbc: readCookie("_fbc"),
           fbp: readCookie("_fbp"),
           eventSourceUrl: window.location.href,
@@ -99,7 +105,7 @@ export default function RegisterModal({
   function close() {
     setOpen(false);
     // Reset for next open, after the close animation-less unmount.
-    setForm({ name: "", email: "", phone: "" });
+    setForm({});
     setError(null);
     setRegistered(false);
   }
@@ -151,16 +157,18 @@ export default function RegisterModal({
                 <h3 className="font-display font-extrabold text-[22px] tracking-tight">{title}</h3>
                 <p className="font-mono text-[11px] text-muted mt-1.5 mb-5">Free · reserve your seat</p>
 
-                {(["name", "email", "phone"] as const).map((field) => (
-                  <div className="mb-3.5" key={field}>
+                {fields.map((f) => (
+                  <div className="mb-3.5" key={f.key}>
                     <label className="block font-mono text-[10.5px] uppercase tracking-wider text-muted mb-1.5">
-                      {field === "name" ? "Full name" : field === "phone" ? "WhatsApp number" : field}
+                      {f.label}
                     </label>
                     <input
-                      type={field === "email" ? "email" : field === "phone" ? "tel" : "text"}
-                      value={form[field]}
-                      onChange={(e) => setForm({ ...form, [field]: e.target.value })}
-                      placeholder={field === "phone" ? "+91" : field === "email" ? "you@example.com" : "Your name"}
+                      type={f.type}
+                      value={form[f.key] ?? ""}
+                      onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
+                      placeholder={
+                        f.key === "name" ? "Your name" : f.type === "tel" ? "+91" : f.type === "email" ? "you@example.com" : ""
+                      }
                       className="w-full px-3.5 py-3 text-[16px] bg-card border border-line rounded-[10px] focus:outline-none focus:border-marigold focus:ring-2 focus:ring-marigold"
                     />
                   </div>

@@ -1,12 +1,51 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/auth";
-import { claimMetaLeadEvent, createLead, listLeads } from "@/lib/admin-repo";
+import { claimMetaLeadEvent, createLead, decrementWorkshopSeats, listLeads } from "@/lib/admin-repo";
 import { sendMetaLeadEvent } from "@/lib/meta-capi";
+import { getItemById } from "@/lib/items";
+import { DEFAULT_REGISTRATION_FIELDS } from "@/lib/types";
+import type { WorkshopDetails } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
-  const { name, email, phone, itemId, fbc, fbp, eventSourceUrl } = await req.json();
-  if (!name || (!email && !phone)) {
-    return NextResponse.json({ error: "Name and at least one of email/phone are required." }, { status: 400 });
+  const { itemId, answers, fbc, fbp, eventSourceUrl } = await req.json();
+  if (!answers || typeof answers !== "object") {
+    return NextResponse.json({ error: "Missing form answers." }, { status: 400 });
+  }
+
+  const item = itemId ? await getItemById(itemId) : null;
+  const details = item?.details as WorkshopDetails | undefined;
+  const fields =
+    details?.registrationFields && details.registrationFields.length > 0
+      ? details.registrationFields
+      : DEFAULT_REGISTRATION_FIELDS;
+
+  for (const f of fields) {
+    if (f.required && !String(answers[f.key] ?? "").trim()) {
+      return NextResponse.json({ error: `"${f.label}" is required.` }, { status: 400 });
+    }
+  }
+
+  // Known columns are resolved by field *type* (not key) so a relabeled or
+  // renamed email/phone field still lands in the dedicated columns Meta
+  // CAPI matching relies on. "name" is the one key-based exception — it's
+  // the person's identity, not a contact channel. Everything else goes
+  // into `answers` JSONB.
+  const nameField = fields.find((f) => f.key === "name");
+  const emailField = fields.find((f) => f.type === "email");
+  const phoneField = fields.find((f) => f.type === "tel");
+
+  const email = emailField ? String(answers[emailField.key] ?? "").trim() || null : null;
+  const phone = phoneField ? String(answers[phoneField.key] ?? "").trim() || null : null;
+  const name = (nameField ? answers[nameField.key] : null) || email || phone || "Unknown";
+
+  if (!email && !phone) {
+    return NextResponse.json({ error: "At least one contact field (email or phone) is required." }, { status: 400 });
+  }
+
+  const extraAnswers: Record<string, string> = {};
+  for (const f of fields) {
+    if (f.key === nameField?.key || f === emailField || f === phoneField) continue;
+    if (answers[f.key] !== undefined && answers[f.key] !== "") extraAnswers[f.key] = String(answers[f.key]);
   }
 
   // x-forwarded-for can carry a "client, proxy1, proxy2" chain — the first
@@ -16,19 +55,24 @@ export async function POST(req: NextRequest) {
 
   const lead = await createLead({
     name,
-    contact: email || phone,
+    contact: email || phone || name,
     itemId: itemId || null,
-    email: email || null,
-    phone: phone || null,
+    email,
+    phone,
     fbc: typeof fbc === "string" ? fbc : null,
     fbp: typeof fbp === "string" ? fbp : null,
     clientIp,
     clientUserAgent,
     eventSourceUrl: typeof eventSourceUrl === "string" ? eventSourceUrl : null,
+    answers: Object.keys(extraAnswers).length > 0 ? extraAnswers : null,
   });
 
   if (await claimMetaLeadEvent(lead.id)) {
     await sendMetaLeadEvent(lead);
+  }
+
+  if (item && item.category === "workshop") {
+    await decrementWorkshopSeats(item.id);
   }
 
   return NextResponse.json({ ok: true, id: lead.id }, { status: 201 });

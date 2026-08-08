@@ -32,18 +32,18 @@ function Card({ item }: { item: StreamItem }) {
       className="flex-none w-[270px] md:w-[290px] bg-card border border-line rounded-card p-[18px] pb-4 flex flex-col gap-3 shadow-[0_14px_34px_-18px_rgba(25,25,19,0.28)] transition-transform duration-300 hover:!rotate-0 hover:-translate-y-1.5 hover:scale-[1.02] hover:shadow-[0_26px_50px_-20px_rgba(25,25,19,0.4)] hover:z-10 odd:-rotate-[1.6deg] even:rotate-[1.3deg] even:translate-y-2 group"
     >
       <div className="flex items-center justify-between">
-        <span className={`font-mono text-[10px] font-bold tracking-wider uppercase px-[9px] py-1 rounded-full border ${CHIP_CLASS[item.category]}`}>
+        <span className={`font-mono text-[10px] font-semibold uppercase tracking-[0.16em] px-[9px] py-1 rounded-full border ${CHIP_CLASS[item.category]}`}>
           {CATEGORY_LABELS[item.category]}
         </span>
-        <span className="flex items-center gap-1.5 font-mono text-[10px] text-live font-bold">
+        <span className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-live font-semibold">
           <span className="w-1.5 h-1.5 rounded-full bg-live live-dot" />
           LIVE
         </span>
       </div>
-      <div className="font-display font-bold text-[21px] tracking-tight leading-tight">{item.title}</div>
-      <div className="text-[16px] leading-relaxed text-ink-soft flex-1">{item.description}</div>
-      <div className="font-mono text-[11px] text-muted">{item.meta}</div>
-      <div className="flex items-center justify-between font-semibold text-sm border-t border-line pt-3 mt-0.5 group-hover:text-marigold-deep">
+      <div className="font-display font-semibold text-[20px] tracking-[-0.01em] leading-[1.2]">{item.title}</div>
+      <div className="text-[15px] leading-6 text-ink-soft flex-1">{item.description}</div>
+      <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted">{item.meta}</div>
+      <div className="flex items-center justify-between font-medium text-[14px] border-t border-line pt-3 mt-0.5 group-hover:text-marigold-deep">
         <span>{CATEGORY_CTA[item.category]}</span>
         <span className="transition-transform group-hover:translate-x-1.5">→</span>
       </div>

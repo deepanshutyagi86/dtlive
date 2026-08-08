@@ -36,28 +36,35 @@ export default async function HomePage() {
   let spotlight: SpotlightData | null = null;
   if (featured && (featured.category === "course" || featured.category === "workshop")) {
     const d = featured.details as any;
-    const chips: string[] =
-      featured.category === "workshop"
-        ? [
-            new Date((d as WorkshopDetails).date).toLocaleString("en-IN", {
-              weekday: "short",
-              day: "numeric",
-              month: "short",
-              hour: "2-digit",
-              minute: "2-digit",
-              timeZone: "Asia/Kolkata",
-            }),
-            "Live on Zoom",
-            `${(d as WorkshopDetails).seatsLeft} seats left`,
-            `₹${(d as WorkshopDetails).price} early bird`,
-          ]
-        : [`₹${(d as CourseDetails).price}`, (d as CourseDetails).duration ?? "self-paced"];
+    const showSeats = featured.category === "workshop" && !d.unlimitedSeats && d.showSeatsBadge !== false;
+    const showPrice = d.showPriceBadge !== false;
+
+    const chips: string[] = [];
+    if (featured.category === "workshop") {
+      chips.push(
+        new Date((d as WorkshopDetails).date).toLocaleString("en-IN", {
+          weekday: "short",
+          day: "numeric",
+          month: "short",
+          hour: "2-digit",
+          minute: "2-digit",
+          timeZone: "Asia/Kolkata",
+        }),
+        "Live on Zoom"
+      );
+      if (showSeats) chips.push(`${(d as WorkshopDetails).seatsLeft} seats left`);
+      if (showPrice) chips.push(`₹${(d as WorkshopDetails).price} early bird`);
+    } else {
+      if (showPrice) chips.push(`₹${(d as CourseDetails).price}`);
+      chips.push((d as CourseDetails).duration ?? "self-paced");
+    }
 
     spotlight = {
       slug: featured.slug,
       title: featured.title,
       description: featured.description,
       chips,
+      showCountdown: d.showCountdown !== false,
       deadlineISO:
         featured.category === "workshop" ? (d as WorkshopDetails).date : new Date(Date.now() + 6 * 864e5).toISOString(),
       ctaLabel: featured.category === "workshop" ? "Reserve my seat" : "Enroll now",
@@ -68,27 +75,26 @@ export default async function HomePage() {
     <>
       <Nav />
       <header className="max-w-[1200px] mx-auto px-5 pt-[118px] pb-2">
-        <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-muted mb-4">
+        <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted mb-4">
           deepanshutyagi.live — the storefront
         </p>
-        <h1 className="font-display font-extrabold text-[46px] md:text-[110px] leading-[0.98] tracking-tight">
+        <h1 className="font-display font-semibold tracking-[-0.02em] text-[40px] md:text-[76px] leading-[0.95]">
           <span className="inline-block w-[0.35em] h-[0.35em] rounded-full bg-live live-dot mr-[0.18em] align-[0.08em]" />
           Live,
           <br />
           <span className="text-marigold-deep">right now.</span>
         </h1>
-        <p className="mt-5 max-w-[520px] text-[17px] leading-relaxed text-ink-soft">
-          Every course, workshop and drop I&apos;m currently running. If a card is here, it&apos;s open —
-          tap it to see everything and join. Grab the stream, throw it around.
+        <p className="mt-5 max-w-[560px] text-[16px] md:text-[17px] leading-7 text-ink-soft">
+          A simple view of what is open right now. Tap any card to see the details and join.
         </p>
       </header>
 
       <div className="max-w-[1200px] mx-auto px-5 flex items-center justify-between gap-3 mt-14 mb-3.5">
-        <div className="flex items-center gap-2.5 font-mono text-xs tracking-[0.16em] uppercase font-bold">
+        <div className="flex items-center gap-2.5 font-mono text-[10px] uppercase tracking-[0.16em] font-semibold">
           <span className="w-2.5 h-2.5 rounded-full bg-live live-dot" />
           The stream
         </div>
-        <div className="font-mono text-[11px] text-muted">drag to scroll →</div>
+        <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted">drag to scroll →</div>
       </div>
       <LiveStream items={streamItems} />
 

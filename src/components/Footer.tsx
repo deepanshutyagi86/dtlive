@@ -12,8 +12,8 @@ export default function Footer({ links }: { links: FooterLinks }) {
   return (
     <footer className="mt-[90px] bg-ink text-bone px-5 pt-20 pb-8">
       <div className="max-w-[1200px] mx-auto">
-        <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-[#8b8a80]">One conversation away</p>
-        <h2 className="font-display font-extrabold text-[40px] md:text-[96px] tracking-tight leading-none mt-2">
+        <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#8b8a80]">One conversation away</p>
+        <h2 className="font-display font-semibold text-[36px] md:text-[80px] tracking-[-0.02em] leading-[0.95] mt-2">
           Build something
           <br />
           <a
@@ -45,7 +45,7 @@ export default function Footer({ links }: { links: FooterLinks }) {
             </a>
           )}
         </div>
-        <div className="flex flex-wrap gap-x-5 gap-y-2 mt-14 font-mono text-[11px] text-[#8b8a80]">
+        <div className="flex flex-wrap gap-x-5 gap-y-2 mt-14 font-mono text-[10px] uppercase tracking-[0.16em] text-[#8b8a80]">
           <Link href="/contact" className="hover:text-marigold">Contact</Link>
           <Link href="/terms" className="hover:text-marigold">Terms</Link>
           <Link href="/privacy" className="hover:text-marigold">Privacy</Link>
@@ -53,7 +53,7 @@ export default function Footer({ links }: { links: FooterLinks }) {
           <Link href="/shipping-policy" className="hover:text-marigold">Shipping &amp; Delivery</Link>
         </div>
 
-        <div className="flex flex-wrap justify-between gap-2 mt-5 pt-5 border-t border-[#33322b] font-mono text-[11px] text-[#8b8a80]">
+        <div className="flex flex-wrap justify-between gap-2 mt-5 pt-5 border-t border-[#33322b] font-mono text-[10px] uppercase tracking-[0.16em] text-[#8b8a80]">
           <span>© {new Date().getFullYear()} Deepanshu, trading as Deepanshu Empire · Meerut, UP</span>
           <Link href="/admin" className="hover:text-marigold">
             admin · deepanshutyagi.live

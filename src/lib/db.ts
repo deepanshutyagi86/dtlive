@@ -68,6 +68,7 @@ export interface LeadRow {
   client_user_agent: string | null;
   event_source_url: string | null;
   meta_lead_sent_at: string | null;
+  answers: Record<string, string> | null;
 }
 
 // --- camelCase shapes used throughout the app ---
@@ -120,6 +121,7 @@ export interface Lead {
   clientUserAgent: string | null;
   eventSourceUrl: string | null;
   metaLeadSentAt: string | null;
+  answers: Record<string, string> | null;
 }
 
 export function toItem(r: ItemRow): Item {
@@ -176,5 +178,6 @@ export function toLead(r: LeadRow): Lead {
     clientUserAgent: r.client_user_agent,
     eventSourceUrl: r.event_source_url,
     metaLeadSentAt: r.meta_lead_sent_at,
+    answers: r.answers,
   };
 }

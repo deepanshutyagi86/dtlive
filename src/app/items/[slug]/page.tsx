@@ -40,6 +40,8 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
   // instead of a checkout. Courses aren't part of this flow.
   const isFreeWorkshop = isWorkshop && price === 0;
   const triggerLabel = isFreeWorkshop ? "Reserve my free seat" : isWorkshop ? "Reserve my seat" : "Enroll now";
+  const showSeats = isWorkshop && !(d as WorkshopDetails).unlimitedSeats && (d as WorkshopDetails).showSeatsBadge !== false;
+  const showPriceBadge = d.showPriceBadge !== false;
 
   return (
     <>
@@ -55,6 +57,7 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
               itemId={item!.id}
               title={item!.title}
               workshopDate={(d as WorkshopDetails).date}
+              registrationFields={(d as WorkshopDetails).registrationFields}
               triggerLabel={triggerLabel}
               triggerClassName="bg-marigold border border-marigold text-ink font-semibold text-sm px-[18px] py-[10px] rounded-full hover:bg-ink hover:text-bone hover:border-ink transition-colors"
             />
@@ -93,12 +96,16 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
                 })}
               </span>
               <span className="font-mono text-[11px] px-3 py-1.5 border border-ink rounded-full">Live on Zoom</span>
-              <span className="font-mono text-[11px] px-3 py-1.5 border border-ink bg-marigold rounded-full font-bold">
-                {(d as WorkshopDetails).seatsLeft} seats left
-              </span>
+              {showSeats && (
+                <span className="font-mono text-[11px] px-3 py-1.5 border border-ink bg-marigold rounded-full font-bold">
+                  {(d as WorkshopDetails).seatsLeft} seats left
+                </span>
+              )}
             </>
           )}
-          <span className="font-mono text-[11px] px-3 py-1.5 border border-ink rounded-full">{priceLabel}</span>
+          {showPriceBadge && (
+            <span className="font-mono text-[11px] px-3 py-1.5 border border-ink rounded-full">{priceLabel}</span>
+          )}
         </div>
 
         <section className="mt-14">
@@ -141,7 +148,7 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
       <div className="md:hidden fixed left-0 right-0 bottom-0 z-[100] bg-ink text-bone flex items-center justify-between gap-3 px-4 py-3 pb-[calc(12px+env(safe-area-inset-bottom))]">
         <div>
           <span className="font-mono font-bold text-[15px] text-marigold">{priceLabel}</span>
-          {isWorkshop && (
+          {showSeats && (
             <small className="block font-mono text-[10px] text-[#8b8a80]">
               {(d as WorkshopDetails).seatsLeft} seats left
             </small>
@@ -152,6 +159,7 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
             itemId={item!.id}
             title={item!.title}
             workshopDate={(d as WorkshopDetails).date}
+            registrationFields={(d as WorkshopDetails).registrationFields}
             triggerLabel={triggerLabel}
             triggerClassName="bg-marigold text-ink font-semibold text-sm px-5 py-2.5 rounded-full"
           />

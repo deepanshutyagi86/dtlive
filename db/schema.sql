@@ -74,6 +74,11 @@ ALTER TABLE leads ADD COLUMN IF NOT EXISTS client_user_agent TEXT;
 ALTER TABLE leads ADD COLUMN IF NOT EXISTS event_source_url TEXT;
 ALTER TABLE leads ADD COLUMN IF NOT EXISTS meta_lead_sent_at TIMESTAMPTZ;
 
+-- Holds any registrationFields answers beyond name/email/phone, as
+-- {fieldKey: value}. email/phone columns above stay populated from
+-- whichever registrationFields have type "email"/"tel", for CAPI matching.
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS answers JSONB;
+
 CREATE TABLE IF NOT EXISTS settings (
   key    TEXT PRIMARY KEY,
   value  JSONB NOT NULL
