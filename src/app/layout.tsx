@@ -30,7 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="en" className={`${syne.variable} ${instrument.variable} ${spaceMono.variable}`}>
-      <body className="font-body antialiased text-[15px] leading-6 text-ink">
+      <body className="font-body">
         {pixelId && (
           <>
             <Script

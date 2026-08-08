@@ -41,21 +41,21 @@ export default function Spotlight({ data }: { data: SpotlightData }) {
     <section className="max-w-[1200px] mx-auto px-5 mt-[70px]">
       <div className="relative overflow-hidden bg-ink text-bone rounded-[20px] p-7 md:p-[54px] grid md:grid-cols-[1.4fr_1fr] gap-8 items-center">
         <div>
-          <span className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.16em] text-marigold mb-3.5">
+          <span className="inline-flex items-center gap-2 font-mono text-[11px] tracking-wider uppercase text-marigold mb-3.5">
             <span className="w-2 h-2 rounded-full bg-live live-dot" />
             Featured · closing soon
           </span>
-          <h2 className="font-display font-semibold text-[26px] md:text-[44px] tracking-[-0.02em] leading-[1.05]">
+          <h2 className="font-display font-extrabold text-[28px] md:text-[52px] tracking-tight leading-[1.05]">
             {data.title}
           </h2>
-          <p className="mt-3.5 text-[15px] md:text-[16px] leading-7 text-[#b9b8ae] max-w-[480px]">
+          <p className="mt-3.5 text-[15.5px] leading-relaxed text-[#b9b8ae] max-w-[480px]">
             {data.description}
           </p>
           <div className="flex flex-wrap gap-2 mt-4">
             {data.chips.map((c, i) => (
               <span
                 key={i}
-                className={`font-mono text-[10px] uppercase tracking-[0.16em] px-3 py-1.5 rounded-full border ${
+                className={`font-mono text-[11px] px-3 py-1.5 rounded-full border ${
                   c === hot ? "border-marigold text-marigold" : "border-[#3c3b33] text-bone"
                 }`}
               >
@@ -70,10 +70,10 @@ export default function Spotlight({ data }: { data: SpotlightData }) {
               {(["d", "h", "m", "s"] as const).map((k, i) => (
                 <div key={k} className="flex items-center gap-2.5">
                   <div className="text-center">
-                    <b className="block font-display font-semibold text-[24px] md:text-[38px] tracking-[-0.02em] min-w-[2ch]">
+                    <b className="block font-display font-extrabold text-[26px] md:text-[44px] tracking-tight min-w-[2ch]">
                       {cd[k]}
                     </b>
-                    <small className="block font-mono text-[10px] uppercase tracking-[0.16em] text-[#8b8a80]">
+                    <small className="block font-mono text-[10px] tracking-wider uppercase text-[#8b8a80]">
                       {{ d: "days", h: "hrs", m: "min", s: "sec" }[k]}
                     </small>
                   </div>
@@ -84,11 +84,11 @@ export default function Spotlight({ data }: { data: SpotlightData }) {
           )}
           <Link
             href={`/items/${data.slug}`}
-            className="text-[15px] px-[26px] py-3.5 rounded-full bg-marigold border border-marigold text-ink font-medium hover:bg-bone hover:border-bone transition-colors"
+            className="text-[16px] px-[26px] py-3.5 rounded-full bg-marigold border border-marigold text-ink font-semibold hover:bg-bone hover:border-bone transition-colors"
           >
             {data.ctaLabel} →
           </Link>
-          <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#8b8a80]">Secured by Cashfree · instant receipt</span>
+          <span className="font-mono text-[11px] text-[#8b8a80]">Secured by Cashfree · instant receipt</span>
         </div>
       </div>
     </section>
