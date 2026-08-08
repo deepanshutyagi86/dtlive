@@ -7,6 +7,7 @@ import Testimonials, { Testimonial } from "@/components/Testimonials";
 import Footer, { FooterLinks } from "@/components/Footer";
 import { getDoorCounts, getFeaturedItem, getLiveStreamItems, getSetting } from "@/lib/items";
 import { metaFor, externalFor } from "@/lib/homepage";
+import { sql } from "@/lib/db";
 import type { CourseDetails, WorkshopDetails } from "@/lib/types";
 
 // Always fetch fresh — this page changes the moment something goes live
@@ -64,8 +65,19 @@ export default async function HomePage() {
     };
   }
 
+  // TEMPORARY DEBUG — remove after diagnosing homepage/query divergence.
+  const { rows: debugRaw } = await sql`SELECT id, slug, live FROM items ORDER BY updated_at DESC`;
+  const debugInfo = JSON.stringify({
+    liveStreamCount: items.length,
+    liveStreamIds: items.map((i) => `${i.slug}:${i.live}`),
+    rawCount: debugRaw.length,
+    rawIds: debugRaw.map((r: any) => `${r.slug}:${r.live}`),
+    vercelDeployment: process.env.VERCEL_DEPLOYMENT_ID ?? process.env.VERCEL_GIT_COMMIT_SHA ?? "unknown",
+  });
+
   return (
     <>
+      {/* DEBUG: {debugInfo} */}
       <Nav />
       <header className="max-w-[1200px] mx-auto px-5 pt-[118px] pb-2">
         <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-muted mb-4">
