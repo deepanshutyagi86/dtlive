@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { claimMetaPurchaseEvent, getOrderById, setOrderStatus, updateItem } from "@/lib/admin-repo";
+import { claimMetaPurchaseEvent, decrementWorkshopSeats, getOrderById, setOrderStatus } from "@/lib/admin-repo";
 import { verifyCashfreeWebhookSignature } from "@/lib/cashfree";
 import { sendMetaPurchaseEvent } from "@/lib/meta-capi";
-import type { WorkshopDetails } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
   const rawBody = await req.text();
@@ -40,10 +39,10 @@ export async function POST(req: NextRequest) {
       await setOrderStatus(order.id, "paid");
 
       if (order.item.category === "workshop") {
-        const details = order.item.details as WorkshopDetails;
-        if (details.seatsLeft > 0) {
-          await updateItem(order.itemId, { details: { ...details, seatsLeft: details.seatsLeft - 1 } });
-        }
+        // Atomic conditional decrement — safe under Cashfree webhook retries and
+        // concurrent purchases, and it won't clobber concurrent admin edits to
+        // the rest of the details blob.
+        await decrementWorkshopSeats(order.itemId);
       }
 
       // TODO: generate the PDF receipt here (GST included, matching the
