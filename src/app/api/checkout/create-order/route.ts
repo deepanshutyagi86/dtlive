@@ -3,9 +3,17 @@ import { getItemById } from "@/lib/items";
 import { createOrder, setOrderCashfreeId } from "@/lib/admin-repo";
 import { createCashfreeOrder } from "@/lib/cashfree";
 import type { CourseDetails, WorkshopDetails } from "@/lib/types";
+import { rateLimit, clientIpFrom } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
   try {
+    if (!rateLimit(`checkout:${clientIpFrom(req)}`, 5, 60_000)) {
+      return NextResponse.json(
+        { error: "Too many requests. Please wait a minute and try again." },
+        { status: 429 }
+      );
+    }
+
     const { itemId, name, email, phone, fbc, fbp, eventSourceUrl } = await req.json();
 
     if (!itemId || !name || !email || !phone) {

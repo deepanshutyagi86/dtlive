@@ -5,8 +5,16 @@ import { sendMetaLeadEvent } from "@/lib/meta-capi";
 import { getItemById } from "@/lib/items";
 import { DEFAULT_REGISTRATION_FIELDS } from "@/lib/types";
 import type { WorkshopDetails } from "@/lib/types";
+import { rateLimit, clientIpFrom } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
+  if (!rateLimit(`leads:${clientIpFrom(req)}`, 5, 60_000)) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait a minute and try again." },
+      { status: 429 }
+    );
+  }
+
   const { itemId, answers, fbc, fbp, eventSourceUrl } = await req.json();
   if (!answers || typeof answers !== "object") {
     return NextResponse.json({ error: "Missing form answers." }, { status: 400 });
