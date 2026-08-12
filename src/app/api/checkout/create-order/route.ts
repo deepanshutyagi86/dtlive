@@ -20,6 +20,20 @@ export async function POST(req: NextRequest) {
     const details = item.details as CourseDetails | WorkshopDetails;
     const amount = details.price;
 
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return NextResponse.json(
+        { error: "This item isn't purchasable right now." },
+        { status: 400 }
+      );
+    }
+
+    if (item.category === "workshop") {
+      const w = details as WorkshopDetails;
+      if (!w.unlimitedSeats && (w.seatsLeft ?? 0) <= 0) {
+        return NextResponse.json({ error: "This workshop is sold out." }, { status: 409 });
+      }
+    }
+
     // x-forwarded-for can carry a "client, proxy1, proxy2" chain — the
     // first entry is the buyer's IP, which is what Meta expects.
     const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
@@ -30,7 +44,7 @@ export async function POST(req: NextRequest) {
       buyerName: name,
       buyerEmail: email,
       buyerPhone: phone,
-      amount: amount * 100, // store in paise
+      amount: Math.round(amount * 100), // store in paise
       fbc: typeof fbc === "string" ? fbc : null,
       fbp: typeof fbp === "string" ? fbp : null,
       clientIp,
@@ -47,9 +61,6 @@ export async function POST(req: NextRequest) {
     });
 
     await setOrderCashfreeId(order.id, cfOrder.cf_order_id);
-
-    // TODO: move workshop seat decrement to the webhook handler once
-    // payment is confirmed, to avoid holding seats for abandoned checkouts.
 
     return NextResponse.json({ paymentSessionId: cfOrder.payment_session_id, orderId: order.id });
   } catch (err: any) {
