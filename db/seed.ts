@@ -3,6 +3,28 @@ import { sql } from "../src/lib/db";
 import { randomUUID } from "crypto";
 
 async function main() {
+  const host = (() => {
+    try {
+      return new URL(process.env.DATABASE_URL ?? "").hostname;
+    } catch {
+      return "unknown";
+    }
+  })();
+
+  if (!process.env.ALLOW_DESTRUCTIVE_SEED) {
+    console.error(
+      `\nRefusing to seed.\n` +
+        `This DELETES every item, order, lead and setting in the target database.\n` +
+        `Target host: ${host}\n\n` +
+        `If that is really what you want:\n` +
+        `  ALLOW_DESTRUCTIVE_SEED=1 npm run db:seed\n`
+    );
+    process.exit(1);
+  }
+
+  console.warn(`\n⚠️  Destructive seed against ${host} — 3 seconds to Ctrl-C…\n`);
+  await new Promise((r) => setTimeout(r, 3000));
+
   await sql`DELETE FROM leads`;
   await sql`DELETE FROM orders`;
   await sql`DELETE FROM items`;
