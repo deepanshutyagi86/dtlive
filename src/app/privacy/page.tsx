@@ -70,8 +70,13 @@ export default async function PrivacyPage() {
 
       <h2>6. Cookies</h2>
       <p>
-        The Site uses only essential cookies required for admin login sessions and core
-        functionality. We do not use third-party advertising or tracking cookies.
+        The Site uses essential cookies required for admin login sessions and core
+        functionality. It also uses the Meta Pixel, which sets third-party cookies
+        (<code>_fbc</code> and <code>_fbp</code>) in your browser so we can measure
+        whether an advertisement led to a purchase or registration. You can block or
+        clear these through your browser settings, or opt out of interest-based ads
+        through your Meta ad preferences — the Site will continue to work normally
+        either way.
       </p>
 
       <h2>7. Children&apos;s privacy</h2>
