@@ -32,6 +32,8 @@ Fill in `.env`:
 - **CASHFREE_APP_ID** / **CASHFREE_SECRET_KEY** — from your Cashfree
   sandbox dashboard (cashfree.com → Developers → API Keys). Leave
   `CASHFREE_ENV="SANDBOX"` until you're ready to go live.
+- **META_PIXEL_ID** / **META_CAPI_TOKEN** — optional; from Meta Events
+  Manager. Leave blank to run without any tracking.
 
 ## 2. Database
 
