@@ -13,6 +13,13 @@ export async function POST(req: NextRequest) {
   }
 
   const item = itemId ? await getItemById(itemId) : null;
+
+  // An itemId that doesn't resolve to a live item is either a stale page or
+  // someone poking the endpoint directly — either way, don't touch it.
+  if (itemId && (!item || !item.live)) {
+    return NextResponse.json({ error: "This item is not available." }, { status: 404 });
+  }
+
   const details = item?.details as WorkshopDetails | undefined;
   const fields =
     details?.registrationFields && details.registrationFields.length > 0
@@ -71,8 +78,14 @@ export async function POST(req: NextRequest) {
     await sendMetaLeadEvent(lead);
   }
 
-  if (item && item.category === "workshop") {
-    await decrementWorkshopSeats(item.id);
+  // Only the free-registration flow decrements here. Paid workshops decrement
+  // in the Cashfree webhook, on confirmed payment — otherwise anyone could
+  // zero out a paid workshop's seats by POSTing to this public endpoint.
+  const isFreeWorkshop =
+    item?.category === "workshop" && (item.details as WorkshopDetails).price === 0;
+
+  if (isFreeWorkshop) {
+    await decrementWorkshopSeats(item!.id);
   }
 
   return NextResponse.json({ ok: true, id: lead.id }, { status: 201 });
