@@ -21,16 +21,24 @@ const CHIP_CLASS: Record<Category, string> = {
   agency: "bg-bone border-ink",
 };
 
+const CARD_CLASS =
+  "flex-none w-[270px] md:w-[290px] bg-card border border-line rounded-card p-[18px] pb-4 flex flex-col gap-3 shadow-[0_14px_34px_-18px_rgba(25,25,19,0.28)] transition-transform duration-300 hover:!rotate-0 hover:-translate-y-1.5 hover:scale-[1.02] hover:shadow-[0_26px_50px_-20px_rgba(25,25,19,0.4)] hover:z-10 odd:-rotate-[1.6deg] even:rotate-[1.3deg] even:translate-y-2 group";
+
+// course/workshop have a real detail page; agency has no per-item page (it
+// links to the /agency listing instead — see CategoryGrid for the actual
+// "get a quote" flow on that listing); shop/venture with no externalUrl set
+// have nowhere safe to send a click at all, so the card renders unlinked.
+function hrefFor(item: StreamItem): { href: string; external: boolean } | null {
+  if (item.external) return { href: item.external, external: true };
+  if (item.category === "course" || item.category === "workshop") return { href: `/items/${item.slug}`, external: false };
+  if (item.category === "agency") return { href: "/agency", external: false };
+  return null;
+}
+
 function Card({ item }: { item: StreamItem }) {
-  const href = item.external ?? `/items/${item.slug}`;
-  const isExternal = !!item.external;
-  return (
-    <Link
-      href={href}
-      target={isExternal ? "_blank" : undefined}
-      rel={isExternal ? "noopener" : undefined}
-      className="flex-none w-[270px] md:w-[290px] bg-card border border-line rounded-card p-[18px] pb-4 flex flex-col gap-3 shadow-[0_14px_34px_-18px_rgba(25,25,19,0.28)] transition-transform duration-300 hover:!rotate-0 hover:-translate-y-1.5 hover:scale-[1.02] hover:shadow-[0_26px_50px_-20px_rgba(25,25,19,0.4)] hover:z-10 odd:-rotate-[1.6deg] even:rotate-[1.3deg] even:translate-y-2 group"
-    >
+  const link = hrefFor(item);
+  const inner = (
+    <>
       <div className="flex items-center justify-between">
         <span className={`font-mono text-[10px] font-bold tracking-wider uppercase px-[9px] py-1 rounded-full border ${CHIP_CLASS[item.category]}`}>
           {CATEGORY_LABELS[item.category]}
@@ -43,10 +51,27 @@ function Card({ item }: { item: StreamItem }) {
       <div className="font-display font-bold text-[21px] tracking-tight leading-tight">{item.title}</div>
       <div className="text-[16px] leading-relaxed text-ink-soft flex-1">{item.description}</div>
       <div className="font-mono text-[11px] text-muted">{item.meta}</div>
-      <div className="flex items-center justify-between font-semibold text-sm border-t border-line pt-3 mt-0.5 group-hover:text-marigold-deep">
-        <span>{CATEGORY_CTA[item.category]}</span>
-        <span className="transition-transform group-hover:translate-x-1.5">→</span>
-      </div>
+      {link && (
+        <div className="flex items-center justify-between font-semibold text-sm border-t border-line pt-3 mt-0.5 group-hover:text-marigold-deep">
+          <span>{CATEGORY_CTA[item.category]}</span>
+          <span className="transition-transform group-hover:translate-x-1.5">→</span>
+        </div>
+      )}
+    </>
+  );
+
+  if (!link) {
+    return <div className={CARD_CLASS}>{inner}</div>;
+  }
+
+  return (
+    <Link
+      href={link.href}
+      target={link.external ? "_blank" : undefined}
+      rel={link.external ? "noopener" : undefined}
+      className={CARD_CLASS}
+    >
+      {inner}
     </Link>
   );
 }

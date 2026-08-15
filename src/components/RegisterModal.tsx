@@ -19,7 +19,9 @@ export default function RegisterModal({
 }: {
   itemId: string;
   title: string;
-  workshopDate: string; // ISO datetime
+  // ISO datetime. Omit for non-workshop inquiries (e.g. agency "get a
+  // quote") — the date/calendar block below is skipped entirely when unset.
+  workshopDate?: string;
   registrationFields?: RegistrationField[];
   triggerClassName: string;
   triggerLabel: string;
@@ -87,25 +89,27 @@ export default function RegisterModal({
     }
   }
 
-  const dateObj = new Date(workshopDate);
-  const dateLabel = dateObj.toLocaleString("en-IN", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const dateObj = workshopDate ? new Date(workshopDate) : null;
+  const dateLabel = dateObj
+    ? dateObj.toLocaleString("en-IN", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : null;
 
   // No explicit end time on the workshop — 90 minutes is a reasonable
   // default for a calendar hold and isn't shown to the registrant anywhere.
-  const calendarStart = dateObj;
-  const calendarEnd = new Date(dateObj.getTime() + 90 * 60 * 1000);
   const toCalStamp = (d: Date) => d.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
-  const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(
-    title
-  )}&dates=${toCalStamp(calendarStart)}/${toCalStamp(calendarEnd)}&details=${encodeURIComponent(
-    `${title} — live on Zoom. Link will be shared by email/WhatsApp before the session.`
-  )}`;
+  const calendarUrl = dateObj
+    ? `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(
+        title
+      )}&dates=${toCalStamp(dateObj)}/${toCalStamp(new Date(dateObj.getTime() + 90 * 60 * 1000))}&details=${encodeURIComponent(
+        `${title} — live on Zoom. Link will be shared by email/WhatsApp before the session.`
+      )}`
+    : null;
 
   function close() {
     setOpen(false);
@@ -137,30 +141,42 @@ export default function RegisterModal({
 
             {registered ? (
               <>
-                <h3 className="font-display font-extrabold text-[22px] tracking-tight">You&apos;re in 🎉</h3>
-                <p className="text-[16px] leading-relaxed text-ink-soft mt-3">
-                  Your free seat for <b>{title}</b> is reserved.
-                </p>
-                <div className="mt-4 p-4 bg-card border border-line rounded-[10px]">
-                  <p className="font-mono text-[10.5px] uppercase tracking-wider text-muted mb-1">When</p>
-                  <p className="font-semibold text-[16px]">{dateLabel} · Live on Zoom</p>
-                </div>
-                <p className="text-[16px] leading-relaxed text-ink-soft mt-4">
-                  We&apos;ll email and WhatsApp the Zoom link before the session starts.
-                </p>
-                <a
-                  href={calendarUrl}
-                  target="_blank"
-                  rel="noopener"
-                  className="block text-center w-full mt-5 py-3.5 rounded-full bg-marigold text-ink font-semibold text-[16px] hover:bg-ink hover:text-bone transition-colors"
-                >
-                  Add to calendar →
-                </a>
+                <h3 className="font-display font-extrabold text-[22px] tracking-tight">
+                  {dateObj ? "You're in 🎉" : "Got it 🎉"}
+                </h3>
+                {dateObj ? (
+                  <>
+                    <p className="text-[16px] leading-relaxed text-ink-soft mt-3">
+                      Your free seat for <b>{title}</b> is reserved.
+                    </p>
+                    <div className="mt-4 p-4 bg-card border border-line rounded-[10px]">
+                      <p className="font-mono text-[10.5px] uppercase tracking-wider text-muted mb-1">When</p>
+                      <p className="font-semibold text-[16px]">{dateLabel} · Live on Zoom</p>
+                    </div>
+                    <p className="text-[16px] leading-relaxed text-ink-soft mt-4">
+                      We&apos;ll email and WhatsApp the Zoom link before the session starts.
+                    </p>
+                    <a
+                      href={calendarUrl!}
+                      target="_blank"
+                      rel="noopener"
+                      className="block text-center w-full mt-5 py-3.5 rounded-full bg-marigold text-ink font-semibold text-[16px] hover:bg-ink hover:text-bone transition-colors"
+                    >
+                      Add to calendar →
+                    </a>
+                  </>
+                ) : (
+                  <p className="text-[16px] leading-relaxed text-ink-soft mt-3">
+                    Got your details for <b>{title}</b> — I&apos;ll follow up by email or WhatsApp shortly.
+                  </p>
+                )}
               </>
             ) : (
               <>
                 <h3 className="font-display font-extrabold text-[22px] tracking-tight">{title}</h3>
-                <p className="font-mono text-[11px] text-muted mt-1.5 mb-5">Free · reserve your seat</p>
+                <p className="font-mono text-[11px] text-muted mt-1.5 mb-5">
+                  {dateObj ? "Free · reserve your seat" : "Tell us about your project"}
+                </p>
 
                 {fields.map((f) => (
                   <div className="mb-3.5" key={f.key}>
@@ -186,7 +202,7 @@ export default function RegisterModal({
                   disabled={loading}
                   className="w-full py-3.5 rounded-full bg-marigold text-ink font-semibold text-[16px] hover:bg-ink hover:text-bone transition-colors disabled:opacity-60"
                 >
-                  {loading ? "Reserving…" : "Reserve my free seat →"}
+                  {loading ? (dateObj ? "Reserving…" : "Sending…") : dateObj ? "Reserve my free seat →" : "Send inquiry →"}
                 </button>
               </>
             )}
