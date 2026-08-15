@@ -118,7 +118,7 @@ export default function CheckoutModal({
               {loading ? "Starting payment…" : `Proceed to pay ${priceLabel} →`}
             </button>
             <div className="flex items-center justify-center gap-2 font-mono text-[10.5px] text-muted mt-3.5">
-              🔒 Secured by Cashfree · GST invoice · instant receipt
+              🔒 Secured by Cashfree · GST-registered seller
             </div>
           </div>
         </div>

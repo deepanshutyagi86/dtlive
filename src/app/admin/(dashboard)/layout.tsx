@@ -1,5 +1,9 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getAdminSession } from "@/lib/auth";
 import LogoutButton from "./LogoutButton";
+
+export const dynamic = "force-dynamic";
 
 const NAV = [
   { href: "/admin", label: "Dashboard" },
@@ -10,7 +14,17 @@ const NAV = [
   { href: "/admin/diagnostics", label: "Diagnostics" },
 ];
 
-export default function AdminDashboardLayout({ children }: { children: React.ReactNode }) {
+export default async function AdminDashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  // The Edge middleware can only check that the session cookie exists — it
+  // can't verify the HMAC. This is the real lock: it runs on every page in
+  // the (dashboard) group before any of them query the database.
+  const admin = await getAdminSession();
+  if (!admin) redirect("/admin/login");
+
   return (
     <div className="min-h-screen bg-bone flex flex-col md:flex-row">
       <aside className="md:w-[220px] md:min-h-screen md:border-r border-line bg-card">
