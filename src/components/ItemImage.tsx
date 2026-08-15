@@ -2,8 +2,13 @@ import Image from "next/image";
 import ItemPlaceholder from "./ItemPlaceholder";
 import { Category } from "@/lib/types";
 
-// Fixed 4:3 box so cards never reflow as images load in — the placeholder
-// renders at the exact same box when there's no thumbnail yet.
+// Single source of truth for the card image proportions — change this one
+// token to retune every card at once instead of hunting for aspect-[..]
+// strings across the component tree.
+export const ITEM_IMAGE_ASPECT_CLASS = "aspect-[3/2]";
+
+// Fixed aspect-ratio box so cards never reflow as images load in — the
+// placeholder renders at the exact same box when there's no thumbnail yet.
 export default function ItemImage({
   thumbnail,
   title,
@@ -20,7 +25,7 @@ export default function ItemImage({
   className?: string;
 }) {
   return (
-    <div className={`relative w-full aspect-[4/3] ${className}`}>
+    <div className={`relative w-full ${ITEM_IMAGE_ASPECT_CLASS} ${className}`}>
       {thumbnail ? (
         <Image src={thumbnail} alt={title} fill sizes={sizes} className="object-cover" draggable={false} />
       ) : (
