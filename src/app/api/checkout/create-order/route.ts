@@ -3,9 +3,17 @@ import { getItemById } from "@/lib/items";
 import { createOrder, setOrderCashfreeId } from "@/lib/admin-repo";
 import { createCashfreeOrder } from "@/lib/cashfree";
 import type { CourseDetails, WorkshopDetails } from "@/lib/types";
+import { rateLimit, clientIpFrom } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
   try {
+    if (!rateLimit(`checkout:${clientIpFrom(req)}`, 5, 60_000)) {
+      return NextResponse.json(
+        { error: "Too many requests. Please wait a minute and try again." },
+        { status: 429 }
+      );
+    }
+
     const { itemId, name, email, phone, fbc, fbp, eventSourceUrl } = await req.json();
 
     if (!itemId || !name || !email || !phone) {
@@ -20,6 +28,20 @@ export async function POST(req: NextRequest) {
     const details = item.details as CourseDetails | WorkshopDetails;
     const amount = details.price;
 
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return NextResponse.json(
+        { error: "This item isn't purchasable right now." },
+        { status: 400 }
+      );
+    }
+
+    if (item.category === "workshop") {
+      const w = details as WorkshopDetails;
+      if (!w.unlimitedSeats && (w.seatsLeft ?? 0) <= 0) {
+        return NextResponse.json({ error: "This workshop is sold out." }, { status: 409 });
+      }
+    }
+
     // x-forwarded-for can carry a "client, proxy1, proxy2" chain — the
     // first entry is the buyer's IP, which is what Meta expects.
     const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
@@ -30,7 +52,7 @@ export async function POST(req: NextRequest) {
       buyerName: name,
       buyerEmail: email,
       buyerPhone: phone,
-      amount: amount * 100, // store in paise
+      amount: Math.round(amount * 100), // store in paise
       fbc: typeof fbc === "string" ? fbc : null,
       fbp: typeof fbp === "string" ? fbp : null,
       clientIp,
@@ -47,9 +69,6 @@ export async function POST(req: NextRequest) {
     });
 
     await setOrderCashfreeId(order.id, cfOrder.cf_order_id);
-
-    // TODO: move workshop seat decrement to the webhook handler once
-    // payment is confirmed, to avoid holding seats for abandoned checkouts.
 
     return NextResponse.json({ paymentSessionId: cfOrder.payment_session_id, orderId: order.id });
   } catch (err: any) {

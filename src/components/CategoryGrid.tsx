@@ -1,10 +1,12 @@
 import Link from "next/link";
 import Nav from "./Nav";
 import Footer, { FooterLinks } from "./Footer";
+import RegisterModal from "./RegisterModal";
 import { CATEGORY_CTA, CATEGORY_LABELS, Category } from "@/lib/types";
 import type { AgencyDetails, CourseDetails, WorkshopDetails } from "@/lib/types";
 
 export interface GridItem {
+  id: string;
   slug: string;
   title: string;
   description: string;
@@ -60,24 +62,54 @@ export default function CategoryGrid({
           </div>
         ) : (
           <div className="grid md:grid-cols-3 gap-5 mt-12">
-            {items.map((item) => (
-              <Link
-                key={item.slug}
-                href={`/items/${item.slug}`}
-                className="group bg-card border border-line rounded-card p-5 flex flex-col gap-3 hover:-translate-y-1 hover:shadow-[0_20px_40px_-20px_rgba(25,25,19,0.35)] transition-all"
-              >
-                <span className="font-mono text-[10px] font-bold tracking-wider uppercase w-fit px-2.5 py-1 rounded-full border border-ink bg-bone">
-                  {CATEGORY_LABELS[item.category]}
-                </span>
-                <div className="font-display font-bold text-xl tracking-tight">{item.title}</div>
-                <div className="text-[16px] leading-relaxed text-ink-soft flex-1">{item.description}</div>
-                <div className="font-mono text-[11px] text-muted">{metaLine(item)}</div>
-                <div className="flex items-center justify-between font-semibold text-sm border-t border-line pt-3 group-hover:text-marigold-deep">
-                  <span>{CATEGORY_CTA[item.category]}</span>
-                  <span className="group-hover:translate-x-1.5 transition-transform">→</span>
-                </div>
-              </Link>
-            ))}
+            {items.map((item) => {
+              const cardInner = (
+                <>
+                  <span className="font-mono text-[10px] font-bold tracking-wider uppercase w-fit px-2.5 py-1 rounded-full border border-ink bg-bone">
+                    {CATEGORY_LABELS[item.category]}
+                  </span>
+                  <div className="font-display font-bold text-xl tracking-tight">{item.title}</div>
+                  <div className="text-[16px] leading-relaxed text-ink-soft flex-1">{item.description}</div>
+                  <div className="font-mono text-[11px] text-muted">{metaLine(item)}</div>
+                </>
+              );
+
+              // Agency items have no detail page (they're a quote request, not
+              // a checkout) — open the lead-capture flow instead of linking
+              // to /items/[slug], which 404s for this category.
+              if (item.category === "agency") {
+                return (
+                  <div
+                    key={item.slug}
+                    className="bg-card border border-line rounded-card p-5 flex flex-col gap-3"
+                  >
+                    {cardInner}
+                    <div className="flex items-center justify-between border-t border-line pt-3">
+                      <RegisterModal
+                        itemId={item.id}
+                        title={item.title}
+                        triggerLabel={`${CATEGORY_CTA[item.category]} →`}
+                        triggerClassName="font-semibold text-sm hover:text-marigold-deep transition-colors"
+                      />
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <Link
+                  key={item.slug}
+                  href={`/items/${item.slug}`}
+                  className="group bg-card border border-line rounded-card p-5 flex flex-col gap-3 hover:-translate-y-1 hover:shadow-[0_20px_40px_-20px_rgba(25,25,19,0.35)] transition-all"
+                >
+                  {cardInner}
+                  <div className="flex items-center justify-between font-semibold text-sm border-t border-line pt-3 group-hover:text-marigold-deep">
+                    <span>{CATEGORY_CTA[item.category]}</span>
+                    <span className="group-hover:translate-x-1.5 transition-transform">→</span>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         )}
       </main>

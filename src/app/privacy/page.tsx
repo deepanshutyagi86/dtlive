@@ -11,7 +11,7 @@ export default async function PrivacyPage() {
   const footerLinks = await getSetting<FooterLinks>("footerLinks", {});
 
   return (
-    <LegalPage title="Privacy Policy" updated="4 August 2026" footerLinks={footerLinks}>
+    <LegalPage title="Privacy Policy" updated="12 August 2026" footerLinks={footerLinks}>
       <p>
         {BUSINESS.tradeName} (&quot;we&quot;, &quot;us&quot;), operating {BUSINESS.siteName},
         respects your privacy. This policy explains what we collect, why, and how it&apos;s used
@@ -23,6 +23,12 @@ export default async function PrivacyPage() {
         <li><strong>At checkout:</strong> full name, email address, and phone number, to identify your order and deliver access/tickets.</li>
         <li><strong>Payment data:</strong> we never see or store your card, UPI, or bank details. These go directly to Cashfree Payments, our payment processor, over an encrypted connection.</li>
         <li><strong>Automatically:</strong> basic technical data such as browser type and pages visited, used only for keeping the Site working correctly.</li>
+        <li>
+          <strong>Advertising &amp; analytics:</strong> we use the Meta Pixel, which sets
+          cookies in your browser so we can measure whether an ad led to a purchase or a
+          registration. You can opt out through your browser settings or your Meta ad
+          preferences.
+        </li>
       </ul>
 
       <h2>2. How we use your data</h2>
@@ -36,10 +42,15 @@ export default async function PrivacyPage() {
 
       <h2>3. Who we share data with</h2>
       <p>
-        We share the minimum data necessary with: <strong>Cashfree Payments</strong> (to process
-        your payment), and infrastructure providers (<strong>Vercel</strong> for hosting and{" "}
-        <strong>Neon</strong> for database storage) who host the Site&apos;s data on our behalf
-        under their own security practices. We do not share your data with advertisers.
+        We share the minimum data necessary with: <strong>Cashfree Payments</strong>{" "}
+        (to process your payment); infrastructure providers (<strong>Vercel</strong>{" "}
+        for hosting and <strong>Neon</strong> for database storage) who hold this
+        Site&apos;s data on our behalf under their own security practices; and{" "}
+        <strong>Meta Platforms</strong>, to measure how our advertising performs. What
+        goes to Meta is limited to a one-way encrypted (hashed) form of your email
+        address and phone number, your IP address, your browser type, and the page you
+        were on. We never send Meta your name, your payment details, or the content of
+        anything you write to us. We do not sell your personal data to anyone.
       </p>
 
       <h2>4. Data retention</h2>
@@ -59,8 +70,13 @@ export default async function PrivacyPage() {
 
       <h2>6. Cookies</h2>
       <p>
-        The Site uses only essential cookies required for admin login sessions and core
-        functionality. We do not use third-party advertising or tracking cookies.
+        The Site uses essential cookies required for admin login sessions and core
+        functionality. It also uses the Meta Pixel, which sets third-party cookies
+        (<code>_fbc</code> and <code>_fbp</code>) in your browser so we can measure
+        whether an advertisement led to a purchase or registration. You can block or
+        clear these through your browser settings, or opt out of interest-based ads
+        through your Meta ad preferences — the Site will continue to work normally
+        either way.
       </p>
 
       <h2>7. Children&apos;s privacy</h2>

@@ -11,22 +11,37 @@ function secret() {
   return s;
 }
 
-// Signed token = base64(email).hmac  — no external session store needed
-// for a single admin user. Good enough for v1; swap for NextAuth/Lucia
-// later if you ever add more than one admin.
+// Signed token = base64url("email:issuedAtMs").hmac — no external session
+// store needed for a single admin user. The timestamp is inside the signed
+// payload (not just the cookie's maxAge) so a captured token actually
+// stops working after SESSION_MAX_AGE instead of living forever.
 function sign(email: string) {
-  const hmac = crypto.createHmac("sha256", secret()).update(email).digest("hex");
-  return `${Buffer.from(email).toString("base64url")}.${hmac}`;
+  const payload = `${email}:${Date.now()}`;
+  const hmac = crypto.createHmac("sha256", secret()).update(payload).digest("hex");
+  return `${Buffer.from(payload).toString("base64url")}.${hmac}`;
 }
 
 function verify(token: string): string | null {
   const [b64, hmac] = token.split(".");
   if (!b64 || !hmac) return null;
-  const email = Buffer.from(b64, "base64url").toString("utf8");
-  const expected = crypto.createHmac("sha256", secret()).update(email).digest("hex");
+
+  const payload = Buffer.from(b64, "base64url").toString("utf8");
+  const expected = crypto.createHmac("sha256", secret()).update(payload).digest("hex");
+
   const a = Buffer.from(hmac);
   const b = Buffer.from(expected);
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+
+  // Split on the LAST colon — email addresses can't contain one, but this
+  // is robust regardless.
+  const idx = payload.lastIndexOf(":");
+  if (idx === -1) return null;
+
+  const email = payload.slice(0, idx);
+  const issuedAt = Number(payload.slice(idx + 1));
+  if (!email || !Number.isFinite(issuedAt)) return null;
+  if (Date.now() - issuedAt > SESSION_MAX_AGE * 1000) return null;
+
   return email;
 }
 
