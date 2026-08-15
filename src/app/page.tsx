@@ -31,6 +31,7 @@ export default async function HomePage() {
     category: i.category,
     meta: metaFor(i),
     external: externalFor(i),
+    thumbnail: i.thumbnail,
   }));
 
   let spotlight: SpotlightData | null = null;
