@@ -38,13 +38,18 @@ export default function Spotlight({ data }: { data: SpotlightData }) {
   const showCountdown = data.showCountdown !== false;
 
   return (
-    <section className="max-w-[1200px] mx-auto px-5 mt-[70px]">
-      <div className="relative overflow-hidden bg-ink text-bone rounded-[20px] p-7 md:p-[54px] grid md:grid-cols-[1.4fr_1fr] gap-8 items-center">
+    <section className="max-w-[1200px] mx-auto px-5 mt-10 md:mt-14">
+      <div className="relative overflow-hidden bg-ink text-bone rounded-card p-7 md:p-[54px] grid md:grid-cols-[1.4fr_1fr] gap-8 items-center">
         <div>
-          <span className="inline-flex items-center gap-2 font-mono text-[11px] tracking-wider uppercase text-marigold mb-3.5">
-            <span className="w-2 h-2 rounded-full bg-live live-dot" />
-            Featured · closing soon
-          </span>
+          <div className="flex items-center justify-between mb-3.5">
+            <span className="font-mono text-[10px] font-bold tracking-wider uppercase px-[9px] py-1 rounded-full border border-marigold text-marigold">
+              Featured
+            </span>
+            <span className="flex items-center gap-1.5 font-mono text-[10px] text-live font-bold">
+              <span className="w-1.5 h-1.5 rounded-full bg-live live-dot" />
+              LIVE
+            </span>
+          </div>
           <h2 className="font-display font-extrabold text-[28px] md:text-[52px] tracking-tight leading-[1.05]">
             {data.title}
           </h2>

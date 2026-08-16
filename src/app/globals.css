@@ -43,22 +43,7 @@ body {
   animation: pulse 1.6s infinite;
 }
 
-@keyframes tick {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-50%);
-  }
-}
-.ticker-track {
-  animation: tick 30s linear infinite;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .ticker-track {
-    animation: none;
-  }
   .live-dot {
     animation: none;
   }
