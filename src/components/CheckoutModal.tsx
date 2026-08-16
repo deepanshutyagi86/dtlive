@@ -129,8 +129,8 @@ export default function CheckoutModal({
                     type={field === "email" ? "email" : field === "phone" ? "tel" : "text"}
                     value={form[field]}
                     onChange={(e) => setForm({ ...form, [field]: e.target.value })}
-                    placeholder={field === "phone" ? "+91" : field === "email" ? "you@example.com" : "Your name"}
-                    className="w-full px-3.5 py-3.5 text-[16px] bg-card border border-line rounded-[10px] focus:outline-none focus:border-marigold focus:ring-2 focus:ring-marigold"
+                    placeholder={field === "phone" ? "e.g. 9870600903" : field === "email" ? "e.g. you@example.com" : "e.g. Deepanshu"}
+                    className="w-full px-3.5 py-3.5 text-[16px] bg-card border border-line rounded-[10px] placeholder-ink-soft focus:outline-none focus:border-marigold focus:ring-2 focus:ring-marigold"
                   />
                 </div>
               ))}

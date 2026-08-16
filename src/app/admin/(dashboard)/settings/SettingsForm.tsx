@@ -90,7 +90,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-const inputClass = "w-full px-3.5 py-2.5 text-sm bg-card border border-line rounded-[10px] focus:outline-none focus:border-marigold focus:ring-2 focus:ring-marigold";
+const inputClass = "w-full px-3.5 py-2.5 text-sm bg-card border border-line rounded-[10px] placeholder-ink-soft focus:outline-none focus:border-marigold focus:ring-2 focus:ring-marigold";
 
 export default function SettingsForm() {
   const [heroCopy, setHeroCopy] = useState<HeroCopy>({});
@@ -193,7 +193,7 @@ export default function SettingsForm() {
         {testimonials.map((t, i) => (
           <div key={i} className="flex gap-2 mb-2">
             <input
-              className="flex-1 px-3.5 py-2.5 text-sm bg-card border border-line rounded-[10px]"
+              className="flex-1 px-3.5 py-2.5 text-sm bg-card border border-line rounded-[10px] placeholder-ink-soft"
               placeholder="Quote"
               value={t.quote}
               onChange={(e) => {
@@ -203,7 +203,7 @@ export default function SettingsForm() {
               }}
             />
             <input
-              className="w-48 px-3.5 py-2.5 text-sm bg-card border border-line rounded-[10px]"
+              className="w-48 px-3.5 py-2.5 text-sm bg-card border border-line rounded-[10px] placeholder-ink-soft"
               placeholder="Who"
               value={t.who}
               onChange={(e) => {
@@ -273,7 +273,7 @@ export default function SettingsForm() {
         </p>
         <input
           className={inputClass}
-          placeholder="you@example.com"
+          placeholder="e.g. you@example.com"
           value={notifyEmail}
           onChange={(e) => setNotifyEmail(e.target.value)}
         />
