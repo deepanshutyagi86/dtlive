@@ -92,7 +92,7 @@ function Card({ item }: { item: StreamItem }) {
 export default function LiveStream({ items }: { items: StreamItem[] }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<HTMLDivElement>(null);
-  const state = useRef({ x: 0, vx: -0.55, dragging: false, lastPX: 0, half: 0, paused: false });
+  const state = useRef({ x: 0, vx: -0.55, dragging: false, lastPX: 0, half: 0, paused: false, wheeling: false });
 
   useEffect(() => {
     const stream = streamRef.current;
@@ -109,7 +109,11 @@ export default function LiveStream({ items }: { items: StreamItem[] }) {
     let raf: number;
     const frame = () => {
       if (!s.dragging) {
-        if (!s.paused && !reduceMotion) s.vx += (-0.55 - s.vx) * 0.02;
+        // Autoplay decay is suppressed both on hover (s.paused) and while
+        // actively wheeling (s.wheeling) — otherwise the ambient drift
+        // would be constantly fighting the velocity the wheel handler
+        // just injected.
+        if (!s.paused && !s.wheeling && !reduceMotion) s.vx += (-0.55 - s.vx) * 0.02;
         s.x += s.vx;
       }
       if (s.half > 0) {
@@ -141,6 +145,32 @@ export default function LiveStream({ items }: { items: StreamItem[] }) {
       wrap.classList.remove("cursor-grabbing");
     };
 
+    let wheelIdleTimer: ReturnType<typeof setTimeout>;
+    // Claim horizontal intent only. A trackpad two-finger swipe (or a
+    // mouse's horizontal tilt-wheel) reports a larger |deltaX| than
+    // |deltaY|; shift+wheel is the standard way to go horizontal with a
+    // plain vertical mouse wheel. Anything else — normal vertical
+    // scrolling — must fall through untouched: no preventDefault, no
+    // effect on vx. Getting this wrong breaks page scroll over the
+    // carousel, which is worse than the problem this fixes.
+    const wheel = (e: WheelEvent) => {
+      const horizontal = Math.abs(e.deltaX) > Math.abs(e.deltaY) || e.shiftKey;
+      if (!horizontal) return;
+      e.preventDefault();
+      // Sign matches drag: dragging left moves the pointer to a smaller x
+      // (negative dx) and shifts the track left. A trackpad "swipe left"
+      // reports a positive deltaX (the native convention behind
+      // `scrollLeft += deltaX`), so it has to be negated here to produce
+      // the same leftward shift — feeding deltaX in unsigned would run
+      // the carousel backwards relative to drag.
+      s.vx = -e.deltaX;
+      s.wheeling = true;
+      clearTimeout(wheelIdleTimer);
+      wheelIdleTimer = setTimeout(() => {
+        s.wheeling = false;
+      }, 150);
+    };
+
     wrap.addEventListener("mousedown", down);
     window.addEventListener("mousemove", move);
     window.addEventListener("mouseup", up);
@@ -149,9 +179,11 @@ export default function LiveStream({ items }: { items: StreamItem[] }) {
     window.addEventListener("touchend", up);
     wrap.addEventListener("mouseenter", () => (s.paused = true));
     wrap.addEventListener("mouseleave", () => (s.paused = false));
+    wrap.addEventListener("wheel", wheel, { passive: false });
 
     return () => {
       cancelAnimationFrame(raf);
+      clearTimeout(wheelIdleTimer);
       window.removeEventListener("resize", measure);
       window.removeEventListener("mousemove", move);
       window.removeEventListener("mouseup", up);
