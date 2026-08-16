@@ -1,6 +1,6 @@
 import Image from "next/image";
 import ItemPlaceholder from "./ItemPlaceholder";
-import { Category } from "@/lib/types";
+import { Category, ImageFocal } from "@/lib/types";
 
 // Single source of truth for the card image proportions and crop anchor —
 // change these two tokens to retune every card at once instead of hunting
@@ -20,6 +20,7 @@ export default function ItemImage({
   category,
   seed,
   sizes,
+  imageFocal,
   className = "",
 }: {
   thumbnail: string | null;
@@ -27,6 +28,11 @@ export default function ItemImage({
   category: Category;
   seed: string;
   sizes: string;
+  // Per-item override (0–100 percentages), set from the admin focal-point
+  // picker. Absent/null falls back to the class-based global default —
+  // Tailwind can't compile a class from a runtime x/y value, so a specific
+  // focal point has to be an inline style, not a generated class.
+  imageFocal?: ImageFocal | null;
   className?: string;
 }) {
   return (
@@ -38,6 +44,7 @@ export default function ItemImage({
           fill
           sizes={sizes}
           className={`object-cover ${ITEM_IMAGE_OBJECT_POSITION_CLASS}`}
+          style={imageFocal ? { objectPosition: `${imageFocal.x}% ${imageFocal.y}%` } : undefined}
           draggable={false}
         />
       ) : (

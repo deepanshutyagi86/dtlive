@@ -18,10 +18,24 @@ export const DEFAULT_REGISTRATION_FIELDS: RegistrationField[] = [
   { key: "phone", label: "WhatsApp number", type: "tel", required: true },
 ];
 
+// x/y are 0–100 percentages, same units as CSS object-position. Absent on
+// an item means: fall back to the global default (ITEM_IMAGE_OBJECT_POSITION_CLASS
+// in ItemImage.tsx, currently object-top) — every read site must treat
+// undefined this way, not assume {x:50,y:50}.
+export interface ImageFocal {
+  x: number;
+  y: number;
+}
+
+// Shared by every category's details shape.
+interface ItemDetailsBase {
+  imageFocal?: ImageFocal;
+}
+
 // Shared by CourseDetails/WorkshopDetails — all optional, all read sites
 // must treat undefined as: fields = DEFAULT_REGISTRATION_FIELDS, every
 // showX flag = true, unlimitedSeats = false.
-interface RegistrationDisplayOptions {
+interface RegistrationDisplayOptions extends ItemDetailsBase {
   registrationFields?: RegistrationField[];
   showSeatsBadge?: boolean;
   showCountdown?: boolean;
@@ -43,19 +57,19 @@ export interface WorkshopDetails extends RegistrationDisplayOptions {
   agenda: CurriculumBlock[];
 }
 
-export interface AgencyDetails {
+export interface AgencyDetails extends ItemDetailsBase {
   priceType: "from" | "quote";
   priceValue?: number; // used if priceType === "from"
   included: string[];
 }
 
-export interface ShopDetails {
+export interface ShopDetails extends ItemDetailsBase {
   platform: string; // Amazon | Flipkart | Meesho | Website | ...
   brand: string; // Vyrelle | Muchhad | Sanskriti | ...
   externalUrl: string;
 }
 
-export interface VentureDetails {
+export interface VentureDetails extends ItemDetailsBase {
   equityPercent?: number;
   status: "live" | "coming-soon";
   externalUrl?: string;
