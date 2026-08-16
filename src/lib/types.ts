@@ -98,3 +98,14 @@ export const CATEGORY_CTA: Record<Category, string> = {
   shop: "Visit store",
   venture: "Visit site",
 };
+
+// The category chip fill/border language — shared so every surface that
+// shows a category badge (carousel cards, grid cards, directory cards)
+// reads as the same color-coded system rather than each inventing its own.
+export const CHIP_CLASS: Record<Category, string> = {
+  course: "bg-marigold border-marigold",
+  workshop: "bg-ink text-bone border-ink",
+  venture: "bg-transparent border-ink",
+  shop: "bg-transparent border-ink border-dashed",
+  agency: "bg-bone border-ink",
+};

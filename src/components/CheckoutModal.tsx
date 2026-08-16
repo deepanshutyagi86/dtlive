@@ -1,15 +1,26 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useRef, useState } from "react";
+import ItemImage from "./ItemImage";
+import { useModalBehavior } from "@/lib/useModalBehavior";
+import type { Category, ImageFocal } from "@/lib/types";
 
 export default function CheckoutModal({
   itemId,
   title,
+  slug,
+  category,
+  thumbnail,
+  imageFocal,
   priceLabel,
   triggerClassName,
   triggerLabel,
 }: {
   itemId: string;
   title: string;
+  slug: string;
+  category: Category;
+  thumbnail: string | null;
+  imageFocal?: ImageFocal | null;
   priceLabel: string;
   triggerClassName: string;
   triggerLabel: string;
@@ -18,6 +29,10 @@ export default function CheckoutModal({
   const [form, setForm] = useState({ name: "", email: "", phone: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useModalBehavior({ open, onClose: () => setOpen(false), panelRef, triggerRef });
 
   // Meta Pixel drops these cookies itself; forwarding them lets the
   // server-side Conversions API call match the same browser/click as the
@@ -26,12 +41,6 @@ export default function CheckoutModal({
     const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
     return match ? decodeURIComponent(match[1]) : null;
   }
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
 
   async function pay() {
     setError(null);
@@ -73,7 +82,7 @@ export default function CheckoutModal({
 
   return (
     <>
-      <button onClick={() => setOpen(true)} className={triggerClassName}>
+      <button ref={triggerRef} onClick={() => setOpen(true)} className={triggerClassName}>
         {triggerLabel}
       </button>
 
@@ -82,43 +91,62 @@ export default function CheckoutModal({
           className="fixed inset-0 bg-ink/55 backdrop-blur-sm flex items-center justify-center z-[200] p-4"
           onClick={(e) => e.target === e.currentTarget && setOpen(false)}
         >
-          <div className="bg-bone rounded-[18px] w-full max-w-[420px] p-7">
-            <button
-              onClick={() => setOpen(false)}
-              aria-label="Close"
-              className="float-right text-2xl leading-none text-muted hover:text-ink"
-            >
-              ×
-            </button>
-            <h3 className="font-display font-extrabold text-[22px] tracking-tight">{title}</h3>
-            <p className="font-mono text-[11px] text-muted mt-1.5 mb-5">{priceLabel}</p>
+          <div
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={title}
+            className="bg-bone rounded-card w-full max-w-[420px] max-h-[90dvh] flex flex-col overflow-hidden"
+          >
+            <div className="relative flex-none">
+              <ItemImage
+                thumbnail={thumbnail}
+                title={title}
+                category={category}
+                seed={slug}
+                sizes="(min-width: 480px) 420px, 90vw"
+                imageFocal={imageFocal}
+              />
+              <button
+                onClick={() => setOpen(false)}
+                aria-label="Close"
+                className="absolute top-3 right-3 w-11 h-11 rounded-full bg-ink/60 backdrop-blur-sm text-bone flex items-center justify-center text-2xl leading-none hover:bg-ink transition-colors"
+              >
+                ×
+              </button>
+            </div>
 
-            {(["name", "email", "phone"] as const).map((field) => (
-              <div className="mb-3.5" key={field}>
-                <label className="block font-mono text-[10.5px] uppercase tracking-wider text-muted mb-1.5">
-                  {field === "name" ? "Full name" : field}
-                </label>
-                <input
-                  type={field === "email" ? "email" : field === "phone" ? "tel" : "text"}
-                  value={form[field]}
-                  onChange={(e) => setForm({ ...form, [field]: e.target.value })}
-                  placeholder={field === "phone" ? "+91" : field === "email" ? "you@example.com" : "Your name"}
-                  className="w-full px-3.5 py-3 text-[16px] bg-card border border-line rounded-[10px] focus:outline-none focus:border-marigold focus:ring-2 focus:ring-marigold"
-                />
+            <div className="p-6 overflow-y-auto">
+              <h3 className="font-display font-extrabold text-[22px] tracking-tight">{title}</h3>
+              <p className="font-mono text-[11px] text-muted mt-1.5 mb-5">{priceLabel}</p>
+
+              {(["name", "email", "phone"] as const).map((field) => (
+                <div className="mb-3.5" key={field}>
+                  <label className="block font-mono text-[10.5px] uppercase tracking-wider text-muted mb-1.5">
+                    {field === "name" ? "Full name" : field}
+                  </label>
+                  <input
+                    type={field === "email" ? "email" : field === "phone" ? "tel" : "text"}
+                    value={form[field]}
+                    onChange={(e) => setForm({ ...form, [field]: e.target.value })}
+                    placeholder={field === "phone" ? "+91" : field === "email" ? "you@example.com" : "Your name"}
+                    className="w-full px-3.5 py-3.5 text-[16px] bg-card border border-line rounded-[10px] focus:outline-none focus:border-marigold focus:ring-2 focus:ring-marigold"
+                  />
+                </div>
+              ))}
+
+              {error && <p className="text-live text-sm mb-3">{error}</p>}
+
+              <button
+                onClick={pay}
+                disabled={loading}
+                className="w-full py-4 rounded-full bg-marigold text-ink font-semibold text-[16px] hover:bg-ink hover:text-bone transition-colors disabled:opacity-60"
+              >
+                {loading ? "Starting payment…" : `Proceed to pay ${priceLabel} →`}
+              </button>
+              <div className="flex items-center justify-center gap-2 font-mono text-[10.5px] text-muted mt-3.5">
+                🔒 Secured by Cashfree · GST-registered seller
               </div>
-            ))}
-
-            {error && <p className="text-live text-sm mb-3">{error}</p>}
-
-            <button
-              onClick={pay}
-              disabled={loading}
-              className="w-full py-3.5 rounded-full bg-marigold text-ink font-semibold text-[16px] hover:bg-ink hover:text-bone transition-colors disabled:opacity-60"
-            >
-              {loading ? "Starting payment…" : `Proceed to pay ${priceLabel} →`}
-            </button>
-            <div className="flex items-center justify-center gap-2 font-mono text-[10.5px] text-muted mt-3.5">
-              🔒 Secured by Cashfree · GST-registered seller
             </div>
           </div>
         </div>

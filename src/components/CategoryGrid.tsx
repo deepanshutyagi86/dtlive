@@ -3,7 +3,7 @@ import Nav from "./Nav";
 import Footer, { FooterLinks } from "./Footer";
 import RegisterModal from "./RegisterModal";
 import ItemImage from "./ItemImage";
-import { CATEGORY_CTA, CATEGORY_LABELS, Category, ImageFocal } from "@/lib/types";
+import { CATEGORY_CTA, CATEGORY_LABELS, CHIP_CLASS, Category, ImageFocal } from "@/lib/types";
 import type { AgencyDetails, CourseDetails, WorkshopDetails } from "@/lib/types";
 
 export interface GridItem {
@@ -83,7 +83,7 @@ export default function CategoryGrid({
               );
               const cardInner = (
                 <>
-                  <span className="font-mono text-[10px] font-bold tracking-wider uppercase w-fit px-2.5 py-1 rounded-full border border-ink bg-bone">
+                  <span className={`font-mono text-[10px] font-bold tracking-wider uppercase w-fit px-2.5 py-1 rounded-full border ${CHIP_CLASS[item.category]}`}>
                     {CATEGORY_LABELS[item.category]}
                   </span>
                   <div className="font-display font-bold text-xl tracking-tight">{item.title}</div>
@@ -105,6 +105,10 @@ export default function CategoryGrid({
                         <RegisterModal
                           itemId={item.id}
                           title={item.title}
+                          slug={item.slug}
+                          category={item.category}
+                          thumbnail={item.thumbnail}
+                          imageFocal={item.imageFocal}
                           triggerLabel={`${CATEGORY_CTA[item.category]} →`}
                           triggerClassName="font-semibold text-sm hover:text-marigold-deep transition-colors"
                         />

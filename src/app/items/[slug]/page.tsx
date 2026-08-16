@@ -57,6 +57,10 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
             <RegisterModal
               itemId={item!.id}
               title={item!.title}
+              slug={item!.slug}
+              category={item!.category}
+              thumbnail={item!.thumbnail}
+              imageFocal={item!.details?.imageFocal ?? null}
               workshopDate={(d as WorkshopDetails).date}
               registrationFields={(d as WorkshopDetails).registrationFields}
               triggerLabel={triggerLabel}
@@ -66,6 +70,10 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
             <CheckoutModal
               itemId={item!.id}
               title={item!.title}
+              slug={item!.slug}
+              category={item!.category}
+              thumbnail={item!.thumbnail}
+              imageFocal={item!.details?.imageFocal ?? null}
               priceLabel={priceLabel}
               triggerLabel={triggerLabel}
               triggerClassName="bg-marigold border border-marigold text-ink font-semibold text-sm px-[18px] py-[10px] rounded-full hover:bg-ink hover:text-bone hover:border-ink transition-colors"
@@ -171,6 +179,10 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
           <RegisterModal
             itemId={item!.id}
             title={item!.title}
+            slug={item!.slug}
+            category={item!.category}
+            thumbnail={item!.thumbnail}
+            imageFocal={item!.details?.imageFocal ?? null}
             workshopDate={(d as WorkshopDetails).date}
             registrationFields={(d as WorkshopDetails).registrationFields}
             triggerLabel={triggerLabel}
@@ -180,6 +192,10 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
           <CheckoutModal
             itemId={item!.id}
             title={item!.title}
+            slug={item!.slug}
+            category={item!.category}
+            thumbnail={item!.thumbnail}
+            imageFocal={item!.details?.imageFocal ?? null}
             priceLabel={priceLabel}
             triggerLabel={triggerLabel}
             triggerClassName="bg-marigold text-ink font-semibold text-sm px-5 py-2.5 rounded-full"

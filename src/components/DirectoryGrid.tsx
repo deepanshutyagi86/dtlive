@@ -1,6 +1,7 @@
 import Nav from "./Nav";
 import Footer, { FooterLinks } from "./Footer";
 import ItemImage from "./ItemImage";
+import { CHIP_CLASS } from "@/lib/types";
 import type { ImageFocal } from "@/lib/types";
 import type { ShopDetails, VentureDetails } from "@/lib/types";
 
@@ -72,7 +73,7 @@ export default function DirectoryGrid({
               );
               const cardInner = (
                 <>
-                  <span className="font-mono text-[10px] font-bold tracking-wider uppercase w-fit px-2.5 py-1 rounded-full border border-ink bg-bone">
+                  <span className={`font-mono text-[10px] font-bold tracking-wider uppercase w-fit px-2.5 py-1 rounded-full border ${CHIP_CLASS[item.category]}`}>
                     {tag}
                   </span>
                   <div className="font-display font-bold text-xl tracking-tight">{item.title}</div>
