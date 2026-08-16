@@ -1,6 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { upload } from "@vercel/blob/client";
+import { compressImage } from "@/lib/image-compress";
 import { DEFAULT_REGISTRATION_FIELDS, type RegistrationField } from "@/lib/types";
 
 type Category = "course" | "workshop" | "agency" | "shop" | "venture";
@@ -108,9 +110,7 @@ export default function ItemForm({ existing }: { existing: ExistingItem | null }
         <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="input" />
       </Field>
 
-      <Field label="Thumbnail URL (optional)">
-        <input value={thumbnail} onChange={(e) => setThumbnail(e.target.value)} className="input" />
-      </Field>
+      <ThumbnailField value={thumbnail} onChange={setThumbnail} />
 
       <div className="flex gap-8 my-5">
         <label className="flex items-center gap-2 text-sm font-medium">
@@ -177,6 +177,96 @@ function Field({ label, children, inline }: { label: string; children: React.Rea
     <div className={inline ? "" : "mb-4"}>
       <label className="block font-mono text-[10.5px] uppercase tracking-wider text-muted mb-1.5">{label}</label>
       {children}
+    </div>
+  );
+}
+
+// The URL text field stays the primary, always-works input — pasting a URL
+// must keep working exactly as before. Upload is a second way to fill the
+// same `thumbnail` state, not a replacement for it.
+function ThumbnailField({ value, onChange }: { value: string; onChange: (url: string) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [previewBroken, setPreviewBroken] = useState(false);
+
+  function handleValueChange(next: string) {
+    setPreviewBroken(false);
+    onChange(next);
+  }
+
+  async function handleFile(file: File) {
+    setUploadError(null);
+    setUploading(true);
+    setProgress(0);
+    try {
+      const compressed = await compressImage(file);
+      const pathname = `items/${crypto.randomUUID()}.${compressed.extension}`;
+      const result = await upload(pathname, compressed.blob, {
+        access: "public",
+        handleUploadUrl: "/api/admin/upload",
+        contentType: compressed.extension === "webp" ? "image/webp" : "image/jpeg",
+        onUploadProgress: (p) => setProgress(Math.round(p.percentage)),
+      });
+      handleValueChange(result.url);
+    } catch (err: any) {
+      setUploadError(err?.message || "Upload failed. Try again.");
+    } finally {
+      setUploading(false);
+      setProgress(0);
+    }
+  }
+
+  return (
+    <div className="mb-4">
+      <label className="block font-mono text-[10.5px] uppercase tracking-wider text-muted mb-1.5">
+        Thumbnail URL (optional)
+      </label>
+      <div className="flex gap-2 items-center">
+        <input value={value} onChange={(e) => handleValueChange(e.target.value)} className="input flex-1" />
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+          className="border border-line px-4 py-2.5 rounded-[10px] text-sm font-semibold whitespace-nowrap hover:border-ink transition-colors disabled:opacity-60"
+        >
+          {uploading ? `Uploading… ${progress}%` : "Upload image"}
+        </button>
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) handleFile(file);
+        }}
+      />
+
+      {uploadError && <p className="text-live text-sm mt-2">{uploadError}</p>}
+
+      <div className="mt-3">
+        {!value ? (
+          <div className="w-28 h-28 rounded-[10px] border border-line flex items-center justify-center text-[10.5px] text-muted font-mono text-center px-2">
+            No image
+          </div>
+        ) : previewBroken ? (
+          <div className="w-28 h-28 rounded-[10px] border border-live flex items-center justify-center text-[10.5px] text-live font-mono text-center px-2">
+            Broken link — won&apos;t load
+          </div>
+        ) : (
+          <img
+            key={value}
+            src={value}
+            alt="Thumbnail preview"
+            className="w-28 h-28 object-cover rounded-[10px] border border-line"
+            onError={() => setPreviewBroken(true)}
+          />
+        )}
+      </div>
     </div>
   );
 }
