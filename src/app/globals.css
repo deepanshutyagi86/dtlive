@@ -51,8 +51,10 @@ body {
     transform: translateX(-50%);
   }
 }
+/* Slow on purpose — legibility comes from a duration long enough to
+   actually read a claim before it drifts past, not from stacking lines. */
 .ticker-track {
-  animation: tick 30s linear infinite;
+  animation: tick 42s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

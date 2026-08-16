@@ -27,7 +27,8 @@ export default function Doors({ counts }: { counts: Record<string, number> }) {
               <span className="font-display font-extrabold text-[34px] md:text-[72px] tracking-tight leading-none transition-transform duration-300 group-hover:translate-x-3.5 group-hover:text-bone">
                 {d.name}
               </span>
-              <span className="font-mono text-xs text-muted transition-colors group-hover:text-marigold">
+              <span className="flex items-center gap-1.5 font-mono text-xs text-muted transition-colors group-hover:text-marigold">
+                {n > 0 && <span className="w-1.5 h-1.5 rounded-full bg-live live-dot" />}
                 {n ? `${String(n).padStart(2, "0")} live` : "soon"}
               </span>
             </div>

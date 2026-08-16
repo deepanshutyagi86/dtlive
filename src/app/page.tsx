@@ -76,22 +76,22 @@ export default async function HomePage() {
   return (
     <>
       <Nav />
-      <header className="max-w-[1200px] mx-auto px-5 pt-[118px] pb-2">
-        <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-muted mb-4">
+      <header className="max-w-[1200px] mx-auto px-5 pt-[92px] pb-1">
+        <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-muted mb-2">
           deepanshutyagi.live — the storefront
         </p>
-        <h1 className="font-display font-extrabold tracking-tight text-[46px] md:text-[104px] leading-[0.95]">
+        <h1 className="font-display font-extrabold tracking-tight text-[34px] md:text-[104px] leading-[0.95]">
           <span className="inline-block w-[0.35em] h-[0.35em] rounded-full bg-live live-dot mr-[0.18em] align-[0.08em]" />
           Live,
           <br />
           <span className="text-marigold-deep">right now.</span>
         </h1>
-        <p className="mt-5 max-w-[560px] text-[16px] md:text-[17px] leading-7 text-ink-soft">
-          A simple view of what is open right now. Tap any card to see the details and join.
+        <p className="mt-3 max-w-[560px] text-[15px] md:text-[17px] leading-6 md:leading-7 text-ink-soft">
+          Everything I teach, build, and sell.
         </p>
       </header>
 
-      <div className="max-w-[1200px] mx-auto px-5 flex items-center justify-between gap-3 mt-14 mb-3.5">
+      <div className="max-w-[1200px] mx-auto px-5 flex items-center justify-between gap-3 mt-6 mb-2.5">
         <div className="flex items-center gap-2.5 font-mono text-[11px] tracking-[0.14em] uppercase font-semibold">
           <span className="w-2.5 h-2.5 rounded-full bg-live live-dot" />
           The stream
@@ -100,9 +100,9 @@ export default async function HomePage() {
       </div>
       <LiveStream items={streamItems} />
 
-      <Ticker lines={ticker} />
-
       {spotlight && <Spotlight data={spotlight} />}
+
+      <Ticker lines={ticker} />
 
       <Doors counts={counts} />
       <Testimonials items={testimonials} />
@@ -111,13 +111,15 @@ export default async function HomePage() {
   );
 }
 
-const DEFAULT_TICKER = [
-  "500+ students taught",
-  "3 apps on Play Store",
-  "10% equity · Muchhad",
-  "15+ websites shipped",
-  "HackArena · 6 cities",
-];
+// Three, not five — kept the claims a stranger can parse with zero prior
+// context (self-contained numbers, no unexplained proper nouns) and that
+// span distinct kinds of work rather than three variations on one theme:
+// teaching (students), building (apps shipped), and client delivery
+// (websites shipped). Dropped "10% equity · Muchhad" and "HackArena · 6
+// cities" — both lean on a brand/event name a first-time visitor has no
+// context for yet; they read better as asides once someone's already
+// exploring (ventures page, testimonials) than as a cold trust strip.
+const DEFAULT_TICKER = ["500+ students taught", "3 apps on Play Store", "15+ websites shipped"];
 
 const DEFAULT_TESTIMONIALS: Testimonial[] = [
   { quote: "Made my first ₹300 before the Sunday session even ended.", who: "Priya, workshop attendee" },

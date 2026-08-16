@@ -138,9 +138,7 @@ async function main() {
     ('ticker', ${JSON.stringify([
       "500+ students taught",
       "3 apps on Play Store",
-      "10% equity · Muchhad",
       "15+ websites shipped",
-      "HackArena · 6 cities",
     ])}),
     ('testimonials', ${JSON.stringify([
       { quote: "Made my first ₹300 before the Sunday session even ended.", who: "Priya, workshop attendee" },
