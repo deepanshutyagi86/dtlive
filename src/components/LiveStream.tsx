@@ -2,7 +2,7 @@
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import ItemImage from "./ItemImage";
-import { CATEGORY_CTA, CATEGORY_LABELS, Category, ImageFocal } from "@/lib/types";
+import { CATEGORY_CTA, CATEGORY_LABELS, CHIP_CLASS, Category, ImageFocal } from "@/lib/types";
 
 export interface StreamItem {
   id: string;
@@ -15,14 +15,6 @@ export interface StreamItem {
   thumbnail: string | null;
   imageFocal?: ImageFocal | null;
 }
-
-const CHIP_CLASS: Record<Category, string> = {
-  course: "bg-marigold border-marigold",
-  workshop: "bg-ink text-bone border-ink",
-  venture: "bg-transparent border-ink",
-  shop: "bg-transparent border-ink border-dashed",
-  agency: "bg-bone border-ink",
-};
 
 const CARD_CLASS =
   "flex-none w-[270px] md:w-[290px] bg-card border border-line rounded-card overflow-hidden flex flex-col shadow-[0_14px_34px_-18px_rgba(25,25,19,0.28)] transition-transform duration-300 hover:!rotate-0 hover:-translate-y-1.5 hover:scale-[1.02] hover:shadow-[0_26px_50px_-20px_rgba(25,25,19,0.4)] hover:z-10 odd:-rotate-[1.6deg] even:rotate-[1.3deg] even:translate-y-2 group";
