@@ -3,6 +3,7 @@ import Nav from "@/components/Nav";
 import Footer, { FooterLinks } from "@/components/Footer";
 import CheckoutModal from "@/components/CheckoutModal";
 import RegisterModal from "@/components/RegisterModal";
+import ItemImage, { ITEM_DETAIL_HERO_ASPECT_CLASS } from "@/components/ItemImage";
 import { getItemBySlug, getSetting } from "@/lib/items";
 import type { CourseDetails, WorkshopDetails } from "@/lib/types";
 import type { Metadata } from "next";
@@ -74,6 +75,18 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
       </nav>
 
       <main className="max-w-[860px] mx-auto px-5 pt-[120px] pb-[140px] md:pb-[80px]">
+        <div className="rounded-card overflow-hidden mb-6">
+          <ItemImage
+            thumbnail={item!.thumbnail}
+            title={item!.title}
+            category={item!.category}
+            seed={item!.slug}
+            sizes="(min-width: 860px) 860px, 100vw"
+            imageFocal={item!.details?.imageFocal ?? null}
+            aspectClassName={ITEM_DETAIL_HERO_ASPECT_CLASS}
+          />
+        </div>
+
         <span className="inline-flex items-center gap-2 font-mono text-[11px] font-bold tracking-wider text-live">
           <span className="w-2 h-2 rounded-full bg-live live-dot" />
           {isWorkshop ? "LIVE WORKSHOP · ENROLLMENT OPEN" : "COURSE · SELF-PACED"}
