@@ -2,7 +2,7 @@
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import ItemImage from "./ItemImage";
-import { CATEGORY_CTA, CATEGORY_LABELS, Category } from "@/lib/types";
+import { CATEGORY_CTA, CATEGORY_LABELS, Category, ImageFocal } from "@/lib/types";
 
 export interface StreamItem {
   id: string;
@@ -13,6 +13,7 @@ export interface StreamItem {
   meta: string; // short line, e.g. "₹999 · self-paced" or "Sat 9 Aug · 14 seats left"
   external?: string | null; // if set, card links out instead of to /items/[slug]
   thumbnail: string | null;
+  imageFocal?: ImageFocal | null;
 }
 
 const CHIP_CLASS: Record<Category, string> = {
@@ -47,6 +48,7 @@ function Card({ item }: { item: StreamItem }) {
         category={item.category}
         seed={item.slug}
         sizes="(min-width: 768px) 290px, 270px"
+        imageFocal={item.imageFocal}
       />
       <div className="flex flex-col gap-3 p-[18px] pt-3 pb-4 flex-1">
         <div className="flex items-center justify-between">

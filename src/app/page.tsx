@@ -32,6 +32,7 @@ export default async function HomePage() {
     meta: metaFor(i),
     external: externalFor(i),
     thumbnail: i.thumbnail,
+    imageFocal: i.details?.imageFocal ?? null,
   }));
 
   let spotlight: SpotlightData | null = null;
