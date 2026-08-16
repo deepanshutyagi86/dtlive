@@ -11,6 +11,15 @@ export interface AdminItemRow {
   live: boolean;
   featured: boolean;
   order: number;
+  thumbnail: string | null;
+}
+
+function NoImageBadge() {
+  return (
+    <span className="ml-2 inline-block font-mono text-[9.5px] uppercase tracking-wider text-live border border-live/40 bg-live/10 px-1.5 py-0.5 rounded-full align-middle">
+      No image
+    </span>
+  );
 }
 
 function priceOrMetaFromDetails(): string {
@@ -91,7 +100,10 @@ export default function ItemsTable({ items }: { items: AdminItemRow[] }) {
               <tbody>
                 {catRows.map((r) => (
                   <tr key={r.id} className="border-t border-line bg-bone/40">
-                    <td className="px-4 py-3 font-medium">{r.title}</td>
+                    <td className="px-4 py-3 font-medium">
+                      {r.title}
+                      {!r.thumbnail && <NoImageBadge />}
+                    </td>
                     <td className="px-4 py-3">
                       <Toggle checked={r.live} disabled={busyId === r.id} onChange={(v) => toggle(r.id, "live", v)} />
                     </td>
@@ -118,7 +130,10 @@ export default function ItemsTable({ items }: { items: AdminItemRow[] }) {
             {catRows.map((r) => (
               <div key={r.id} className="bg-card border border-line rounded-card p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="font-medium">{r.title}</span>
+                  <span className="font-medium">
+                    {r.title}
+                    {!r.thumbnail && <NoImageBadge />}
+                  </span>
                   <Link href={`/admin/items/${r.id}`} className="text-sm font-semibold text-marigold-deep">
                     Edit
                   </Link>

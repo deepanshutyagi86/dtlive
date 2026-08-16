@@ -1,7 +1,10 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { DEFAULT_REGISTRATION_FIELDS, type RegistrationField } from "@/lib/types";
+import { upload } from "@vercel/blob/client";
+import { compressImage } from "@/lib/image-compress";
+import { ITEM_IMAGE_ASPECT_CLASS } from "@/components/ItemImage";
+import { DEFAULT_REGISTRATION_FIELDS, type ImageFocal, type RegistrationField } from "@/lib/types";
 
 type Category = "course" | "workshop" | "agency" | "shop" | "venture";
 
@@ -108,9 +111,15 @@ export default function ItemForm({ existing }: { existing: ExistingItem | null }
         <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="input" />
       </Field>
 
-      <Field label="Thumbnail URL (optional)">
-        <input value={thumbnail} onChange={(e) => setThumbnail(e.target.value)} className="input" />
-      </Field>
+      <ThumbnailField value={thumbnail} onChange={setThumbnail} />
+
+      {thumbnail && (
+        <FocalPointPicker
+          thumbnail={thumbnail}
+          imageFocal={details.imageFocal}
+          onChange={(focal) => setDetails({ ...details, imageFocal: focal })}
+        />
+      )}
 
       <div className="flex gap-8 my-5">
         <label className="flex items-center gap-2 text-sm font-medium">
@@ -177,6 +186,187 @@ function Field({ label, children, inline }: { label: string; children: React.Rea
     <div className={inline ? "" : "mb-4"}>
       <label className="block font-mono text-[10.5px] uppercase tracking-wider text-muted mb-1.5">{label}</label>
       {children}
+    </div>
+  );
+}
+
+// The URL text field stays the primary, always-works input — pasting a URL
+// must keep working exactly as before. Upload is a second way to fill the
+// same `thumbnail` state, not a replacement for it.
+function ThumbnailField({ value, onChange }: { value: string; onChange: (url: string) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [previewBroken, setPreviewBroken] = useState(false);
+
+  function handleValueChange(next: string) {
+    setPreviewBroken(false);
+    onChange(next);
+  }
+
+  async function handleFile(file: File) {
+    setUploadError(null);
+    setUploading(true);
+    setProgress(0);
+    try {
+      const compressed = await compressImage(file);
+      const pathname = `items/${crypto.randomUUID()}.${compressed.extension}`;
+      const result = await upload(pathname, compressed.blob, {
+        access: "public",
+        handleUploadUrl: "/api/admin/upload",
+        contentType: compressed.extension === "webp" ? "image/webp" : "image/jpeg",
+        onUploadProgress: (p) => setProgress(Math.round(p.percentage)),
+      });
+      handleValueChange(result.url);
+    } catch (err: any) {
+      setUploadError(err?.message || "Upload failed. Try again.");
+    } finally {
+      setUploading(false);
+      setProgress(0);
+    }
+  }
+
+  return (
+    <div className="mb-4">
+      <label className="block font-mono text-[10.5px] uppercase tracking-wider text-muted mb-1.5">
+        Thumbnail URL (optional)
+      </label>
+      <div className="flex gap-2 items-center">
+        <input value={value} onChange={(e) => handleValueChange(e.target.value)} className="input flex-1" />
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+          className="border border-line px-4 py-2.5 rounded-[10px] text-sm font-semibold whitespace-nowrap hover:border-ink transition-colors disabled:opacity-60"
+        >
+          {uploading ? `Uploading… ${progress}%` : "Upload image"}
+        </button>
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) handleFile(file);
+        }}
+      />
+
+      {uploadError && <p className="text-live text-sm mt-2">{uploadError}</p>}
+
+      <div className="mt-3">
+        {!value ? (
+          <div className="w-28 h-28 rounded-[10px] border border-line flex items-center justify-center text-[10.5px] text-muted font-mono text-center px-2">
+            No image
+          </div>
+        ) : previewBroken ? (
+          <div className="w-28 h-28 rounded-[10px] border border-live flex items-center justify-center text-[10.5px] text-live font-mono text-center px-2">
+            Broken link — won&apos;t load
+          </div>
+        ) : (
+          <img
+            key={value}
+            src={value}
+            alt="Thumbnail preview"
+            className="w-28 h-28 object-cover rounded-[10px] border border-line"
+            onError={() => setPreviewBroken(true)}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function clampPercent(n: number): number {
+  return Math.round(Math.min(100, Math.max(0, n)));
+}
+
+// Only rendered once a thumbnail exists. imageFocal is undefined for any
+// item that hasn't set one — displayed here as {x:50, y:0} to match
+// ITEM_IMAGE_OBJECT_POSITION_CLASS (object-top) so the marker reflects
+// reality, but nothing is written to `details` until the admin actually
+// interacts with it.
+function FocalPointPicker({
+  thumbnail,
+  imageFocal,
+  onChange,
+}: {
+  thumbnail: string;
+  imageFocal: ImageFocal | undefined;
+  onChange: (focal: ImageFocal | undefined) => void;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const focal = imageFocal ?? { x: 50, y: 0 };
+
+  function updateFromPointer(e: React.PointerEvent) {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect || rect.width === 0 || rect.height === 0) return;
+    onChange({
+      x: clampPercent(((e.clientX - rect.left) / rect.width) * 100),
+      y: clampPercent(((e.clientY - rect.top) / rect.height) * 100),
+    });
+  }
+
+  function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    updateFromPointer(e);
+  }
+
+  function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    // buttons is 1 for both an active mouse-button press and an active
+    // touch/pen contact under the unified Pointer Events model — 0 means
+    // nothing is currently pressed, so ignore hover-only movement.
+    if (e.buttons === 0) return;
+    updateFromPointer(e);
+  }
+
+  return (
+    <div className="mb-4">
+      <div className="flex items-center justify-between mb-1.5">
+        <label className="block font-mono text-[10.5px] uppercase tracking-wider text-muted">Image focal point</label>
+        <button
+          type="button"
+          onClick={() => onChange(undefined)}
+          className="text-xs font-semibold text-marigold-deep hover:underline"
+        >
+          Reset to default
+        </button>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-4 items-start">
+        <div
+          ref={containerRef}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          className="relative w-full sm:max-w-[300px] touch-none select-none cursor-crosshair rounded-[10px] overflow-hidden border border-line"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={thumbnail} alt="" className="w-full h-auto block pointer-events-none select-none" draggable={false} />
+          <div
+            className="absolute w-5 h-5 rounded-full border-2 border-bone bg-marigold shadow-[0_2px_6px_rgba(25,25,19,0.4)] -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+            style={{ left: `${focal.x}%`, top: `${focal.y}%` }}
+          />
+        </div>
+
+        <div className="w-full sm:max-w-[200px]">
+          <p className="font-mono text-[10px] uppercase tracking-wider text-muted mb-1.5">Card preview</p>
+          <div className={`relative w-full ${ITEM_IMAGE_ASPECT_CLASS} rounded-[10px] overflow-hidden border border-line`}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={thumbnail}
+              alt=""
+              className="absolute inset-0 w-full h-full object-cover"
+              style={{ objectPosition: `${focal.x}% ${focal.y}%` }}
+              draggable={false}
+            />
+          </div>
+        </div>
+      </div>
+
+      <p className="text-[11px] text-muted mt-2">Click or drag on the photo to set what stays in frame on the card.</p>
     </div>
   );
 }

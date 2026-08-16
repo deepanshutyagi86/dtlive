@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useRef } from "react";
 import Link from "next/link";
-import { CATEGORY_CTA, CATEGORY_LABELS, Category } from "@/lib/types";
+import ItemImage from "./ItemImage";
+import { CATEGORY_CTA, CATEGORY_LABELS, Category, ImageFocal } from "@/lib/types";
 
 export interface StreamItem {
   id: string;
@@ -11,6 +12,8 @@ export interface StreamItem {
   category: Category;
   meta: string; // short line, e.g. "₹999 · self-paced" or "Sat 9 Aug · 14 seats left"
   external?: string | null; // if set, card links out instead of to /items/[slug]
+  thumbnail: string | null;
+  imageFocal?: ImageFocal | null;
 }
 
 const CHIP_CLASS: Record<Category, string> = {
@@ -22,7 +25,7 @@ const CHIP_CLASS: Record<Category, string> = {
 };
 
 const CARD_CLASS =
-  "flex-none w-[270px] md:w-[290px] bg-card border border-line rounded-card p-[18px] pb-4 flex flex-col gap-3 shadow-[0_14px_34px_-18px_rgba(25,25,19,0.28)] transition-transform duration-300 hover:!rotate-0 hover:-translate-y-1.5 hover:scale-[1.02] hover:shadow-[0_26px_50px_-20px_rgba(25,25,19,0.4)] hover:z-10 odd:-rotate-[1.6deg] even:rotate-[1.3deg] even:translate-y-2 group";
+  "flex-none w-[270px] md:w-[290px] bg-card border border-line rounded-card overflow-hidden flex flex-col shadow-[0_14px_34px_-18px_rgba(25,25,19,0.28)] transition-transform duration-300 hover:!rotate-0 hover:-translate-y-1.5 hover:scale-[1.02] hover:shadow-[0_26px_50px_-20px_rgba(25,25,19,0.4)] hover:z-10 odd:-rotate-[1.6deg] even:rotate-[1.3deg] even:translate-y-2 group";
 
 // course/workshop have a real detail page; agency has no per-item page (it
 // links to the /agency listing instead — see CategoryGrid for the actual
@@ -39,24 +42,34 @@ function Card({ item }: { item: StreamItem }) {
   const link = hrefFor(item);
   const inner = (
     <>
-      <div className="flex items-center justify-between">
-        <span className={`font-mono text-[10px] font-bold tracking-wider uppercase px-[9px] py-1 rounded-full border ${CHIP_CLASS[item.category]}`}>
-          {CATEGORY_LABELS[item.category]}
-        </span>
-        <span className="flex items-center gap-1.5 font-mono text-[10px] text-live font-bold">
-          <span className="w-1.5 h-1.5 rounded-full bg-live live-dot" />
-          LIVE
-        </span>
-      </div>
-      <div className="font-display font-bold text-[21px] tracking-tight leading-tight">{item.title}</div>
-      <div className="text-[16px] leading-relaxed text-ink-soft flex-1">{item.description}</div>
-      <div className="font-mono text-[11px] text-muted">{item.meta}</div>
-      {link && (
-        <div className="flex items-center justify-between font-semibold text-sm border-t border-line pt-3 mt-0.5 group-hover:text-marigold-deep">
-          <span>{CATEGORY_CTA[item.category]}</span>
-          <span className="transition-transform group-hover:translate-x-1.5">→</span>
+      <ItemImage
+        thumbnail={item.thumbnail}
+        title={item.title}
+        category={item.category}
+        seed={item.slug}
+        sizes="(min-width: 768px) 290px, 270px"
+        imageFocal={item.imageFocal}
+      />
+      <div className="flex flex-col gap-3 p-[18px] pt-3 pb-4 flex-1">
+        <div className="flex items-center justify-between">
+          <span className={`font-mono text-[10px] font-bold tracking-wider uppercase px-[9px] py-1 rounded-full border ${CHIP_CLASS[item.category]}`}>
+            {CATEGORY_LABELS[item.category]}
+          </span>
+          <span className="flex items-center gap-1.5 font-mono text-[10px] text-live font-bold">
+            <span className="w-1.5 h-1.5 rounded-full bg-live live-dot" />
+            LIVE
+          </span>
         </div>
-      )}
+        <div className="font-display font-bold text-[21px] tracking-tight leading-tight">{item.title}</div>
+        <div className="text-[16px] leading-relaxed text-ink-soft flex-1">{item.description}</div>
+        <div className="font-mono text-[11px] text-muted">{item.meta}</div>
+        {link && (
+          <div className="flex items-center justify-between font-semibold text-sm border-t border-line pt-3 mt-0.5 group-hover:text-marigold-deep">
+            <span>{CATEGORY_CTA[item.category]}</span>
+            <span className="transition-transform group-hover:translate-x-1.5">→</span>
+          </div>
+        )}
+      </div>
     </>
   );
 
