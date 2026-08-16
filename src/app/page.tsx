@@ -87,7 +87,7 @@ export default async function HomePage() {
           <span className="text-marigold-deep">right now.</span>
         </h1>
         <p className="mt-3 max-w-[560px] text-[15px] md:text-[17px] leading-6 md:leading-7 text-ink-soft">
-          Live right now — tap a card to join.
+          Everything I teach, build, and sell.
         </p>
       </header>
 
@@ -111,13 +111,15 @@ export default async function HomePage() {
   );
 }
 
-const DEFAULT_TICKER = [
-  "500+ students taught",
-  "3 apps on Play Store",
-  "10% equity · Muchhad",
-  "15+ websites shipped",
-  "HackArena · 6 cities",
-];
+// Three, not five — kept the claims a stranger can parse with zero prior
+// context (self-contained numbers, no unexplained proper nouns) and that
+// span distinct kinds of work rather than three variations on one theme:
+// teaching (students), building (apps shipped), and client delivery
+// (websites shipped). Dropped "10% equity · Muchhad" and "HackArena · 6
+// cities" — both lean on a brand/event name a first-time visitor has no
+// context for yet; they read better as asides once someone's already
+// exploring (ventures page, testimonials) than as a cold trust strip.
+const DEFAULT_TICKER = ["500+ students taught", "3 apps on Play Store", "15+ websites shipped"];
 
 const DEFAULT_TESTIMONIALS: Testimonial[] = [
   { quote: "Made my first ₹300 before the Sunday session even ended.", who: "Priya, workshop attendee" },
