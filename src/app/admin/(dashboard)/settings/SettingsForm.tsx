@@ -17,6 +17,7 @@ export default function SettingsForm() {
   const [ticker, setTicker] = useState<string[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [links, setLinks] = useState<FooterLinks>({});
+  const [notifyEmail, setNotifyEmail] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -28,6 +29,7 @@ export default function SettingsForm() {
         setTicker(d.ticker ?? []);
         setTestimonials(d.testimonials ?? []);
         setLinks(d.footerLinks ?? {});
+        setNotifyEmail(d.notifyEmail ?? "");
         setLoading(false);
       });
   }, []);
@@ -38,7 +40,7 @@ export default function SettingsForm() {
     await fetch("/api/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ticker, testimonials, footerLinks: links }),
+      body: JSON.stringify({ ticker, testimonials, footerLinks: links, notifyEmail }),
     });
     setSaving(false);
     setSaved(true);
@@ -95,6 +97,19 @@ export default function SettingsForm() {
         >
           + Add testimonial
         </button>
+      </section>
+
+      <section>
+        <h2 className="font-display font-bold text-lg mb-3">Notifications</h2>
+        <p className="text-sm text-muted mb-3">
+          Where new-order and new-lead alerts get sent. Leave blank to use the footer email below instead.
+        </p>
+        <input
+          className="w-full px-3.5 py-2.5 text-sm bg-card border border-line rounded-[10px]"
+          placeholder="you@example.com"
+          value={notifyEmail}
+          onChange={(e) => setNotifyEmail(e.target.value)}
+        />
       </section>
 
       <section>

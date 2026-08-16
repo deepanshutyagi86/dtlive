@@ -56,8 +56,8 @@ export default async function OrderConfirmedPage({
               You&apos;re in, {order.buyerName.split(" ")[0]}.
             </h1>
             <p className="text-ink-soft mt-3">
-              {order.item.title} — we&apos;ll email your access details and GST invoice to{" "}
-              {order.buyerEmail} shortly. See you there.
+              {order.item.title} — check {order.buyerEmail} for your confirmation. I&apos;ll follow up
+              directly with anything else you need before it starts. See you there.
             </p>
             <Link href="/" className="inline-block mt-8 bg-ink text-bone font-semibold px-6 py-3 rounded-full hover:bg-marigold hover:text-ink transition-colors">
               Back to the stream

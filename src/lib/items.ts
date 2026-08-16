@@ -44,3 +44,16 @@ export async function getSetting<T = unknown>(key: string, fallback: T): Promise
   const { rows } = await sql<{ value: T }>`SELECT value FROM settings WHERE key = ${key} LIMIT 1`;
   return rows[0] ? rows[0].value : fallback;
 }
+
+// Where admin notification emails (new order, new lead) get sent. A
+// dedicated notifyEmail setting takes priority; falls back to the same
+// footerLinks.email already shown publicly if notifyEmail is unset/blank.
+// Returns null if neither is configured — callers must treat that as
+// "nothing to send to", not an error.
+export async function getNotifyEmail(): Promise<string | null> {
+  const [notifyEmail, footerLinks] = await Promise.all([
+    getSetting<string>("notifyEmail", ""),
+    getSetting<{ email?: string }>("footerLinks", {}),
+  ]);
+  return notifyEmail.trim() || footerLinks.email || null;
+}

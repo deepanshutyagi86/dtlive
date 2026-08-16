@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/auth";
 import { getAllSettings, upsertSetting } from "@/lib/admin-repo";
 
-const ALLOWED_KEYS = ["ticker", "testimonials", "footerLinks"];
+const ALLOWED_KEYS = ["ticker", "testimonials", "footerLinks", "notifyEmail"];
 
 export async function GET() {
   const admin = await getAdminSession();
