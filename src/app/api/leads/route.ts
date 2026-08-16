@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/auth";
 import { claimMetaLeadEvent, createLead, decrementWorkshopSeats, listLeads } from "@/lib/admin-repo";
 import { sendMetaLeadEvent } from "@/lib/meta-capi";
-import { getItemById, getNotifyEmail } from "@/lib/items";
+import { getItemById, getNotifyEmail, getSetting } from "@/lib/items";
 import { DEFAULT_REGISTRATION_FIELDS } from "@/lib/types";
 import type { WorkshopDetails } from "@/lib/types";
 import { rateLimit, clientIpFrom } from "@/lib/rate-limit";
-import { sendEmail, emailHtml } from "@/lib/email";
+import { sendEmail } from "@/lib/email";
+import { DEFAULT_EMAIL_COPY, resolveTemplate, renderTemplate } from "@/lib/email-templates";
+import type { EmailCopy } from "@/lib/email-templates";
 
 export async function POST(req: NextRequest) {
   if (!rateLimit(`leads:${clientIpFrom(req)}`, 5, 60_000)) {
@@ -87,32 +89,24 @@ export async function POST(req: NextRequest) {
     await sendMetaLeadEvent(lead);
   }
 
-  // itemId is optional (a general enquiry has none) — every place below
-  // that reads item.title has to handle item being null without printing
-  // "undefined".
-  const itemLabel = item
-    ? item.category === "workshop"
-      ? `registering for ${item.title}`
-      : `reaching out about ${item.title}`
-    : "getting in touch";
+  const emailCopy = await getSetting<EmailCopy>("emailCopy", {});
+  // itemId is optional (a general enquiry has none) — leadValues.item is ""
+  // in that case, and the {item} token in either template below already
+  // renders as an empty string rather than "undefined" (see substitute()
+  // in email-templates.ts).
+  const leadValues = {
+    name: lead.name,
+    firstName: lead.name.split(" ")[0],
+    item: item?.title ?? "",
+    email: lead.email ?? "",
+    phone: lead.phone ?? "",
+  };
 
   if (lead.email) {
     try {
-      const firstName = lead.name.split(" ")[0];
-      await sendEmail({
-        to: lead.email,
-        subject: item ? `You're in — ${item.title}` : "Got your message",
-        text: `Hi ${firstName},
-
-Thanks for ${itemLabel}. I've got your details and will follow up directly.
-
-— Deepanshu`,
-        html: emailHtml(`
-          <p style="margin:0 0 16px;font-size:20px;font-weight:800;">Got it 🎉</p>
-          <p style="margin:0 0 16px;line-height:1.6;">Hi ${firstName}, thanks for ${itemLabel}. I've got your details and will follow up directly.</p>
-          <p style="margin:20px 0 0;">— Deepanshu</p>
-        `),
-      });
+      const template = resolveTemplate(emailCopy.leadBuyer, DEFAULT_EMAIL_COPY.leadBuyer);
+      const rendered = renderTemplate(template, leadValues);
+      await sendEmail({ to: lead.email, ...rendered });
     } catch (err) {
       console.error("Leads: registrant confirmation email failed:", err);
     }
@@ -121,29 +115,9 @@ Thanks for ${itemLabel}. I've got your details and will follow up directly.
   try {
     const notifyEmail = await getNotifyEmail();
     if (notifyEmail) {
-      const itemTitle = item?.title ?? "General enquiry";
-      await sendEmail({
-        to: notifyEmail,
-        subject: `New lead — ${itemTitle}`,
-        text: `New lead.
-
-Item: ${itemTitle}
-
-Name: ${lead.name}
-Email: ${lead.email ?? "—"}
-Phone: ${lead.phone ?? "—"}`,
-        html: emailHtml(`
-          <p style="margin:0 0 16px;font-size:20px;font-weight:800;">New lead</p>
-          <table style="width:100%;font-size:14px;">
-            <tr><td style="color:#8b8a80;padding:4px 0;">Item</td><td style="text-align:right;">${itemTitle}</td></tr>
-          </table>
-          <table style="width:100%;border-top:1px solid #DEDCD2;margin-top:16px;padding-top:16px;font-size:14px;">
-            <tr><td style="color:#8b8a80;padding:4px 0;">Name</td><td style="text-align:right;">${lead.name}</td></tr>
-            <tr><td style="color:#8b8a80;padding:4px 0;">Email</td><td style="text-align:right;">${lead.email ?? "—"}</td></tr>
-            <tr><td style="color:#8b8a80;padding:4px 0;">Phone</td><td style="text-align:right;">${lead.phone ?? "—"}</td></tr>
-          </table>
-        `),
-      });
+      const template = resolveTemplate(emailCopy.leadAdmin, DEFAULT_EMAIL_COPY.leadAdmin);
+      const rendered = renderTemplate(template, leadValues);
+      await sendEmail({ to: notifyEmail, ...rendered });
     }
   } catch (err) {
     console.error("Leads: admin alert email failed:", err);
