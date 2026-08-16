@@ -5,6 +5,7 @@ import MetaPixelPurchase from "@/components/MetaPixelPurchase";
 import { getOrderById, setOrderStatus } from "@/lib/admin-repo";
 import { getSetting } from "@/lib/items";
 import { fetchCashfreeOrder } from "@/lib/cashfree";
+import { sendPaidOrderNotifications } from "@/lib/order-notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -22,12 +23,37 @@ export default async function OrderConfirmedPage({
   // so the buyer isn't stuck seeing "pending" right after paying. This is
   // a UX-only status flip — the webhook remains the sole trigger for the
   // Meta Purchase event (see claimMetaPurchaseEvent in the webhook route).
+  //
+  // It's also, in practice, the ONLY path that sends the paid-order
+  // emails today: CASHFREE_WEBHOOK_SECRET isn't set in production (audit
+  // P0-04), so the webhook 500s on every real request and never reaches
+  // its own sendPaidOrderNotifications call. This block reuses the exact
+  // same function so the copy isn't duplicated between the two places an
+  // order can become "paid".
+  //
+  // Refresh safety: this whole block, including the email send below, is
+  // gated on `order.status === "pending"`. Once setOrderStatus below has
+  // run, the DB row is "paid" — a page reload re-fetches via
+  // getOrderById, gets status "paid", and the condition is false, so
+  // nothing resends. (Verified by reading the guard, not assumed.)
   if (order && order.status === "pending") {
     try {
       const cfOrder = await fetchCashfreeOrder(order.id);
       if (cfOrder.order_status === "PAID") {
         await setOrderStatus(order.id, "paid");
         order = { ...order, status: "paid" };
+
+        // Idempotency note: same non-atomic `status !== "paid"` guard as
+        // the webhook (audit P1-01) — no notification_sent_at column,
+        // that's a migration against production and out of scope here.
+        // A genuine race between this page and the webhook landing at
+        // nearly the same moment could in theory double-send; see the
+        // matching note in the webhook route.
+        try {
+          await sendPaidOrderNotifications(order);
+        } catch (err) {
+          console.error("Order confirmed page: paid order notifications failed:", err);
+        }
       }
     } catch {
       // Cashfree lookup failing shouldn't break the confirmation page —
@@ -56,8 +82,8 @@ export default async function OrderConfirmedPage({
               You&apos;re in, {order.buyerName.split(" ")[0]}.
             </h1>
             <p className="text-ink-soft mt-3">
-              {order.item.title} — we&apos;ll email your access details and GST invoice to{" "}
-              {order.buyerEmail} shortly. See you there.
+              {order.item.title} — check {order.buyerEmail} for your confirmation. I&apos;ll follow up
+              directly with anything else you need before it starts. See you there.
             </p>
             <Link href="/" className="inline-block mt-8 bg-ink text-bone font-semibold px-6 py-3 rounded-full hover:bg-marigold hover:text-ink transition-colors">
               Back to the stream

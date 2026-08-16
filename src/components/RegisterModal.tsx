@@ -154,7 +154,8 @@ export default function RegisterModal({
                       <p className="font-semibold text-[16px]">{dateLabel} · Live on Zoom</p>
                     </div>
                     <p className="text-[16px] leading-relaxed text-ink-soft mt-4">
-                      We&apos;ll email and WhatsApp the Zoom link before the session starts.
+                      Check your email for confirmation — I&apos;ll follow up directly with the Zoom link
+                      before the session starts.
                     </p>
                     <a
                       href={calendarUrl!}
@@ -167,7 +168,8 @@ export default function RegisterModal({
                   </>
                 ) : (
                   <p className="text-[16px] leading-relaxed text-ink-soft mt-3">
-                    Got your details for <b>{title}</b> — I&apos;ll follow up by email or WhatsApp shortly.
+                    Got your details for <b>{title}</b> — check your email for confirmation, and I&apos;ll
+                    follow up directly shortly.
                   </p>
                 )}
               </>

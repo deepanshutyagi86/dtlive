@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/auth";
 import { claimMetaLeadEvent, createLead, decrementWorkshopSeats, listLeads } from "@/lib/admin-repo";
 import { sendMetaLeadEvent } from "@/lib/meta-capi";
-import { getItemById } from "@/lib/items";
+import { getItemById, getNotifyEmail, getSetting } from "@/lib/items";
 import { DEFAULT_REGISTRATION_FIELDS } from "@/lib/types";
 import type { WorkshopDetails } from "@/lib/types";
 import { rateLimit, clientIpFrom } from "@/lib/rate-limit";
+import { sendEmail } from "@/lib/email";
+import { DEFAULT_EMAIL_COPY, resolveTemplate, renderTemplate } from "@/lib/email-templates";
+import type { EmailCopy } from "@/lib/email-templates";
 
 export async function POST(req: NextRequest) {
   if (!rateLimit(`leads:${clientIpFrom(req)}`, 5, 60_000)) {
@@ -84,6 +87,40 @@ export async function POST(req: NextRequest) {
 
   if (await claimMetaLeadEvent(lead.id)) {
     await sendMetaLeadEvent(lead);
+  }
+
+  const emailCopy = await getSetting<EmailCopy>("emailCopy", {});
+  // itemId is optional (a general enquiry has none) — leadValues.item is ""
+  // in that case, and the {item} token in either template below already
+  // renders as an empty string rather than "undefined" (see substitute()
+  // in email-templates.ts).
+  const leadValues = {
+    name: lead.name,
+    firstName: lead.name.split(" ")[0],
+    item: item?.title ?? "",
+    email: lead.email ?? "",
+    phone: lead.phone ?? "",
+  };
+
+  if (lead.email) {
+    try {
+      const template = resolveTemplate(emailCopy.leadBuyer, DEFAULT_EMAIL_COPY.leadBuyer);
+      const rendered = renderTemplate(template, leadValues);
+      await sendEmail({ to: lead.email, ...rendered });
+    } catch (err) {
+      console.error("Leads: registrant confirmation email failed:", err);
+    }
+  }
+
+  try {
+    const notifyEmail = await getNotifyEmail();
+    if (notifyEmail) {
+      const template = resolveTemplate(emailCopy.leadAdmin, DEFAULT_EMAIL_COPY.leadAdmin);
+      const rendered = renderTemplate(template, leadValues);
+      await sendEmail({ to: notifyEmail, ...rendered });
+    }
+  } catch (err) {
+    console.error("Leads: admin alert email failed:", err);
   }
 
   // Only the free-registration flow decrements here. Paid workshops decrement

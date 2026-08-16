@@ -14,14 +14,24 @@ import type { CourseDetails, WorkshopDetails } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const [items, featured, counts, ticker, testimonials, footerLinks] = await Promise.all([
+  const [items, featured, counts, ticker, testimonials, footerLinks, heroCopySetting] = await Promise.all([
     getLiveStreamItems(),
     getFeaturedItem(),
     getDoorCounts(),
     getSetting<string[]>("ticker", DEFAULT_TICKER),
     getSetting<Testimonial[]>("testimonials", DEFAULT_TESTIMONIALS),
     getSetting<FooterLinks>("footerLinks", DEFAULT_FOOTER),
+    getSetting<Partial<HeroCopy>>("heroCopy", {}),
   ]);
+
+  // Blank/missing fields fall back to the default individually, never
+  // render empty.
+  const hero: HeroCopy = {
+    eyebrow: heroCopySetting.eyebrow?.trim() || DEFAULT_HERO_COPY.eyebrow,
+    line1: heroCopySetting.line1?.trim() || DEFAULT_HERO_COPY.line1,
+    line2: heroCopySetting.line2?.trim() || DEFAULT_HERO_COPY.line2,
+    subline: heroCopySetting.subline?.trim() || DEFAULT_HERO_COPY.subline,
+  };
 
   const streamItems: StreamItem[] = items.map((i) => ({
     id: i.id,
@@ -77,17 +87,15 @@ export default async function HomePage() {
     <>
       <Nav />
       <header className="max-w-[1200px] mx-auto px-5 pt-[92px] pb-1">
-        <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-muted mb-2">
-          deepanshutyagi.live — the storefront
-        </p>
+        <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-muted mb-2">{hero.eyebrow}</p>
         <h1 className="font-display font-extrabold tracking-tight text-[34px] md:text-[104px] leading-[0.95]">
           <span className="inline-block w-[0.35em] h-[0.35em] rounded-full bg-live live-dot mr-[0.18em] align-[0.08em]" />
-          Live,
+          {hero.line1}
           <br />
-          <span className="text-marigold-deep">right now.</span>
+          <span className="text-marigold-deep">{hero.line2}</span>
         </h1>
         <p className="mt-3 max-w-[560px] text-[15px] md:text-[17px] leading-6 md:leading-7 text-ink-soft">
-          Everything I teach, build, and sell.
+          {hero.subline}
         </p>
       </header>
 
@@ -120,6 +128,20 @@ export default async function HomePage() {
 // context for yet; they read better as asides once someone's already
 // exploring (ventures page, testimonials) than as a cold trust strip.
 const DEFAULT_TICKER = ["500+ students taught", "3 apps on Play Store", "15+ websites shipped"];
+
+interface HeroCopy {
+  eyebrow: string;
+  line1: string;
+  line2: string;
+  subline: string;
+}
+
+const DEFAULT_HERO_COPY: HeroCopy = {
+  eyebrow: "DEEPANSHUTYAGI.LIVE — THE STOREFRONT",
+  line1: "Live,",
+  line2: "right now.",
+  subline: "Everything I teach, build, and sell.",
+};
 
 const DEFAULT_TESTIMONIALS: Testimonial[] = [
   { quote: "Made my first ₹300 before the Sunday session even ended.", who: "Priya, workshop attendee" },
