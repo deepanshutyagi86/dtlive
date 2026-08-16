@@ -154,16 +154,21 @@ export default function LiveStream({ items }: { items: StreamItem[] }) {
     // effect on vx. Getting this wrong breaks page scroll over the
     // carousel, which is worse than the problem this fixes.
     const wheel = (e: WheelEvent) => {
-      const horizontal = Math.abs(e.deltaX) > Math.abs(e.deltaY) || e.shiftKey;
-      if (!horizontal) return;
+      const horizontalSwipe = Math.abs(e.deltaX) > Math.abs(e.deltaY);
+      if (!horizontalSwipe && !e.shiftKey) return;
       e.preventDefault();
+      // Not every browser remaps shift+wheel onto deltaX before dispatch —
+      // Chrome does, but Firefox and Safari on macOS leave it on deltaY.
+      // Falling back to deltaY only inside the shift branch (never
+      // otherwise) covers both without changing the non-shift read.
+      const delta = e.shiftKey ? e.deltaX || e.deltaY : e.deltaX;
       // Sign matches drag: dragging left moves the pointer to a smaller x
       // (negative dx) and shifts the track left. A trackpad "swipe left"
       // reports a positive deltaX (the native convention behind
       // `scrollLeft += deltaX`), so it has to be negated here to produce
-      // the same leftward shift — feeding deltaX in unsigned would run
+      // the same leftward shift — feeding delta in unsigned would run
       // the carousel backwards relative to drag.
-      s.vx = -e.deltaX;
+      s.vx = -delta;
       s.wheeling = true;
       clearTimeout(wheelIdleTimer);
       wheelIdleTimer = setTimeout(() => {
