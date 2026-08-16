@@ -6,6 +6,10 @@ import { Category, ImageFocal } from "@/lib/types";
 // change these two tokens to retune every card at once instead of hunting
 // for aspect-[..]/object-.. strings across the component tree.
 export const ITEM_IMAGE_ASPECT_CLASS = "aspect-[3/2]";
+// A detail-page hero reads as a lead visual, not a grid thumbnail — wider
+// and shorter than the card ratio. Its own token, next to the card one, so
+// retuning either later is a one-line change instead of a hunt.
+export const ITEM_DETAIL_HERO_ASPECT_CLASS = "aspect-[16/9]";
 // Top-anchored, not centered: a tall portrait photo squeezed into this
 // frame crops from the center by default, which cuts off heads. Anchoring
 // to the top keeps faces in frame at the cost of cropping more off the
@@ -21,6 +25,7 @@ export default function ItemImage({
   seed,
   sizes,
   imageFocal,
+  aspectClassName = ITEM_IMAGE_ASPECT_CLASS,
   className = "",
 }: {
   thumbnail: string | null;
@@ -33,10 +38,15 @@ export default function ItemImage({
   // Tailwind can't compile a class from a runtime x/y value, so a specific
   // focal point has to be an inline style, not a generated class.
   imageFocal?: ImageFocal | null;
+  // Defaults to the card ratio. Pass ITEM_DETAIL_HERO_ASPECT_CLASS (or any
+  // other aspect-[..] token) for a surface that isn't a card — a plain
+  // className can't reliably override aspect-ratio since Tailwind utility
+  // ordering, not string position, decides which wins.
+  aspectClassName?: string;
   className?: string;
 }) {
   return (
-    <div className={`relative w-full ${ITEM_IMAGE_ASPECT_CLASS} ${className}`}>
+    <div className={`relative w-full ${aspectClassName} ${className}`}>
       {thumbnail ? (
         <Image
           src={thumbnail}

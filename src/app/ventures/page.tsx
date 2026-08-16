@@ -1,4 +1,4 @@
-import DirectoryGrid from "@/components/DirectoryGrid";
+import DirectoryGrid, { DirectoryItem } from "@/components/DirectoryGrid";
 import { getItemsByCategory, getSetting } from "@/lib/items";
 import type { FooterLinks } from "@/components/Footer";
 
@@ -9,12 +9,21 @@ export default async function VenturesPage() {
     getItemsByCategory("venture"),
     getSetting<FooterLinks>("footerLinks", {}),
   ]);
+  const directoryItems: DirectoryItem[] = items.map((i) => ({
+    slug: i.slug,
+    title: i.title,
+    description: i.description,
+    category: i.category as "venture",
+    details: i.details,
+    thumbnail: i.thumbnail,
+    imageFocal: i.details?.imageFocal ?? null,
+  }));
   return (
     <DirectoryGrid
       kind="venture"
       title="Ventures"
       blurb="Businesses I hold equity in and build on, day to day."
-      items={items as any}
+      items={directoryItems}
       footerLinks={footerLinks}
     />
   );

@@ -1,5 +1,7 @@
 import Nav from "./Nav";
 import Footer, { FooterLinks } from "./Footer";
+import ItemImage from "./ItemImage";
+import type { ImageFocal } from "@/lib/types";
 import type { ShopDetails, VentureDetails } from "@/lib/types";
 
 export interface DirectoryItem {
@@ -8,7 +10,14 @@ export interface DirectoryItem {
   description: string;
   category: "shop" | "venture";
   details: ShopDetails | VentureDetails;
+  thumbnail: string | null;
+  imageFocal?: ImageFocal | null;
 }
+
+// Same rationale as CategoryGrid: a grid column is wider than a fixed-width
+// carousel card, so it gets its own sizes hint rather than reusing the
+// carousel's.
+const GRID_IMAGE_SIZES = "(min-width: 768px) 33vw, 100vw";
 
 export default function DirectoryGrid({
   kind,
@@ -51,6 +60,16 @@ export default function DirectoryGrid({
                   : (d as VentureDetails).status === "coming-soon"
                     ? "Coming soon"
                     : `${(d as VentureDetails).equityPercent ?? 0}% equity`;
+              const image = (
+                <ItemImage
+                  thumbnail={item.thumbnail}
+                  title={item.title}
+                  category={item.category}
+                  seed={item.slug}
+                  sizes={GRID_IMAGE_SIZES}
+                  imageFocal={item.imageFocal}
+                />
+              );
               const cardInner = (
                 <>
                   <span className="font-mono text-[10px] font-bold tracking-wider uppercase w-fit px-2.5 py-1 rounded-full border border-ink bg-bone">
@@ -65,8 +84,9 @@ export default function DirectoryGrid({
               // card without a link rather than a dead "#" href.
               if (!externalUrl) {
                 return (
-                  <div key={item.slug} className="bg-card border border-line rounded-card p-5 flex flex-col gap-3">
-                    {cardInner}
+                  <div key={item.slug} className="bg-card border border-line rounded-card overflow-hidden flex flex-col">
+                    {image}
+                    <div className="p-5 flex flex-col gap-3 flex-1">{cardInner}</div>
                   </div>
                 );
               }
@@ -77,12 +97,15 @@ export default function DirectoryGrid({
                   href={externalUrl}
                   target="_blank"
                   rel="noopener"
-                  className="group bg-card border border-line rounded-card p-5 flex flex-col gap-3 hover:-translate-y-1 hover:shadow-[0_20px_40px_-20px_rgba(25,25,19,0.35)] transition-all"
+                  className="group bg-card border border-line rounded-card overflow-hidden flex flex-col hover:-translate-y-1 hover:shadow-[0_20px_40px_-20px_rgba(25,25,19,0.35)] transition-all"
                 >
-                  {cardInner}
-                  <div className="flex items-center justify-between font-semibold text-sm border-t border-line pt-3 group-hover:text-marigold-deep">
-                    <span>Visit {kind === "shop" ? "store" : "site"}</span>
-                    <span className="group-hover:translate-x-1.5 transition-transform">↗</span>
+                  {image}
+                  <div className="p-5 flex flex-col gap-3 flex-1">
+                    {cardInner}
+                    <div className="flex items-center justify-between font-semibold text-sm border-t border-line pt-3 group-hover:text-marigold-deep">
+                      <span>Visit {kind === "shop" ? "store" : "site"}</span>
+                      <span className="group-hover:translate-x-1.5 transition-transform">↗</span>
+                    </div>
                   </div>
                 </a>
               );

@@ -1,4 +1,4 @@
-import CategoryGrid from "@/components/CategoryGrid";
+import CategoryGrid, { GridItem } from "@/components/CategoryGrid";
 import { getItemsByCategory, getSetting } from "@/lib/items";
 import type { FooterLinks } from "@/components/Footer";
 
@@ -9,5 +9,15 @@ export default async function WorkshopsPage() {
     getItemsByCategory("workshop"),
     getSetting<FooterLinks>("footerLinks", {}),
   ]);
-  return <CategoryGrid category="workshop" items={items} footerLinks={footerLinks} />;
+  const gridItems: GridItem[] = items.map((i) => ({
+    id: i.id,
+    slug: i.slug,
+    title: i.title,
+    description: i.description,
+    category: i.category,
+    details: i.details,
+    thumbnail: i.thumbnail,
+    imageFocal: i.details?.imageFocal ?? null,
+  }));
+  return <CategoryGrid category="workshop" items={gridItems} footerLinks={footerLinks} />;
 }
