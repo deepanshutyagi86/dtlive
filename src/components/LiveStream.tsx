@@ -16,11 +16,12 @@ export interface StreamItem {
   imageFocal?: ImageFocal | null;
 }
 
-// Cards sit flat. The alternating odd/even tilt that used to be here
-// (-1.6deg / +1.3deg, with a hover:!rotate-0 to straighten on hover) was
-// removed deliberately — keep them upright.
+// Cards sit flat and level. Three classes made up the old "scattered" look
+// and all are gone deliberately: the alternating tilt (odd:-rotate-[1.6deg] /
+// even:rotate-[1.3deg]), its hover:!rotate-0 straightener, and the
+// even:translate-y-2 that dropped every second card 8px. Keep them aligned.
 const CARD_CLASS =
-  "flex-none w-[270px] md:w-[290px] bg-card border border-line rounded-card overflow-hidden flex flex-col shadow-[0_14px_34px_-18px_rgba(25,25,19,0.28)] transition-transform duration-300 hover:-translate-y-1.5 hover:scale-[1.02] hover:shadow-[0_26px_50px_-20px_rgba(25,25,19,0.4)] hover:z-10 even:translate-y-2 group";
+  "flex-none w-[270px] md:w-[290px] bg-card border border-line rounded-card overflow-hidden flex flex-col shadow-[0_14px_34px_-18px_rgba(25,25,19,0.28)] transition-transform duration-300 hover:-translate-y-1.5 hover:scale-[1.02] hover:shadow-[0_26px_50px_-20px_rgba(25,25,19,0.4)] hover:z-10 group";
 
 // course/workshop have a real detail page; agency has no per-item page (it
 // links to the /agency listing instead — see CategoryGrid for the actual
