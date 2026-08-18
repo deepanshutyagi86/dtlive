@@ -2,6 +2,7 @@ import Nav from "@/components/Nav";
 import LiveStream, { StreamItem } from "@/components/LiveStream";
 import Spotlight, { SpotlightData } from "@/components/Spotlight";
 import Doors from "@/components/Doors";
+import type { CardItem } from "@/components/ItemCard";
 import Ticker from "@/components/Ticker";
 import Testimonials, { Testimonial } from "@/components/Testimonials";
 import Footer, { FooterLinks } from "@/components/Footer";
@@ -45,6 +46,19 @@ export default async function HomePage() {
     imageFocal: i.details?.imageFocal ?? null,
   }));
 
+  // Same rows the carousel already fetched — grouped by category inside the
+  // Doors component rather than re-queried per category.
+  const cardItems: CardItem[] = items.map((i) => ({
+    id: i.id,
+    slug: i.slug,
+    title: i.title,
+    description: i.description,
+    category: i.category,
+    details: i.details,
+    thumbnail: i.thumbnail,
+    imageFocal: i.details?.imageFocal ?? null,
+  }));
+
   let spotlight: SpotlightData | null = null;
   if (featured && (featured.category === "course" || featured.category === "workshop")) {
     const d = featured.details as any;
@@ -76,9 +90,16 @@ export default async function HomePage() {
       title: featured.title,
       description: featured.description,
       chips,
-      showCountdown: d.showCountdown !== false,
-      deadlineISO:
-        featured.category === "workshop" ? (d as WorkshopDetails).date : new Date(Date.now() + 6 * 864e5).toISOString(),
+      category: featured.category,
+      thumbnail: featured.thumbnail,
+      imageFocal: featured.details?.imageFocal ?? null,
+      // A course has no real deadline, so the old fallback counted down to
+      // "six days from whenever you loaded the page" — a timer that silently
+      // resets on every visit and pressures a stranger with a date that does
+      // not exist. Only a workshop, which has a genuine start time, gets a
+      // countdown now; a featured course shows the CTA without one.
+      showCountdown: featured.category === "workshop" && d.showCountdown !== false,
+      deadlineISO: featured.category === "workshop" ? (d as WorkshopDetails).date : "",
       ctaLabel: featured.category === "workshop" ? "Reserve my seat" : "Enroll now",
     };
   }
@@ -112,7 +133,7 @@ export default async function HomePage() {
 
       <Ticker lines={ticker} />
 
-      <Doors counts={counts} />
+      <Doors counts={counts} items={cardItems} />
       <Testimonials items={testimonials} />
       <Footer links={footerLinks} />
     </>

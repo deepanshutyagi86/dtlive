@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import ItemImage from "./ItemImage";
+import type { Category, ImageFocal } from "@/lib/types";
 
 export interface SpotlightData {
   slug: string;
@@ -10,12 +12,21 @@ export interface SpotlightData {
   deadlineISO: string;
   ctaLabel: string;
   showCountdown?: boolean;
+  // The featured item's own artwork. Carried here so the spotlight is
+  // image-led like every other surface; falls back to the same generated
+  // placeholder as the cards when the item has no photo yet.
+  category: Category;
+  thumbnail: string | null;
+  imageFocal?: ImageFocal | null;
 }
 
 function useCountdown(deadlineISO: string) {
   const [parts, setParts] = useState({ d: "--", h: "--", m: "--", s: "--" });
   useEffect(() => {
     const deadline = new Date(deadlineISO).getTime();
+    // A featured course passes "" — there is no real deadline to count to.
+    // Bail before starting an interval that would tick "NaN" once a second.
+    if (Number.isNaN(deadline)) return;
     const tick = () => {
       const ms = Math.max(0, deadline - Date.now());
       const d = Math.floor(ms / 864e5);
@@ -69,7 +80,20 @@ export default function Spotlight({ data }: { data: SpotlightData }) {
             ))}
           </div>
         </div>
-        <div className="flex flex-col gap-4 items-start">
+        <div className="flex flex-col gap-5 items-start">
+          {/* Capped rather than full-bleed: at the container's 1fr this
+              column can run 400px+ wide on a large screen, and a hero-sized
+              photo would out-shout the headline it is supposed to support. */}
+          <div className="w-full max-w-[320px] rounded-card overflow-hidden border border-[#3c3b33]">
+            <ItemImage
+              thumbnail={data.thumbnail}
+              title={data.title}
+              category={data.category}
+              seed={data.slug}
+              sizes="(min-width: 768px) 320px, 100vw"
+              imageFocal={data.imageFocal}
+            />
+          </div>
           {showCountdown && (
             <div className="flex gap-2.5">
               {(["d", "h", "m", "s"] as const).map((k, i) => (

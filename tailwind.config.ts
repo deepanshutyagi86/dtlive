@@ -16,7 +16,7 @@ const config: Config = {
         live: "#FF3B30",
       },
       fontFamily: {
-        display: ["var(--font-syne)", "sans-serif"],
+        display: ["var(--font-bricolage)", "sans-serif"],
         body: ["var(--font-instrument)", "sans-serif"],
         mono: ["var(--font-space-mono)", "monospace"],
       },

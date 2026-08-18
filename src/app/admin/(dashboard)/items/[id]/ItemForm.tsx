@@ -23,6 +23,29 @@ export interface ExistingItem {
   details: any;
 }
 
+// A datetime-local input reads and writes LOCAL wall-clock time, while
+// details.date is stored as a UTC ISO string. Slicing the ISO directly fed
+// UTC digits into a field that interprets them as local, so in IST the box
+// showed a time 5h30m earlier than the truth — and because that displayed
+// value is what gets saved, every open-and-save shifted the real workshop
+// date another 5h30m earlier. Convert through the local offset in both
+// directions so the round trip is lossless.
+function toLocalInputValue(iso?: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+}
+
+// Clearing the field yields "", and new Date("").toISOString() throws a
+// RangeError — so an empty or half-typed value has to short-circuit to ""
+// rather than reach toISOString().
+function fromLocalInputValue(value: string): string {
+  if (!value) return "";
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? "" : d.toISOString();
+}
+
 function emptyDetails(category: Category): any {
   switch (category) {
     case "course":
@@ -454,7 +477,7 @@ function WorkshopFields({ details, setDetails }: { details: any; setDetails: (d:
           <input type="number" className="input" value={details.price} onChange={(e) => setDetails({ ...details, price: Number(e.target.value) })} />
         </Field>
         <Field label="Date & time">
-          <input type="datetime-local" className="input" value={details.date?.slice(0, 16) ?? ""} onChange={(e) => setDetails({ ...details, date: new Date(e.target.value).toISOString() })} />
+          <input type="datetime-local" className="input" value={toLocalInputValue(details.date)} onChange={(e) => setDetails({ ...details, date: fromLocalInputValue(e.target.value) })} />
         </Field>
         {!details.unlimitedSeats && (
           <Field label="Seats left">

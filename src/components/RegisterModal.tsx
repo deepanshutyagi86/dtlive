@@ -144,7 +144,7 @@ export default function RegisterModal({
             role="dialog"
             aria-modal="true"
             aria-label={title}
-            className="bg-bone rounded-card w-full max-w-[420px] max-h-[90dvh] flex flex-col overflow-hidden"
+            className="bg-bone text-ink rounded-card w-full max-w-[420px] max-h-[90dvh] flex flex-col overflow-hidden"
           >
             <div className="relative flex-none">
               <ItemImage
@@ -224,7 +224,7 @@ export default function RegisterModal({
                                 ? "e.g. you@example.com"
                                 : ""
                         }
-                        className="w-full px-3.5 py-3.5 text-[16px] bg-card border border-line rounded-[10px] placeholder-ink-soft focus:outline-none focus:border-marigold focus:ring-2 focus:ring-marigold"
+                        className="w-full px-3.5 py-3.5 text-[16px] text-ink bg-card border border-line rounded-[10px] placeholder-ink-soft focus:outline-none focus:border-marigold focus:ring-2 focus:ring-marigold"
                       />
                     </div>
                   ))}

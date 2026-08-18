@@ -1,19 +1,11 @@
 import Nav from "./Nav";
 import Footer, { FooterLinks } from "./Footer";
-import ItemImage from "./ItemImage";
-import { CHIP_CLASS } from "@/lib/types";
-import type { ImageFocal } from "@/lib/types";
-import type { ShopDetails, VentureDetails } from "@/lib/types";
+import ItemCard, { type CardItem } from "./ItemCard";
 
-export interface DirectoryItem {
-  slug: string;
-  title: string;
-  description: string;
-  category: "shop" | "venture";
-  details: ShopDetails | VentureDetails;
-  thumbnail: string | null;
-  imageFocal?: ImageFocal | null;
-}
+// Same card as the category pages and the homepage sections; the shop and
+// venture variations (which storefront, how much equity, external link
+// instead of a detail page) live inside ItemCard itself.
+export type DirectoryItem = CardItem;
 
 // Same rationale as CategoryGrid: a grid column is wider than a fixed-width
 // carousel card, so it gets its own sizes hint rather than reusing the
@@ -52,65 +44,9 @@ export default function DirectoryGrid({
           </div>
         ) : (
           <div className="grid md:grid-cols-3 gap-5 mt-12">
-            {items.map((item) => {
-              const d = item.details as any;
-              const externalUrl = kind === "shop" ? (d as ShopDetails).externalUrl : (d as VentureDetails).externalUrl;
-              const tag =
-                kind === "shop"
-                  ? `${(d as ShopDetails).platform} · ${(d as ShopDetails).brand}`
-                  : (d as VentureDetails).status === "coming-soon"
-                    ? "Coming soon"
-                    : `${(d as VentureDetails).equityPercent ?? 0}% equity`;
-              const image = (
-                <ItemImage
-                  thumbnail={item.thumbnail}
-                  title={item.title}
-                  category={item.category}
-                  seed={item.slug}
-                  sizes={GRID_IMAGE_SIZES}
-                  imageFocal={item.imageFocal}
-                />
-              );
-              const cardInner = (
-                <>
-                  <span className={`font-mono text-[10px] font-bold tracking-wider uppercase w-fit px-2.5 py-1 rounded-full border ${CHIP_CLASS[item.category]}`}>
-                    {tag}
-                  </span>
-                  <div className="font-display font-bold text-xl tracking-tight">{item.title}</div>
-                  <div className="text-[16px] leading-relaxed text-ink-soft flex-1">{item.description}</div>
-                </>
-              );
-
-              // No externalUrl set — nothing to send a click to. Render the
-              // card without a link rather than a dead "#" href.
-              if (!externalUrl) {
-                return (
-                  <div key={item.slug} className="bg-card border border-line rounded-card overflow-hidden flex flex-col">
-                    {image}
-                    <div className="p-5 flex flex-col gap-3 flex-1">{cardInner}</div>
-                  </div>
-                );
-              }
-
-              return (
-                <a
-                  key={item.slug}
-                  href={externalUrl}
-                  target="_blank"
-                  rel="noopener"
-                  className="group bg-card border border-line rounded-card overflow-hidden flex flex-col hover:-translate-y-1 hover:shadow-[0_20px_40px_-20px_rgba(25,25,19,0.35)] transition-all"
-                >
-                  {image}
-                  <div className="p-5 flex flex-col gap-3 flex-1">
-                    {cardInner}
-                    <div className="flex items-center justify-between font-semibold text-sm border-t border-line pt-3 group-hover:text-marigold-deep">
-                      <span>Visit {kind === "shop" ? "store" : "site"}</span>
-                      <span className="group-hover:translate-x-1.5 transition-transform">↗</span>
-                    </div>
-                  </div>
-                </a>
-              );
-            })}
+            {items.map((item) => (
+              <ItemCard key={item.slug} item={item} sizes={GRID_IMAGE_SIZES} />
+            ))}
           </div>
         )}
       </main>

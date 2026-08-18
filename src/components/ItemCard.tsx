@@ -1,0 +1,171 @@
+import Link from "next/link";
+import RegisterModal from "./RegisterModal";
+import ItemImage from "./ItemImage";
+import { CATEGORY_CTA, CATEGORY_LABELS, CHIP_CLASS } from "@/lib/types";
+import type {
+  AgencyDetails,
+  Category,
+  CourseDetails,
+  ImageFocal,
+  ShopDetails,
+  VentureDetails,
+  WorkshopDetails,
+} from "@/lib/types";
+
+export interface CardItem {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  category: Category;
+  details: any;
+  thumbnail: string | null;
+  imageFocal?: ImageFocal | null;
+}
+
+// The single card used by the category pages, the shop/venture directories
+// and the homepage category sections. Previously three near-identical
+// copies of this markup; the differences between them were unintentional
+// drift, not design, so a tweak had to be made in three places to land.
+const SHELL = "bg-card border border-line rounded-card overflow-hidden flex flex-col";
+const HOVER =
+  "group hover:-translate-y-1 hover:shadow-[0_20px_40px_-20px_rgba(25,25,19,0.35)] transition-all";
+const FOOTER_ROW = "flex items-center justify-between font-semibold text-sm border-t border-line pt-3";
+
+// A shop or venture card labels itself by what the listing actually is —
+// which storefront, how much equity — since "Shop"/"Venture" is already
+// implied by the section it sits under and would waste the only badge.
+export function chipLabel(item: CardItem): string {
+  const d = item.details as any;
+  if (item.category === "shop") {
+    const s = d as ShopDetails;
+    return [s.platform, s.brand].filter(Boolean).join(" · ") || CATEGORY_LABELS.shop;
+  }
+  if (item.category === "venture") {
+    const v = d as VentureDetails;
+    return v.status === "coming-soon" ? "Coming soon" : `${v.equityPercent ?? 0}% equity`;
+  }
+  return CATEGORY_LABELS[item.category];
+}
+
+export function metaLine(item: CardItem): string {
+  const d = item.details as any;
+  if (item.category === "course") {
+    const c = d as CourseDetails;
+    return `₹${c.price} · ${c.duration ?? "self-paced"}`;
+  }
+  if (item.category === "workshop") {
+    const w = d as WorkshopDetails;
+    const date = new Date(w.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+    // Honour the same two flags the detail page does. The old card printed
+    // "20 seats left" even for a workshop marked unlimited, which is both
+    // false and needless scarcity.
+    const hideSeats = w.unlimitedSeats || w.showSeatsBadge === false;
+    return hideSeats ? date : `${date} · ${w.seatsLeft} seats left`;
+  }
+  if (item.category === "agency") {
+    const a = d as AgencyDetails;
+    return a.priceType === "quote" ? "Custom quote" : `from ₹${a.priceValue}`;
+  }
+  return "";
+}
+
+function externalUrlFor(item: CardItem): string | null {
+  const d = item.details as any;
+  if (item.category === "shop") return (d as ShopDetails).externalUrl || null;
+  if (item.category === "venture") return (d as VentureDetails).externalUrl || null;
+  return null;
+}
+
+export default function ItemCard({ item, sizes }: { item: CardItem; sizes: string }) {
+  const meta = metaLine(item);
+  const external = externalUrlFor(item);
+
+  const image = (
+    <ItemImage
+      thumbnail={item.thumbnail}
+      title={item.title}
+      category={item.category}
+      seed={item.slug}
+      sizes={sizes}
+      imageFocal={item.imageFocal}
+    />
+  );
+
+  const head = (
+    <>
+      <span
+        className={`font-mono text-[10px] font-bold tracking-wider uppercase w-fit px-2.5 py-1 rounded-full border ${CHIP_CLASS[item.category]}`}
+      >
+        {chipLabel(item)}
+      </span>
+      <div className="font-display font-bold text-xl tracking-tight">{item.title}</div>
+      <div className="text-[16px] leading-relaxed text-ink-soft flex-1">{item.description}</div>
+      {meta && <div className="font-mono text-[11px] text-muted">{meta}</div>}
+    </>
+  );
+
+  // Agency items have no detail page — they're a quote request, not a
+  // checkout — so the card opens the lead-capture modal instead of linking
+  // to /items/[slug], which 404s for this category.
+  if (item.category === "agency") {
+    return (
+      <div className={SHELL}>
+        {image}
+        <div className="p-5 flex flex-col gap-3 flex-1">
+          {head}
+          <div className="border-t border-line pt-3">
+            <RegisterModal
+              itemId={item.id}
+              title={item.title}
+              slug={item.slug}
+              category={item.category}
+              thumbnail={item.thumbnail}
+              imageFocal={item.imageFocal}
+              triggerLabel={`${CATEGORY_CTA[item.category]} →`}
+              triggerClassName="font-semibold text-sm hover:text-marigold-deep transition-colors"
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (item.category === "shop" || item.category === "venture") {
+    // No externalUrl set — nothing to send a click to. Render the card
+    // without a link rather than a dead "#" href.
+    if (!external) {
+      return (
+        <div className={SHELL}>
+          {image}
+          <div className="p-5 flex flex-col gap-3 flex-1">{head}</div>
+        </div>
+      );
+    }
+    return (
+      <a href={external} target="_blank" rel="noopener" className={`${SHELL} ${HOVER}`}>
+        {image}
+        <div className="p-5 flex flex-col gap-3 flex-1">
+          {head}
+          <div className={`${FOOTER_ROW} group-hover:text-marigold-deep`}>
+            <span>{CATEGORY_CTA[item.category]}</span>
+            <span className="group-hover:translate-x-1.5 transition-transform">↗</span>
+          </div>
+        </div>
+      </a>
+    );
+  }
+
+  return (
+    <Link href={`/items/${item.slug}`} className={`${SHELL} ${HOVER}`}>
+      {image}
+      <div className="p-5 flex flex-col gap-3 flex-1">
+        {head}
+        <div className={`${FOOTER_ROW} group-hover:text-marigold-deep`}>
+          <span>{CATEGORY_CTA[item.category]}</span>
+          <span className="group-hover:translate-x-1.5 transition-transform">→</span>
+        </div>
+      </div>
+    </Link>
+  );
+}

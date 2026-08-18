@@ -10,6 +10,7 @@ export default async function VenturesPage() {
     getSetting<FooterLinks>("footerLinks", {}),
   ]);
   const directoryItems: DirectoryItem[] = items.map((i) => ({
+    id: i.id,
     slug: i.slug,
     title: i.title,
     description: i.description,

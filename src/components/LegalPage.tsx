@@ -29,7 +29,7 @@ export default function LegalPage({
       <Footer links={footerLinks} />
       <style>{`
         .legal-body h2 {
-          font-family: var(--font-syne);
+          font-family: var(--font-bricolage);
           font-weight: 800;
           font-size: 21px;
           letter-spacing: -0.01em;
