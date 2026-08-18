@@ -30,7 +30,6 @@ export interface CardItem {
 const SHELL = "bg-card border border-line rounded-card overflow-hidden flex flex-col";
 const HOVER =
   "group hover:-translate-y-1 hover:shadow-[0_20px_40px_-20px_rgba(25,25,19,0.35)] transition-all";
-const FOOTER_ROW = "flex items-center justify-between font-semibold text-sm border-t border-line pt-3";
 
 // A shop or venture card labels itself by what the listing actually is —
 // which storefront, how much equity — since "Shop"/"Venture" is already
@@ -77,9 +76,33 @@ function externalUrlFor(item: CardItem): string | null {
   return null;
 }
 
-export default function ItemCard({ item, sizes }: { item: CardItem; sizes: string }) {
+export default function ItemCard({
+  item,
+  sizes,
+  compact = false,
+}: {
+  item: CardItem;
+  sizes: string;
+  // Set by the homepage's two-up mobile grid (Doors.tsx) only. Tightens
+  // padding/type on small screens so two narrow cards read cleanly side by
+  // side; the category/directory pages stay full-width on mobile and don't
+  // pass this, so their cards keep the normal, larger treatment.
+  compact?: boolean;
+}) {
   const meta = metaLine(item);
   const external = externalUrlFor(item);
+
+  const bodyClass = `${compact ? "p-3 sm:p-5" : "p-5"} flex flex-col ${compact ? "gap-2 sm:gap-3" : "gap-3"} flex-1`;
+  const chipClass = `font-mono text-[10px] font-bold tracking-wider uppercase w-fit rounded-full border ${
+    compact ? "px-2 py-0.5 sm:px-2.5 sm:py-1" : "px-2.5 py-1"
+  } ${CHIP_CLASS[item.category]}`;
+  const titleClass = `font-display font-bold tracking-tight ${compact ? "text-base sm:text-xl" : "text-xl"}`;
+  const descClass = `leading-relaxed text-ink-soft flex-1 ${
+    compact ? "text-[13px] sm:text-[16px] line-clamp-3 sm:line-clamp-none" : "text-[16px]"
+  }`;
+  const footerClass = `flex items-center justify-between font-semibold border-t border-line ${
+    compact ? "text-xs sm:text-sm pt-2 sm:pt-3" : "text-sm pt-3"
+  }`;
 
   const image = (
     <ItemImage
@@ -94,13 +117,9 @@ export default function ItemCard({ item, sizes }: { item: CardItem; sizes: strin
 
   const head = (
     <>
-      <span
-        className={`font-mono text-[10px] font-bold tracking-wider uppercase w-fit px-2.5 py-1 rounded-full border ${CHIP_CLASS[item.category]}`}
-      >
-        {chipLabel(item)}
-      </span>
-      <div className="font-display font-bold text-xl tracking-tight">{item.title}</div>
-      <div className="text-[16px] leading-relaxed text-ink-soft flex-1">{item.description}</div>
+      <span className={chipClass}>{chipLabel(item)}</span>
+      <div className={titleClass}>{item.title}</div>
+      <div className={descClass}>{item.description}</div>
       {meta && <div className="font-mono text-[11px] text-muted">{meta}</div>}
     </>
   );
@@ -112,7 +131,7 @@ export default function ItemCard({ item, sizes }: { item: CardItem; sizes: strin
     return (
       <div className={SHELL}>
         {image}
-        <div className="p-5 flex flex-col gap-3 flex-1">
+        <div className={bodyClass}>
           {head}
           <div className="border-t border-line pt-3">
             <RegisterModal
@@ -138,16 +157,16 @@ export default function ItemCard({ item, sizes }: { item: CardItem; sizes: strin
       return (
         <div className={SHELL}>
           {image}
-          <div className="p-5 flex flex-col gap-3 flex-1">{head}</div>
+          <div className={bodyClass}>{head}</div>
         </div>
       );
     }
     return (
       <a href={external} target="_blank" rel="noopener" className={`${SHELL} ${HOVER}`}>
         {image}
-        <div className="p-5 flex flex-col gap-3 flex-1">
+        <div className={bodyClass}>
           {head}
-          <div className={`${FOOTER_ROW} group-hover:text-marigold-deep`}>
+          <div className={`${footerClass} group-hover:text-marigold-deep`}>
             <span>{CATEGORY_CTA[item.category]}</span>
             <span className="group-hover:translate-x-1.5 transition-transform">↗</span>
           </div>
@@ -159,9 +178,9 @@ export default function ItemCard({ item, sizes }: { item: CardItem; sizes: strin
   return (
     <Link href={`/items/${item.slug}`} className={`${SHELL} ${HOVER}`}>
       {image}
-      <div className="p-5 flex flex-col gap-3 flex-1">
+      <div className={bodyClass}>
         {head}
-        <div className={`${FOOTER_ROW} group-hover:text-marigold-deep`}>
+        <div className={`${footerClass} group-hover:text-marigold-deep`}>
           <span>{CATEGORY_CTA[item.category]}</span>
           <span className="group-hover:translate-x-1.5 transition-transform">→</span>
         </div>
