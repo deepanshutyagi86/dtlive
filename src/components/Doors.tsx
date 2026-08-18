@@ -54,8 +54,9 @@ const DOORS: {
   },
 ];
 
-// Two columns of a 1160px content box, minus the gap.
-const SECTION_IMAGE_SIZES = "(min-width: 1200px) 570px, (min-width: 640px) 50vw, 100vw";
+// Two columns of a 1160px content box, minus the gap. Two-up from the
+// smallest phone width up now, so this is 50vw all the way down.
+const SECTION_IMAGE_SIZES = "(min-width: 1200px) 570px, 50vw";
 
 export default function Doors({
   counts,
@@ -105,9 +106,9 @@ export default function Doors({
                 <p className="text-muted mt-1.5 text-[15px]">Check back soon.</p>
               </div>
             ) : (
-              <div className="grid sm:grid-cols-2 gap-5 mt-7">
+              <div className="grid grid-cols-2 gap-3 sm:gap-5 mt-7">
                 {list.map((item) => (
-                  <ItemCard key={item.slug} item={item} sizes={SECTION_IMAGE_SIZES} />
+                  <ItemCard key={item.slug} item={item} sizes={SECTION_IMAGE_SIZES} compact />
                 ))}
               </div>
             )}
