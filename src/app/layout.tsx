@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Syne, Instrument_Sans, Space_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -63,6 +65,8 @@ fbq('track', 'PageView');
           </>
         )}
         {children}
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
