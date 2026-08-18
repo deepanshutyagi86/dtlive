@@ -216,9 +216,15 @@ export default function RegisterModal({
                         value={form[f.key] ?? ""}
                         onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
                         placeholder={
-                          f.key === "name" ? "Your name" : f.type === "tel" ? "+91" : f.type === "email" ? "you@example.com" : ""
+                          f.key === "name"
+                            ? "e.g. Deepanshu"
+                            : f.type === "tel"
+                              ? "e.g. 9870600903"
+                              : f.type === "email"
+                                ? "e.g. you@example.com"
+                                : ""
                         }
-                        className="w-full px-3.5 py-3.5 text-[16px] bg-card border border-line rounded-[10px] focus:outline-none focus:border-marigold focus:ring-2 focus:ring-marigold"
+                        className="w-full px-3.5 py-3.5 text-[16px] bg-card border border-line rounded-[10px] placeholder-ink-soft focus:outline-none focus:border-marigold focus:ring-2 focus:ring-marigold"
                       />
                     </div>
                   ))}

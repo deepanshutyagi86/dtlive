@@ -99,7 +99,7 @@ export default function ItemForm({ existing }: { existing: ExistingItem | null }
           </select>
         </Field>
         <Field label="Slug (URL)">
-          <input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="build-in-public-workshop" className="input" />
+          <input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="e.g. build-in-public-workshop" className="input" />
         </Field>
       </div>
 
@@ -175,6 +175,10 @@ export default function ItemForm({ existing }: { existing: ExistingItem | null }
           outline: none;
           border-color: var(--marigold);
           box-shadow: 0 0 0 2px var(--marigold);
+        }
+        .input::placeholder {
+          color: var(--ink-soft);
+          opacity: 1;
         }
       `}</style>
     </div>
@@ -428,7 +432,7 @@ function CourseFields({ details, setDetails }: { details: any; setDetails: (d: a
           <input type="number" className="input" value={details.price} onChange={(e) => setDetails({ ...details, price: Number(e.target.value) })} />
         </Field>
         <Field label="Duration label">
-          <input className="input" placeholder="self-paced" value={details.duration} onChange={(e) => setDetails({ ...details, duration: e.target.value })} />
+          <input className="input" placeholder="e.g. self-paced" value={details.duration} onChange={(e) => setDetails({ ...details, duration: e.target.value })} />
         </Field>
       </div>
       <BlockListEditor label="Curriculum" blocks={details.curriculum ?? []} onChange={(b) => setDetails({ ...details, curriculum: b })} />
@@ -630,10 +634,10 @@ function ShopFields({ details, setDetails }: { details: any; setDetails: (d: any
   return (
     <div className="grid md:grid-cols-2 gap-4">
       <Field label="Platform">
-        <input className="input" placeholder="Amazon / Flipkart / Meesho / Website" value={details.platform} onChange={(e) => setDetails({ ...details, platform: e.target.value })} />
+        <input className="input" placeholder="e.g. Amazon / Flipkart / Meesho / Website" value={details.platform} onChange={(e) => setDetails({ ...details, platform: e.target.value })} />
       </Field>
       <Field label="Brand">
-        <input className="input" placeholder="Vyrelle / Muchhad / Sanskriti" value={details.brand} onChange={(e) => setDetails({ ...details, brand: e.target.value })} />
+        <input className="input" placeholder="e.g. Vyrelle / Muchhad / Sanskriti" value={details.brand} onChange={(e) => setDetails({ ...details, brand: e.target.value })} />
       </Field>
       <Field label="External URL">
         <input className="input" value={details.externalUrl} onChange={(e) => setDetails({ ...details, externalUrl: e.target.value })} />
@@ -658,7 +662,7 @@ function VentureFields({ details, setDetails }: { details: any; setDetails: (d: 
         <input className="input" value={details.externalUrl} onChange={(e) => setDetails({ ...details, externalUrl: e.target.value })} />
       </Field>
       <Field label="Your role">
-        <input className="input" placeholder="Co-founder · CTO" value={details.role} onChange={(e) => setDetails({ ...details, role: e.target.value })} />
+        <input className="input" placeholder="e.g. Co-founder · CTO" value={details.role} onChange={(e) => setDetails({ ...details, role: e.target.value })} />
       </Field>
     </div>
   );
