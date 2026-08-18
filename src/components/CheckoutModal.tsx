@@ -1,5 +1,6 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import ItemImage from "./ItemImage";
 import { useModalBehavior } from "@/lib/useModalBehavior";
 import type { Category, ImageFocal } from "@/lib/types";
@@ -29,6 +30,11 @@ export default function CheckoutModal({
   const [form, setForm] = useState({ name: "", email: "", phone: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Portal target (document.body) only exists client-side; without this
+  // guard, SSR/hydration would try to render into a nonexistent node.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -86,7 +92,18 @@ export default function CheckoutModal({
         {triggerLabel}
       </button>
 
-      {open && (
+      {/* Portalled to document.body on purpose, and this is load-bearing in
+          two separate ways. (1) Position: both triggers sit inside a fixed
+          bar — the desktop nav uses backdrop-blur, which makes that nav the
+          containing block for any position:fixed descendant, so an inline
+          overlay would center itself on a ~50px-tall bar instead of the
+          viewport and hang off the top of the screen. (2) Color: the mobile
+          bar sets text-bone, and the inputs below inherit their text color,
+          so typed text rendered near-white on a bone panel while the
+          explicitly-colored placeholder stayed dark. Escaping to <body>
+          fixes both; the explicit text-ink on the inputs is belt-and-braces
+          so neither can regress if a future trigger lands somewhere dark. */}
+      {mounted && open && createPortal(
         <div
           className="fixed inset-0 bg-ink/55 backdrop-blur-sm flex items-center justify-center z-[200] p-4"
           onClick={(e) => e.target === e.currentTarget && setOpen(false)}
@@ -96,7 +113,7 @@ export default function CheckoutModal({
             role="dialog"
             aria-modal="true"
             aria-label={title}
-            className="bg-bone rounded-card w-full max-w-[420px] max-h-[90dvh] flex flex-col overflow-hidden"
+            className="bg-bone text-ink rounded-card w-full max-w-[420px] max-h-[90dvh] flex flex-col overflow-hidden"
           >
             <div className="relative flex-none">
               <ItemImage
@@ -130,7 +147,7 @@ export default function CheckoutModal({
                     value={form[field]}
                     onChange={(e) => setForm({ ...form, [field]: e.target.value })}
                     placeholder={field === "phone" ? "e.g. 9870600903" : field === "email" ? "e.g. you@example.com" : "e.g. Deepanshu"}
-                    className="w-full px-3.5 py-3.5 text-[16px] bg-card border border-line rounded-[10px] placeholder-ink-soft focus:outline-none focus:border-marigold focus:ring-2 focus:ring-marigold"
+                    className="w-full px-3.5 py-3.5 text-[16px] text-ink bg-card border border-line rounded-[10px] placeholder-ink-soft focus:outline-none focus:border-marigold focus:ring-2 focus:ring-marigold"
                   />
                 </div>
               ))}
@@ -149,7 +166,8 @@ export default function CheckoutModal({
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

@@ -2,13 +2,15 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import { Syne, Instrument_Sans, Space_Mono } from "next/font/google";
+import { Bricolage_Grotesque, Instrument_Sans, Space_Mono } from "next/font/google";
 import "./globals.css";
 
-const syne = Syne({
+// Variable font (wght 200-800) — no weight array on purpose, so the whole
+// range is available and font-bold/font-extrabold both resolve to a real
+// instance rather than a synthesised one.
+const bricolage = Bricolage_Grotesque({
   subsets: ["latin"],
-  weight: ["600", "700", "800"],
-  variable: "--font-syne",
+  variable: "--font-bricolage",
 });
 const instrument = Instrument_Sans({
   subsets: ["latin"],
@@ -31,7 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const pixelId = process.env.META_PIXEL_ID;
 
   return (
-    <html lang="en" className={`${syne.variable} ${instrument.variable} ${spaceMono.variable}`}>
+    <html lang="en" className={`${bricolage.variable} ${instrument.variable} ${spaceMono.variable}`}>
       <body className="font-body">
         {pixelId && (
           <>
