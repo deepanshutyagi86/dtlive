@@ -43,6 +43,7 @@ export default async function GuideDetailPage({ params }: { params: { slug: stri
           <GuideCover
             cover={guide!.cover}
             title={guide!.title}
+            focal={guide!.coverFocal}
             sizes="(min-width: 900px) 900px, 100vw"
             aspectClassName="aspect-[16/9]"
           />

@@ -48,7 +48,7 @@ export default async function GuidesPage() {
                 className="bg-card border border-line rounded-card overflow-hidden flex flex-col"
               >
                 <Link href={`/guide/${guide.slug}`} className="block">
-                  <GuideCover cover={guide.cover} title={guide.title} sizes={GRID_IMAGE_SIZES} />
+                  <GuideCover cover={guide.cover} title={guide.title} focal={guide.coverFocal} sizes={GRID_IMAGE_SIZES} />
                 </Link>
                 <div className="p-5 flex flex-col flex-1">
                   <h2 className="font-display font-bold text-[20px] leading-tight tracking-tight">

@@ -1,6 +1,7 @@
 import { getSetting } from "./items";
 import { upsertSetting } from "./admin-repo";
 import { slugify, formatBytes } from "./guide-utils";
+import type { ImageFocal } from "./types";
 
 export { slugify, formatBytes };
 
@@ -21,8 +22,22 @@ export interface Guide {
   fileName: string;
   fileSize: number;
   cover: string | null;
+  /** Crop anchor for the cover, 0-100 on each axis. Null = fall back to object-top. */
+  coverFocal: ImageFocal | null;
   live: boolean;
   createdAt: string;
+}
+
+// A focal point only means anything as a pair of in-range percentages —
+// a half-written or out-of-range value would produce a silently wrong crop
+// rather than an error, so anything that isn't both is dropped to null.
+export function readFocal(value: unknown): ImageFocal | null {
+  if (!value || typeof value !== "object") return null;
+  const f = value as Record<string, unknown>;
+  if (typeof f.x !== "number" || typeof f.y !== "number") return null;
+  if (!Number.isFinite(f.x) || !Number.isFinite(f.y)) return null;
+  if (f.x < 0 || f.x > 100 || f.y < 0 || f.y > 100) return null;
+  return { x: f.x, y: f.y };
 }
 
 // A settings value is whatever was last written to that row — treat it as
@@ -47,6 +62,7 @@ function normalize(value: unknown): Guide[] {
       fileName: typeof g.fileName === "string" ? g.fileName : slug + ".pdf",
       fileSize: typeof g.fileSize === "number" ? g.fileSize : 0,
       cover: typeof g.cover === "string" && g.cover ? g.cover : null,
+      coverFocal: readFocal(g.coverFocal),
       live: g.live !== false,
       createdAt: typeof g.createdAt === "string" ? g.createdAt : new Date(0).toISOString(),
     });
