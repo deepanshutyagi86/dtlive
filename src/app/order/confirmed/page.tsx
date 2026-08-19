@@ -2,7 +2,7 @@ import Link from "next/link";
 import Nav from "@/components/Nav";
 import Footer, { FooterLinks } from "@/components/Footer";
 import MetaPixelPurchase from "@/components/MetaPixelPurchase";
-import { getOrderById, setOrderStatus } from "@/lib/admin-repo";
+import { decrementWorkshopSeats, getOrderById, setOrderStatus } from "@/lib/admin-repo";
 import { getSetting } from "@/lib/items";
 import { fetchRazorpayOrderPayments } from "@/lib/razorpay";
 import { sendPaidOrderNotifications } from "@/lib/order-notifications";
@@ -42,6 +42,19 @@ export default async function OrderConfirmedPage({
         if (captured) {
           await setOrderStatus(order.id, "paid");
           order = { ...order, status: "paid" };
+
+          if (order.item.category === "workshop") {
+            // This has to happen here too, not only in verify-payment and
+            // the webhook. Whichever of the three paths wins the status
+            // flip must do ALL of the paid-order work: if this page flips
+            // the status first, the webhook's own `status !== "paid"`
+            // guard makes it skip its decrement, and the seat would never
+            // come off at all. Leaving it out here is how a seat leak
+            // hides — the order reads PAID, the buyer gets their email,
+            // and only the seat count is silently wrong. That is P0-04's
+            // exact failure mode under Cashfree, one layer further in.
+            await decrementWorkshopSeats(order.itemId);
+          }
 
           // Idempotency note: same non-atomic `status !== "paid"` guard as
           // verify-payment and the webhook (audit P1-01) — no
