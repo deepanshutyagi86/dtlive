@@ -4,6 +4,24 @@ import { createPortal } from "react-dom";
 import ItemImage from "./ItemImage";
 import { useModalBehavior } from "@/lib/useModalBehavior";
 import type { Category, ImageFocal } from "@/lib/types";
+import type { RazorpayHandlerResponse } from "@/types/razorpay";
+
+// Injects the Razorpay checkout script once, lazily — same reasoning as
+// the old dynamic import of the Cashfree SDK, the homepage shouldn't pay
+// for it. Guarded so reopening the modal doesn't re-inject.
+function loadRazorpayScript(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector('script[src*="checkout.razorpay.com"]')) {
+      resolve();
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Could not load payment gateway. Try again."));
+    document.body.appendChild(script);
+  });
+}
 
 export default function CheckoutModal({
   itemId,
@@ -70,16 +88,49 @@ export default function CheckoutModal({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong");
 
-      // Cashfree JS SDK redirect — loaded lazily so the homepage/list
-      // pages never pay the bundle cost for it.
-      const { load } = await import("@cashfreepayments/cashfree-js");
-      const cashfree = await load({
-        mode: process.env.NEXT_PUBLIC_CASHFREE_ENV === "PRODUCTION" ? "production" : "sandbox",
+      await loadRazorpayScript();
+
+      const razorpay = new window.Razorpay({
+        key: data.razorpayKeyId,
+        amount: data.amount,
+        currency: "INR",
+        order_id: data.razorpayOrderId,
+        name: "Deepanshu Tyagi",
+        description: title,
+        prefill: { name: form.name, email: form.email, contact: form.phone },
+        theme: { color: "#F5A300" },
+        handler: async (response: RazorpayHandlerResponse) => {
+          try {
+            const verifyRes = await fetch("/api/checkout/verify-payment", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpayOrderId: response.razorpay_order_id,
+                razorpaySignature: response.razorpay_signature,
+                orderId: data.orderId,
+              }),
+            });
+            if (!verifyRes.ok) throw new Error();
+            window.location.href = `/order/confirmed?order_id=${data.orderId}`;
+          } catch {
+            // The buyer HAS been charged at this point — the message must
+            // never imply the payment itself failed.
+            setError(
+              "Payment received but confirmation is still pending — check your email, or message me with this order ID."
+            );
+            setLoading(false);
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            // Buyer closed the popup without paying — not an error, let
+            // them retry from the still-open modal.
+            setLoading(false);
+          },
+        },
       });
-      cashfree.checkout({
-        paymentSessionId: data.paymentSessionId,
-        redirectTarget: "_self",
-      });
+      razorpay.open();
     } catch (e: any) {
       setError(e.message ?? "Payment could not start. Try again.");
       setLoading(false);
@@ -162,7 +213,7 @@ export default function CheckoutModal({
                 {loading ? "Starting payment…" : `Proceed to pay ${priceLabel} →`}
               </button>
               <div className="flex items-center justify-center gap-2 font-mono text-[10.5px] text-muted mt-3.5">
-                🔒 Secured by Cashfree · GST-registered seller
+                🔒 Secured by Razorpay · GST-registered seller
               </div>
             </div>
           </div>

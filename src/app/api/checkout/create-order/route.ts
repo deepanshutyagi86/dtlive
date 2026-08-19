@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getItemById } from "@/lib/items";
 import { createOrder, setOrderCashfreeId } from "@/lib/admin-repo";
-import { createCashfreeOrder } from "@/lib/cashfree";
+import { createRazorpayOrder } from "@/lib/razorpay";
 import type { CourseDetails, WorkshopDetails } from "@/lib/types";
 import { rateLimit, clientIpFrom } from "@/lib/rate-limit";
 
@@ -60,17 +60,22 @@ export async function POST(req: NextRequest) {
       eventSourceUrl: typeof eventSourceUrl === "string" ? eventSourceUrl : null,
     });
 
-    const cfOrder = await createCashfreeOrder({
+    const rzpOrder = await createRazorpayOrder({
       orderId: order.id,
-      amountRupees: amount,
-      buyerName: name,
-      buyerEmail: email,
-      buyerPhone: phone,
+      amountPaise: Math.round(amount * 100),
     });
 
-    await setOrderCashfreeId(order.id, cfOrder.cf_order_id);
+    // Column is still named cashfree_order_id — it just stores whichever
+    // gateway's order ID. Renaming it is a migration against the
+    // production DB, out of scope for this swap.
+    await setOrderCashfreeId(order.id, rzpOrder.id);
 
-    return NextResponse.json({ paymentSessionId: cfOrder.payment_session_id, orderId: order.id });
+    return NextResponse.json({
+      razorpayOrderId: rzpOrder.id,
+      razorpayKeyId: process.env.RAZORPAY_KEY_ID,
+      amount: rzpOrder.amount,
+      orderId: order.id,
+    });
   } catch (err: any) {
     console.error("create-order error:", err);
     return NextResponse.json({ error: "Could not start payment. Please try again." }, { status: 500 });

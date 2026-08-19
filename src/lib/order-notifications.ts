@@ -1,9 +1,11 @@
-// Shared by both places an order can transition to "paid": the Cashfree
-// webhook (src/app/api/webhooks/cashfree/route.ts) and the /order/confirmed
-// page's fallback poll (src/app/order/confirmed/page.tsx, needed because
-// CASHFREE_WEBHOOK_SECRET isn't configured in production yet — audit
-// P0-04 — so the webhook 500s and never actually runs there). One
-// function, one copy of the copy, called from both call sites.
+// Shared by all three places an order can transition to "paid": the
+// primary /api/checkout/verify-payment route (fired by the Razorpay
+// popup's handler callback right after payment), the Razorpay webhook
+// (src/app/api/webhooks/razorpay/route.ts, backup), and the
+// /order/confirmed page's fallback poll (src/app/order/confirmed/page.tsx,
+// for the case where the buyer's browser dies between the charge and the
+// verify call). One function, one copy of the copy, called from all three
+// call sites.
 import type { Order } from "./db";
 import { sendEmail } from "./email";
 import { getNotifyEmail, getSetting } from "./items";

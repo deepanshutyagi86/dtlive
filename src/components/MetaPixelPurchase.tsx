@@ -10,7 +10,7 @@ declare global {
 export default function MetaPixelPurchase({ orderId, value }: { orderId: string; value: number }) {
   useEffect(() => {
     // Guards against re-firing on refresh — this same confirmation page
-    // polls Cashfree and re-renders "paid" on every reload.
+    // can poll Razorpay and re-render "paid" on every reload.
     const firedKey = `fbq_purchase_${orderId}`;
     if (typeof window === "undefined" || !window.fbq || sessionStorage.getItem(firedKey)) return;
 

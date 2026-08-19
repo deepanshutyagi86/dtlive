@@ -39,8 +39,8 @@ export default async function TermsPage() {
       <h2>3. Pricing and payment</h2>
       <p>
         All prices on the Site are listed in Indian Rupees (INR) and are inclusive of applicable
-        taxes unless stated otherwise. Payments are processed securely through Cashfree Payments.
-        We do not store your card, UPI, or bank details — these are handled entirely by Cashfree.
+        taxes unless stated otherwise. Payments are processed securely through Razorpay.
+        We do not store your card, UPI, or bank details — these are handled entirely by Razorpay.
       </p>
 
       <h2>4. Access and delivery</h2>

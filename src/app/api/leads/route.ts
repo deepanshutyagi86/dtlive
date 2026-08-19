@@ -124,8 +124,9 @@ export async function POST(req: NextRequest) {
   }
 
   // Only the free-registration flow decrements here. Paid workshops decrement
-  // in the Cashfree webhook, on confirmed payment — otherwise anyone could
-  // zero out a paid workshop's seats by POSTing to this public endpoint.
+  // on the Razorpay verify-payment / webhook paths, on confirmed payment —
+  // otherwise anyone could zero out a paid workshop's seats by POSTing to
+  // this public endpoint.
   const isFreeWorkshop =
     item?.category === "workshop" && (item.details as WorkshopDetails).price === 0;
 

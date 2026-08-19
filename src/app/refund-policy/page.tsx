@@ -59,13 +59,13 @@ export default async function RefundPolicyPage() {
         our end, or you are charged twice for the same order due to a technical error, the full
         amount will be refunded to your original payment method within 5–7 business days. Contact
         us at <a href={`mailto:${BUSINESS.email}`}>{BUSINESS.email}</a> with your payment
-        reference so we can trace it with Cashfree.
+        reference so we can trace it with Razorpay.
       </p>
 
       <h2>6. How refunds are processed</h2>
       <p>
         Where a refund is due under this policy, it will be issued to the original payment method
-        via Cashfree Payments. Processing typically takes 5–7 business days depending on your bank
+        via Razorpay. Processing typically takes 5–7 business days depending on your bank
         or payment provider.
       </p>
 

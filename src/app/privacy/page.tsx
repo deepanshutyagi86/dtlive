@@ -21,7 +21,7 @@ export default async function PrivacyPage() {
       <h2>1. What we collect</h2>
       <ul>
         <li><strong>At checkout:</strong> full name, email address, and phone number, to identify your order and deliver access/tickets.</li>
-        <li><strong>Payment data:</strong> we never see or store your card, UPI, or bank details. These go directly to Cashfree Payments, our payment processor, over an encrypted connection.</li>
+        <li><strong>Payment data:</strong> we never see or store your card, UPI, or bank details. These go directly to Razorpay, our payment processor, over an encrypted connection.</li>
         <li><strong>Automatically:</strong> basic technical data such as browser type and pages visited, used only for keeping the Site working correctly.</li>
         <li>
           <strong>Advertising &amp; analytics:</strong> we use the Meta Pixel, which sets
@@ -42,7 +42,7 @@ export default async function PrivacyPage() {
 
       <h2>3. Who we share data with</h2>
       <p>
-        We share the minimum data necessary with: <strong>Cashfree Payments</strong>{" "}
+        We share the minimum data necessary with: <strong>Razorpay</strong>{" "}
         (to process your payment); infrastructure providers (<strong>Vercel</strong>{" "}
         for hosting and <strong>Neon</strong> for database storage) who hold this
         Site&apos;s data on our behalf under their own security practices; and{" "}
