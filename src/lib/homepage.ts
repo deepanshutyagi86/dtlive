@@ -1,5 +1,6 @@
 import type { Item } from "@/lib/db";
 import type { AgencyDetails, CourseDetails, ShopDetails, VentureDetails, WorkshopDetails } from "@/lib/types";
+import { SITE_TZ } from "@/lib/dates";
 
 export function metaFor(item: Item): string {
   const d = item.details as any;
@@ -8,7 +9,7 @@ export function metaFor(item: Item): string {
       return `₹${(d as CourseDetails).price} · ${(d as CourseDetails).duration ?? "self-paced"}`;
     case "workshop": {
       const w = d as WorkshopDetails;
-      const date = new Date(w.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+      const date = new Date(w.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: SITE_TZ });
       return `${date} · ${w.seatsLeft} seats left`;
     }
     case "agency": {

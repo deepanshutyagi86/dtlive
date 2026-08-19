@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import ItemImage from "./ItemImage";
 import { useModalBehavior } from "@/lib/useModalBehavior";
 import { DEFAULT_REGISTRATION_FIELDS, type Category, type ImageFocal, type RegistrationField } from "@/lib/types";
+import { SITE_TZ } from "@/lib/dates";
 
 declare global {
   interface Window {
@@ -114,6 +115,7 @@ export default function RegisterModal({
         month: "long",
         hour: "2-digit",
         minute: "2-digit",
+        timeZone: SITE_TZ,
       })
     : null;
 

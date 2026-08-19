@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { SITE_TZ } from "@/lib/dates";
 
 export default function LiveClock() {
   const [time, setTime] = useState<string>("--:--:-- IST");
@@ -9,7 +10,7 @@ export default function LiveClock() {
       setTime(
         new Date().toLocaleTimeString("en-IN", {
           hour12: false,
-          timeZone: "Asia/Kolkata",
+          timeZone: SITE_TZ,
         }) + " IST"
       );
     };

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getAdminSession } from "@/lib/auth";
 import { sql } from "@/lib/db";
+import { SITE_TZ } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +54,7 @@ export default async function DiagnosticsPage() {
       </div>
 
       <p className="font-mono text-[11px] text-muted mb-10">
-        Postgres server time: {new Date(serverNow).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "medium" })}{" "}
+        Postgres server time: {new Date(serverNow).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "medium", timeZone: SITE_TZ })}{" "}
         ({serverNow})
       </p>
 
@@ -80,7 +81,7 @@ export default async function DiagnosticsPage() {
                 <td className="px-4 py-3">{it.live ? "✓" : "—"}</td>
                 <td className="px-4 py-3">{it.featured ? "✓" : "—"}</td>
                 <td className="px-4 py-3 font-mono text-xs text-muted whitespace-nowrap">
-                  {new Date(it.updated_at).toLocaleString("en-IN")}
+                  {new Date(it.updated_at).toLocaleString("en-IN", { timeZone: SITE_TZ })}
                 </td>
                 <td className="px-4 py-3 font-mono text-[10px] text-muted whitespace-nowrap">{it.id}</td>
               </tr>

@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { SITE_TZ } from "@/lib/dates";
 
 export interface LeadRow {
   id: string;
@@ -80,7 +81,7 @@ export default function LeadsTable({ leads }: { leads: LeadRow[] }) {
                 ))}
               </div>
             )}
-            <div className="text-xs text-muted font-mono mt-1">{new Date(lead.createdAt).toLocaleString("en-IN")}</div>
+            <div className="text-xs text-muted font-mono mt-1">{new Date(lead.createdAt).toLocaleString("en-IN", { timeZone: SITE_TZ })}</div>
           </div>
           <select
             value={lead.status}

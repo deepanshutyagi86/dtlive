@@ -2,6 +2,7 @@ import Link from "next/link";
 import RegisterModal from "./RegisterModal";
 import ItemImage from "./ItemImage";
 import { CATEGORY_CTA, CATEGORY_LABELS, CHIP_CLASS } from "@/lib/types";
+import { SITE_TZ } from "@/lib/dates";
 import type {
   AgencyDetails,
   Category,
@@ -55,7 +56,7 @@ export function metaLine(item: CardItem): string {
   }
   if (item.category === "workshop") {
     const w = d as WorkshopDetails;
-    const date = new Date(w.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+    const date = new Date(w.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: SITE_TZ });
     // Honour the same two flags the detail page does. The old card printed
     // "20 seats left" even for a workshop marked unlimited, which is both
     // false and needless scarcity.
