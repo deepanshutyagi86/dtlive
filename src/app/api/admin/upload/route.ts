@@ -6,7 +6,15 @@ import { getAdminSession } from "@/lib/auth";
 // request straight to this route — 8MB is generous headroom above the
 // ~1600px WebP output the client actually produces, but still a hard
 // server-side ceiling regardless of what the client claims to have sent.
-const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+// PDFs aren't compressed client-side (there's nothing safe to strip from
+// someone's designed guide), so this ceiling is the real one a print-heavy
+// PDF has to fit under.
+const MAX_PDF_BYTES = 25 * 1024 * 1024;
+// The only prefix that unlocks the PDF content type. Anything else keeps
+// the original image-only rules, so widening this route for guides can't
+// turn the item thumbnail uploader into an arbitrary-file uploader.
+const GUIDE_PREFIX = "guides/";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const body = (await request.json()) as HandleUploadBody;
@@ -15,7 +23,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const jsonResponse = await handleUpload({
       body,
       request,
-      onBeforeGenerateToken: async () => {
+      onBeforeGenerateToken: async (pathname) => {
         // Without this, anyone on the internet who finds this route can
         // upload arbitrary files into the store until the quota is dead —
         // no token is issued unless there's a verified admin session.
@@ -24,9 +32,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           throw new Error("Unauthorized");
         }
 
+        const isGuidePdf = pathname.startsWith(GUIDE_PREFIX);
+
         return {
-          allowedContentTypes: ["image/jpeg", "image/png", "image/webp"],
-          maximumSizeInBytes: MAX_UPLOAD_BYTES,
+          allowedContentTypes: isGuidePdf
+            ? ["application/pdf"]
+            : ["image/jpeg", "image/png", "image/webp"],
+          maximumSizeInBytes: isGuidePdf ? MAX_PDF_BYTES : MAX_IMAGE_BYTES,
           addRandomSuffix: true,
         };
       },
