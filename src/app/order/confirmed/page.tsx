@@ -4,7 +4,7 @@ import Footer, { FooterLinks } from "@/components/Footer";
 import MetaPixelPurchase from "@/components/MetaPixelPurchase";
 import { getOrderById, setOrderStatus } from "@/lib/admin-repo";
 import { getSetting } from "@/lib/items";
-import { fetchCashfreeOrder } from "@/lib/cashfree";
+import { fetchRazorpayOrderPayments } from "@/lib/razorpay";
 import { sendPaidOrderNotifications } from "@/lib/order-notifications";
 
 export const dynamic = "force-dynamic";
@@ -19,17 +19,15 @@ export default async function OrderConfirmedPage({
 
   let order = orderId ? await getOrderById(orderId) : null;
 
-  // If our webhook hasn't landed yet, double-check directly with Cashfree
-  // so the buyer isn't stuck seeing "pending" right after paying. This is
-  // a UX-only status flip — the webhook remains the sole trigger for the
-  // Meta Purchase event (see claimMetaPurchaseEvent in the webhook route).
-  //
-  // It's also, in practice, the ONLY path that sends the paid-order
-  // emails today: CASHFREE_WEBHOOK_SECRET isn't set in production (audit
-  // P0-04), so the webhook 500s on every real request and never reaches
-  // its own sendPaidOrderNotifications call. This block reuses the exact
-  // same function so the copy isn't duplicated between the two places an
-  // order can become "paid".
+  // This page is usually reached AFTER /api/checkout/verify-payment has
+  // already marked the order paid — that's the primary path, fired from
+  // the Razorpay popup's handler callback before this page even loads.
+  // This fallback exists for the case where the buyer's browser dies
+  // between the charge and that verify call: double-check directly with
+  // Razorpay so the buyer isn't stuck seeing "pending" right after paying.
+  // This is a UX-only status flip — the Razorpay webhook remains a second
+  // independent trigger for the Meta Purchase event (see
+  // claimMetaPurchaseEvent in the webhook route).
   //
   // Refresh safety: this whole block, including the email send below, is
   // gated on `order.status === "pending"`. Once setOrderStatus below has
@@ -38,26 +36,31 @@ export default async function OrderConfirmedPage({
   // nothing resends. (Verified by reading the guard, not assumed.)
   if (order && order.status === "pending") {
     try {
-      const cfOrder = await fetchCashfreeOrder(order.id);
-      if (cfOrder.order_status === "PAID") {
-        await setOrderStatus(order.id, "paid");
-        order = { ...order, status: "paid" };
+      if (order.cashfreeOrderId) {
+        const payments = await fetchRazorpayOrderPayments(order.cashfreeOrderId);
+        const captured = payments?.items?.some((p: { status: string }) => p.status === "captured");
+        if (captured) {
+          await setOrderStatus(order.id, "paid");
+          order = { ...order, status: "paid" };
 
-        // Idempotency note: same non-atomic `status !== "paid"` guard as
-        // the webhook (audit P1-01) — no notification_sent_at column,
-        // that's a migration against production and out of scope here.
-        // A genuine race between this page and the webhook landing at
-        // nearly the same moment could in theory double-send; see the
-        // matching note in the webhook route.
-        try {
-          await sendPaidOrderNotifications(order);
-        } catch (err) {
-          console.error("Order confirmed page: paid order notifications failed:", err);
+          // Idempotency note: same non-atomic `status !== "paid"` guard as
+          // verify-payment and the webhook (audit P1-01) — no
+          // notification_sent_at column, that's a migration against
+          // production and out of scope here. A genuine race between this
+          // page and one of the other two paths landing at nearly the
+          // same moment could in theory double-send; see the matching
+          // note in verify-payment/route.ts.
+          try {
+            await sendPaidOrderNotifications(order);
+          } catch (err) {
+            console.error("Order confirmed page: paid order notifications failed:", err);
+          }
         }
       }
     } catch {
-      // Cashfree lookup failing shouldn't break the confirmation page —
-      // the webhook will still land and update status shortly.
+      // Razorpay lookup failing shouldn't break the confirmation page —
+      // verify-payment or the webhook will still land and update status
+      // shortly.
     }
   }
 
@@ -93,7 +96,7 @@ export default async function OrderConfirmedPage({
           <>
             <h1 className="font-display font-extrabold text-4xl tracking-tight">Payment pending</h1>
             <p className="text-ink-soft mt-3">
-              We&apos;re still confirming this with Cashfree — refresh this page in a moment. If it doesn&apos;t
+              We&apos;re still confirming this with Razorpay — refresh this page in a moment. If it doesn&apos;t
               update in a few minutes, message me and I&apos;ll sort it out directly.
             </p>
           </>

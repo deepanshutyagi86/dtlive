@@ -117,7 +117,7 @@ export default function Spotlight({ data }: { data: SpotlightData }) {
           >
             {data.ctaLabel} →
           </Link>
-          <span className="font-mono text-[11px] text-[#8b8a80]">Secured by Cashfree · instant receipt</span>
+          <span className="font-mono text-[11px] text-[#8b8a80]">Secured by Razorpay · instant receipt</span>
         </div>
       </div>
     </section>
