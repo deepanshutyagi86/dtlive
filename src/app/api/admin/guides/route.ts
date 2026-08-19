@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/auth";
-import { getAllGuides, saveGuides, slugify, type Guide } from "@/lib/guides";
+import { getAllGuides, saveGuides, slugify, readFocal, type Guide } from "@/lib/guides";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +62,7 @@ export async function PUT(req: NextRequest) {
     }
     seen.add(slug);
 
+    const cover = typeof g.cover === "string" && g.cover.trim() ? g.cover.trim() : null;
     const id = typeof g.id === "string" && g.id ? g.id : crypto.randomUUID();
     const previous = existing.find((e) => e.id === id);
 
@@ -73,7 +74,11 @@ export async function PUT(req: NextRequest) {
       fileUrl,
       fileName: typeof g.fileName === "string" && g.fileName ? g.fileName : `${slug}.pdf`,
       fileSize: typeof g.fileSize === "number" && g.fileSize > 0 ? g.fileSize : 0,
-      cover: typeof g.cover === "string" && g.cover.trim() ? g.cover.trim() : null,
+      cover,
+      // A focal point without a cover is orphaned state that would silently
+      // reapply if a different image were uploaded later — clear it with the
+      // image it belonged to.
+      coverFocal: cover ? readFocal(g.coverFocal) : null,
       live: g.live !== false,
       // createdAt is the guide's own history, not something the form owns —
       // keep whatever the stored row already had.

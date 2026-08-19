@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { upload } from "@vercel/blob/client";
 import { compressImage } from "@/lib/image-compress";
+import FocalPointPicker from "@/components/admin/FocalPointPicker";
 import { slugify, formatBytes } from "@/lib/guide-utils";
 import type { Guide } from "@/lib/guides";
 
@@ -20,6 +21,7 @@ function blankGuide(): Guide {
     fileName: "",
     fileSize: 0,
     cover: null,
+    coverFocal: null,
     live: true,
     createdAt: new Date().toISOString(),
   };
@@ -277,12 +279,22 @@ function GuideRow({
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={guide.cover} alt="Cover preview" className="w-16 h-16 object-cover rounded-[8px] border border-line" />
-            <button type="button" onClick={() => onChange({ cover: null })} className="font-mono text-[10.5px] uppercase tracking-wider text-muted hover:text-live transition-colors">
+            <button type="button" onClick={() => onChange({ cover: null, coverFocal: null })} className="font-mono text-[10.5px] uppercase tracking-wider text-muted hover:text-live transition-colors">
               Clear
             </button>
           </>
         )}
       </div>
+
+      {guide.cover && (
+        <div className="mt-4">
+          <FocalPointPicker
+            thumbnail={guide.cover}
+            imageFocal={guide.coverFocal ?? undefined}
+            onChange={(focal) => onChange({ coverFocal: focal ?? null })}
+          />
+        </div>
+      )}
       <input
         ref={coverRef}
         type="file"
