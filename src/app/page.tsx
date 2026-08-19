@@ -9,6 +9,7 @@ import Footer, { FooterLinks } from "@/components/Footer";
 import { getDoorCounts, getFeaturedItem, getLiveStreamItems, getSetting } from "@/lib/items";
 import { metaFor, externalFor } from "@/lib/homepage";
 import type { CourseDetails, WorkshopDetails } from "@/lib/types";
+import { SITE_TZ } from "@/lib/dates";
 
 // Always fetch fresh — this page changes the moment something goes live
 // or featured in the admin panel.
@@ -74,7 +75,7 @@ export default async function HomePage() {
           month: "short",
           hour: "2-digit",
           minute: "2-digit",
-          timeZone: "Asia/Kolkata",
+          timeZone: SITE_TZ,
         }),
         "Live on Zoom"
       );

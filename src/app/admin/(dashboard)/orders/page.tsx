@@ -1,4 +1,5 @@
 import { listOrders } from "@/lib/admin-repo";
+import { SITE_TZ } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,7 @@ export default async function AdminOrdersPage() {
                   {o.buyerName} <span className="font-normal text-muted">· {o.buyerEmail} · {o.buyerPhone}</span>
                 </div>
                 <div className="text-xs text-marigold-deep font-mono mt-1">{o.itemTitle}</div>
-                <div className="text-xs text-muted font-mono mt-1">{new Date(o.createdAt).toLocaleString("en-IN")}</div>
+                <div className="text-xs text-muted font-mono mt-1">{new Date(o.createdAt).toLocaleString("en-IN", { timeZone: SITE_TZ })}</div>
               </div>
               <div className="flex items-center gap-3">
                 <span className="font-display font-bold">₹{(o.amount / 100).toLocaleString("en-IN")}</span>

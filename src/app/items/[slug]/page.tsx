@@ -7,6 +7,7 @@ import ItemImage, { ITEM_DETAIL_HERO_ASPECT_CLASS } from "@/components/ItemImage
 import { getItemBySlug, getSetting } from "@/lib/items";
 import type { CourseDetails, WorkshopDetails } from "@/lib/types";
 import type { Metadata } from "next";
+import { SITE_TZ } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
 
@@ -114,6 +115,7 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
                   month: "short",
                   hour: "2-digit",
                   minute: "2-digit",
+                  timeZone: SITE_TZ,
                 })}
               </span>
               <span className="font-mono text-[11px] px-3 py-1.5 border border-ink rounded-full">Live on Zoom</span>
