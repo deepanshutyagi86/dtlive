@@ -21,8 +21,15 @@ export async function getItemsByCategory(category: Item["category"]): Promise<It
   return rows.map(toItem);
 }
 
+// Case-insensitive on purpose. Postgres string comparison is
+// case-sensitive, so an item saved as "Claude-01" 404'd at the
+// conventionally-lowercase /items/claude-01 that anyone would type or that
+// a link shortener would produce (audit P2-07). New saves are normalised
+// server-side, but that alone would BREAK every link already shared under
+// the old casing - this makes both resolve, so the data can be fixed
+// without stranding anyone.
 export async function getItemBySlug(slug: string): Promise<Item | null> {
-  const { rows } = await sql<ItemRow>`SELECT * FROM items WHERE slug = ${slug} LIMIT 1`;
+  const { rows } = await sql<ItemRow>`SELECT * FROM items WHERE lower(slug) = lower(${slug}) LIMIT 1`;
   return rows[0] ? toItem(rows[0]) : null;
 }
 
