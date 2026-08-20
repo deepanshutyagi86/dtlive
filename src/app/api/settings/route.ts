@@ -2,7 +2,25 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/auth";
 import { getAllSettings, upsertSetting } from "@/lib/admin-repo";
 
-const ALLOWED_KEYS = ["ticker", "testimonials", "footerLinks", "notifyEmail", "heroCopy", "emailCopy"];
+// The allowlist IS the security boundary for this route — anything not
+// named here cannot be written through it, no matter what the form posts.
+// Every new admin-editable feature adds a KEY, never a column: migrations
+// against the production database are blocked, so the settings table is
+// where new structured config lives.
+const ALLOWED_KEYS = [
+  "ticker",
+  "testimonials",
+  "footerLinks",
+  "notifyEmail",
+  "heroCopy",
+  "emailCopy",
+  "branding",
+  "nav",
+  "bio",
+  "starter",
+  "coupons",
+  "invoice",
+];
 
 export async function GET() {
   const admin = await getAdminSession();

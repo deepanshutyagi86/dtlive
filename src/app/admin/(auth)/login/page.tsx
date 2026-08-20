@@ -55,7 +55,7 @@ export default function AdminLoginPage() {
           />
         </div>
 
-        {error && <p className="text-live text-sm mb-4">{error}</p>}
+        {error && <p className="text-live-ink text-sm mb-4">{error}</p>}
 
         <button
           type="submit"

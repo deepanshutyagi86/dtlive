@@ -6,7 +6,9 @@ export interface Testimonial {
 export default function Testimonials({ items }: { items: Testimonial[] }) {
   if (items.length === 0) return null;
   return (
-    <section className="max-w-[1200px] mx-auto px-5 pt-14 pb-5 grid md:grid-cols-3 gap-4">
+    <section className="max-w-[1200px] mx-auto px-5 pt-14 pb-5">
+      <h2 className="font-mono text-[11px] tracking-[0.14em] uppercase text-muted mb-6">In their words</h2>
+      <div className="grid md:grid-cols-3 gap-4">
       {items.map((t, i) => (
         <div key={i} className="border border-line bg-card rounded-card p-[22px] flex flex-col gap-3.5">
           <p className="text-[16px] leading-relaxed">
@@ -16,6 +18,7 @@ export default function Testimonials({ items }: { items: Testimonial[] }) {
           <div className="font-mono text-[11px] text-muted tracking-wide">— {t.who}</div>
         </div>
       ))}
+      </div>
     </section>
   );
 }

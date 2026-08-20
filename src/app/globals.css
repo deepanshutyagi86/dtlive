@@ -6,12 +6,14 @@
   --bone: #f2f1ec;
   --ink: #191913;
   --ink-soft: #41403a;
-  --muted: #8b8a80;
+  --muted: #6e6d63;
   --card: #ffffff;
   --line: #dedcd2;
   --marigold: #f5a300;
-  --marigold-deep: #d98e00;
+  --marigold-deep: #b87a00;
+  --marigold-ink: #8a5a00;
   --live: #ff3b30;
+  --live-ink: #c92a1e;
 }
 
 html {
@@ -26,6 +28,16 @@ body {
 ::selection {
   background: var(--marigold);
   color: var(--ink);
+}
+
+/* One visible focus style for the whole site. :focus-visible (not :focus)
+   so a mouse click never paints a ring, but Tab always does — before this
+   the only focus styling anywhere was on form inputs, so a keyboard user
+   moving through cards, nav links and footer links saw nothing at all. */
+:where(a, button, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--marigold);
+  outline-offset: 3px;
+  border-radius: 4px;
 }
 
 @keyframes pulse {

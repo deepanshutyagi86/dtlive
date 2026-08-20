@@ -8,7 +8,13 @@ const nextConfig = {
     staleTimes: { dynamic: 0 },
   },
   images: {
-    remotePatterns: [{ protocol: "https", hostname: "**" }],
+    // Scoped to Vercel Blob only. `hostname: "**"` was harmless while
+    // next/image was unused, but every card renders through the optimiser
+    // now: an open allowlist lets anyone point /_next/image at any URL on
+    // the internet and bill the transformations to this project's quota.
+    // The wildcard subdomain covers the store ID, which changes if the
+    // Blob store is ever recreated.
+    remotePatterns: [{ protocol: "https", hostname: "*.public.blob.vercel-storage.com" }],
   },
   async redirects() {
     return [

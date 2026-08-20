@@ -10,7 +10,7 @@ export default function LogoutButton() {
         router.push("/admin/login");
         router.refresh();
       }}
-      className="font-mono text-[11px] text-muted hover:text-live"
+      className="font-mono text-[11px] text-muted hover:text-live-ink"
     >
       log out
     </button>

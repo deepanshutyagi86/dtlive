@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { isOptimisableImage } from "@/lib/image-hosts";
 import type { ImageFocal } from "@/lib/types";
 
 // Most guides won't have a designed cover image, and an empty grey box
@@ -29,6 +30,9 @@ export default function GuideCover({
           alt={title}
           fill
           sizes={sizes}
+          // See ItemImage: a cover on a host outside remotePatterns must
+          // render unoptimised rather than throw and blank the page.
+          unoptimized={!isOptimisableImage(cover)}
           className="object-cover object-top"
           style={focal ? { objectPosition: `${focal.x}% ${focal.y}%` } : undefined}
           draggable={false}

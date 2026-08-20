@@ -6,7 +6,10 @@ import type { CardItem } from "@/components/ItemCard";
 import Ticker from "@/components/Ticker";
 import Testimonials, { Testimonial } from "@/components/Testimonials";
 import Footer, { FooterLinks } from "@/components/Footer";
+import StarterRouter from "@/components/StarterRouter";
+import JsonLd from "@/components/JsonLd";
 import { getDoorCounts, getFeaturedItem, getLiveStreamItems, getSetting } from "@/lib/items";
+import { getBio, getNav, getStarter, SITE_URL } from "@/lib/site-settings";
 import { metaFor, externalFor } from "@/lib/homepage";
 import type { CourseDetails, WorkshopDetails } from "@/lib/types";
 import { SITE_TZ } from "@/lib/dates";
@@ -16,15 +19,19 @@ import { SITE_TZ } from "@/lib/dates";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const [items, featured, counts, ticker, testimonials, footerLinks, heroCopySetting] = await Promise.all([
-    getLiveStreamItems(),
-    getFeaturedItem(),
-    getDoorCounts(),
-    getSetting<string[]>("ticker", DEFAULT_TICKER),
-    getSetting<Testimonial[]>("testimonials", DEFAULT_TESTIMONIALS),
-    getSetting<FooterLinks>("footerLinks", DEFAULT_FOOTER),
-    getSetting<Partial<HeroCopy>>("heroCopy", {}),
-  ]);
+  const [items, featured, counts, ticker, testimonials, footerLinks, heroCopySetting, nav, bio, starter] =
+    await Promise.all([
+      getLiveStreamItems(),
+      getFeaturedItem(),
+      getDoorCounts(),
+      getSetting<string[]>("ticker", DEFAULT_TICKER),
+      getSetting<Testimonial[]>("testimonials", DEFAULT_TESTIMONIALS),
+      getSetting<FooterLinks>("footerLinks", DEFAULT_FOOTER),
+      getSetting<Partial<HeroCopy>>("heroCopy", {}),
+      getNav(),
+      getBio(),
+      getStarter(),
+    ]);
 
   // Blank/missing fields fall back to the default individually, never
   // render empty.
@@ -105,9 +112,31 @@ export default async function HomePage() {
     };
   }
 
+  // Person + WebSite, so a search for the name resolves to this site and
+  // the sitelinks searchbox / knowledge panel have something to bind to.
+  const structured = [
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      name: "Deepanshu Tyagi Live",
+      url: SITE_URL,
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "Person",
+      name: bio.name,
+      description: bio.blurb,
+      url: SITE_URL,
+      sameAs: [footerLinks.instagram, footerLinks.youtube, footerLinks.linkedin, bio.portfolioUrl].filter(
+        Boolean
+      ) as string[],
+    },
+  ];
+
   return (
     <>
-      <Nav />
+      <JsonLd data={structured} />
+      <Nav nav={nav} />
       <header className="max-w-[1200px] mx-auto px-5 pt-[92px] pb-1">
         <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-muted mb-2">{hero.eyebrow}</p>
         <h1 className="font-display font-extrabold tracking-tight text-[34px] md:text-[104px] leading-[0.95]">
@@ -134,9 +163,11 @@ export default async function HomePage() {
 
       <Ticker lines={ticker} />
 
+      <StarterRouter data={starter} />
+
       <Doors counts={counts} items={cardItems} />
       <Testimonials items={testimonials} />
-      <Footer links={footerLinks} />
+      <Footer links={footerLinks} nav={nav} bio={bio} />
     </>
   );
 }
@@ -149,7 +180,7 @@ export default async function HomePage() {
 // cities" — both lean on a brand/event name a first-time visitor has no
 // context for yet; they read better as asides once someone's already
 // exploring (ventures page, testimonials) than as a cold trust strip.
-const DEFAULT_TICKER = ["500+ students taught", "3 apps on Play Store", "15+ websites shipped"];
+const DEFAULT_TICKER = ["100+ students taught", "Apps live on the Play Store", "15+ websites shipped"];
 
 interface HeroCopy {
   eyebrow: string;
@@ -171,8 +202,10 @@ const DEFAULT_TESTIMONIALS: Testimonial[] = [
   { quote: "Store, cart and Cashfree live in two weeks, exactly as promised.", who: "D2C founder" },
 ];
 
+// Only reached if the footerLinks settings row is missing entirely. The
+// old placeholder WhatsApp number was a live dead link in that case — a
+// blank field renders no button at all, which is the correct fallback.
 const DEFAULT_FOOTER: FooterLinks = {
-  whatsapp: "https://wa.me/910000000000",
   instagram: "https://www.instagram.com/thedeepanshutyagii",
   youtube: "https://www.youtube.com/@thedeepanshutyagi",
   linkedin: "https://linkedin.com/in/deepanshutyagi86",

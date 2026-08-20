@@ -15,6 +15,10 @@ const MAX_PDF_BYTES = 25 * 1024 * 1024;
 // the original image-only rules, so widening this route for guides can't
 // turn the item thumbnail uploader into an arbitrary-file uploader.
 const GUIDE_PREFIX = "guides/";
+// Branding assets (favicon, touch icon, link-preview card, signature) are
+// images and keep the image rules — the prefix exists so the pathname is
+// self-documenting in the blob store, not to unlock anything.
+const BRANDING_PREFIX = "branding/";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const body = (await request.json()) as HandleUploadBody;
@@ -32,6 +36,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           throw new Error("Unauthorized");
         }
 
+        // Only the guides prefix unlocks PDFs. Branding uploads
+        // (BRANDING_PREFIX) are images and deliberately fall through to
+        // the image rules below - the prefix exists so the blob store is
+        // self-documenting, not to widen what is accepted.
         const isGuidePdf = pathname.startsWith(GUIDE_PREFIX);
 
         return {

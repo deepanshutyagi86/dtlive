@@ -16,7 +16,7 @@ export default function Ticker({ lines }: { lines: string[] }) {
       >
         {seq.map((line, i) => (
           <span key={i} className="font-mono text-[11px] tracking-wider text-ink-soft px-6">
-            ✦ <b className="text-marigold-deep font-bold">{line}</b>
+            ✦ <b className="text-marigold-ink font-bold">{line}</b>
           </span>
         ))}
       </div>

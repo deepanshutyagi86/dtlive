@@ -125,11 +125,11 @@ export default function GuidesManager() {
         >
           {saving ? "Saving…" : "Save changes"}
         </button>
-        {saved && <span className="font-mono text-[11px] uppercase tracking-wider text-marigold-deep">Saved ✓</span>}
+        {saved && <span className="font-mono text-[11px] uppercase tracking-wider text-marigold-ink">Saved ✓</span>}
         {dirty && !saving && <span className="font-mono text-[11px] uppercase tracking-wider text-muted">Unsaved changes</span>}
       </div>
 
-      {error && <p className="text-live text-sm mt-3">{error}</p>}
+      {error && <p className="text-live-ink text-sm mt-3">{error}</p>}
     </div>
   );
 }
@@ -213,7 +213,7 @@ function GuideRow({
           <button type="button" onClick={() => onMove(1)} disabled={index === total - 1} className="border border-line w-8 h-8 rounded-[8px] text-sm hover:border-ink transition-colors disabled:opacity-30" aria-label="Move down">
             ↓
           </button>
-          <button type="button" onClick={onRemove} className="border border-line px-3 h-8 rounded-[8px] text-[13px] font-semibold text-live hover:border-live transition-colors">
+          <button type="button" onClick={onRemove} className="border border-line px-3 h-8 rounded-[8px] text-[13px] font-semibold text-live-ink hover:border-live transition-colors">
             Remove
           </button>
         </div>
@@ -232,7 +232,7 @@ function GuideRow({
           <span className="font-mono text-[11px] text-muted truncate">deepanshutyagi.live/guide/{publicSlug}</span>
           <button
             type="button"
-            className="font-mono text-[10.5px] uppercase tracking-wider text-marigold-deep hover:underline"
+            className="font-mono text-[10.5px] uppercase tracking-wider text-marigold-ink hover:underline"
             onClick={() => {
               navigator.clipboard?.writeText(`https://deepanshutyagi.live/guide/${publicSlug}`);
               setCopied(true);
@@ -255,7 +255,7 @@ function GuideRow({
             {guide.fileSize ? ` · ${formatBytes(guide.fileSize)}` : ""}
           </a>
         ) : (
-          <span className="font-mono text-[11px] text-live">No file yet — required</span>
+          <span className="font-mono text-[11px] text-live-ink">No file yet — required</span>
         )}
       </div>
       <input
@@ -279,7 +279,7 @@ function GuideRow({
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={guide.cover} alt="Cover preview" className="w-16 h-16 object-cover rounded-[8px] border border-line" />
-            <button type="button" onClick={() => onChange({ cover: null, coverFocal: null })} className="font-mono text-[10.5px] uppercase tracking-wider text-muted hover:text-live transition-colors">
+            <button type="button" onClick={() => onChange({ cover: null, coverFocal: null })} className="font-mono text-[10.5px] uppercase tracking-wider text-muted hover:text-live-ink transition-colors">
               Clear
             </button>
           </>
@@ -307,7 +307,7 @@ function GuideRow({
         }}
       />
 
-      {uploadError && <p className="text-live text-sm mt-2">{uploadError}</p>}
+      {uploadError && <p className="text-live-ink text-sm mt-2">{uploadError}</p>}
 
       <label className="flex items-center gap-2.5 mt-5 cursor-pointer select-none">
         <input type="checkbox" checked={guide.live} onChange={(e) => onChange({ live: e.target.checked })} className="w-4 h-4 accent-marigold" />

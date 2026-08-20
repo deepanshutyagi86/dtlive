@@ -5,6 +5,7 @@ import Nav from "@/components/Nav";
 import Footer, { FooterLinks } from "@/components/Footer";
 import GuideCover from "@/components/GuideCover";
 import { getSetting } from "@/lib/items";
+import { getBio, getNav } from "@/lib/site-settings";
 import { getLiveGuideBySlug, formatBytes } from "@/lib/guides";
 
 export const dynamic = "force-dynamic";
@@ -24,16 +25,18 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 }
 
 export default async function GuideDetailPage({ params }: { params: { slug: string } }) {
-  const [guide, footerLinks] = await Promise.all([
+  const [guide, footerLinks, nav, bio] = await Promise.all([
     getLiveGuideBySlug(params.slug),
     getSetting<FooterLinks>("footerLinks", {}),
+    getNav(),
+    getBio(),
   ]);
 
   if (!guide) notFound();
 
   return (
     <>
-      <Nav />
+      <Nav nav={nav} />
       <main className="max-w-[900px] mx-auto px-5 pt-[118px] pb-24">
         <Link href="/guide" className="font-mono text-[11px] uppercase tracking-wider text-muted hover:text-ink transition-colors">
           ← All guides
@@ -76,7 +79,7 @@ export default async function GuideDetailPage({ params }: { params: { slug: stri
           </a>
         </div>
       </main>
-      <Footer links={footerLinks} />
+      <Footer links={footerLinks} nav={nav} bio={bio} />
     </>
   );
 }

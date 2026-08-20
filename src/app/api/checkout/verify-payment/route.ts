@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { claimMetaPurchaseEvent, decrementWorkshopSeats, getOrderById, setOrderStatus } from "@/lib/admin-repo";
+import { claimMetaPurchaseEvent, claimOrderPaid, decrementWorkshopSeats, getOrderById } from "@/lib/admin-repo";
 import { verifyRazorpayPaymentSignature } from "@/lib/razorpay";
 import { sendMetaPurchaseEvent } from "@/lib/meta-capi";
 import { sendPaidOrderNotifications } from "@/lib/order-notifications";
@@ -28,24 +28,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unknown order" }, { status: 404 });
     }
 
-    if (order.status !== "paid") {
-      await setOrderStatus(order.id, "paid");
-
+    // Atomic claim, not a read-then-branch. Exactly one of the three paid
+    // paths wins this UPDATE for a given order, so the seat decrement and
+    // the notification emails below can never double-fire under a race
+    // with the webhook or the /order/confirmed fallback (audit P1-01,
+    // now closed without needing a new column).
+    if (await claimOrderPaid(order.id)) {
+      // Each step is guarded separately. The claim above has ALREADY
+      // committed, so a throw here is unrecoverable: the webhook retry and
+      // the /order/confirmed fallback would both get `false` from
+      // claimOrderPaid forever, and the buyer would never receive their
+      // confirmation. Log and continue instead — a seat count the admin can
+      // correct by hand beats a silent no-email.
       if (order.item.category === "workshop") {
-        // Atomic conditional decrement — safe under a concurrent webhook
-        // delivery or /order/confirmed fallback hitting the same order.
-        await decrementWorkshopSeats(order.itemId);
+        try {
+          await decrementWorkshopSeats(order.itemId);
+        } catch (err) {
+          console.error("Seat decrement failed for paid order", order.id, err);
+        }
       }
-
-      // Idempotency note: this whole block is guarded only by the
-      // `order.status !== "paid"` check above, the same non-atomic guard
-      // the webhook and the /order/confirmed fallback use (audit P1-01).
-      // A genuine race between this route and one of the other two paths
-      // landing at nearly the same moment could in theory double-send a
-      // notification. Adding a notification_sent_at column would close
-      // that gap, but that's a migration against production and out of
-      // scope here.
-      await sendPaidOrderNotifications(order);
+      try {
+        await sendPaidOrderNotifications({ ...order, status: "paid" });
+      } catch (err) {
+        console.error("Paid order notifications failed for", order.id, err);
+      }
     }
 
     // Claimed independently of the status flip above: whichever of the

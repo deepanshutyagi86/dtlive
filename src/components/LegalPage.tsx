@@ -1,7 +1,8 @@
 import Nav from "./Nav";
 import Footer, { FooterLinks } from "./Footer";
+import { getBio, getNav } from "@/lib/site-settings";
 
-export default function LegalPage({
+export default async function LegalPage({
   title,
   updated,
   footerLinks,
@@ -12,9 +13,11 @@ export default function LegalPage({
   footerLinks: FooterLinks;
   children: React.ReactNode;
 }) {
+  const [nav, bio] = await Promise.all([getNav(), getBio()]);
+
   return (
     <>
-      <Nav />
+      <Nav nav={nav} />
       <main className="max-w-[760px] mx-auto px-5 pt-[118px] pb-24">
         <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-muted mb-2">Legal</p>
         <h1 className="font-display font-extrabold text-[36px] md:text-[52px] tracking-tight leading-none">
@@ -26,7 +29,7 @@ export default function LegalPage({
           {children}
         </div>
       </main>
-      <Footer links={footerLinks} />
+      <Footer links={footerLinks} nav={nav} bio={bio} />
       <style>{`
         .legal-body h2 {
           font-family: var(--font-bricolage);
@@ -41,7 +44,7 @@ export default function LegalPage({
         .legal-body p { margin-bottom: 1rem; }
         .legal-body ul { list-style: disc; padding-left: 1.25rem; margin-bottom: 1rem; }
         .legal-body li { margin-bottom: 0.4rem; }
-        .legal-body a { color: #D98E00; text-decoration: underline; text-underline-offset: 3px; }
+        .legal-body a { color: #8A5A00; text-decoration: underline; text-underline-offset: 3px; }
         .legal-body strong { color: #191913; font-weight: 600; }
       `}</style>
     </>

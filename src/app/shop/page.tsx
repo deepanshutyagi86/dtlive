@@ -1,8 +1,16 @@
+import type { Metadata } from "next";
 import DirectoryGrid, { DirectoryItem } from "@/components/DirectoryGrid";
 import { getItemsByCategory, getSetting } from "@/lib/items";
 import type { FooterLinks } from "@/components/Footer";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Shop",
+  description: "Physical products from the brands I run. Each listing opens the real marketplace page.",
+  alternates: { canonical: "/shop" },
+  openGraph: { title: "Shop", description: "Physical products from the brands I run. Each listing opens the real marketplace page.", url: "/shop" },
+};
 
 export default async function ShopPage() {
   const [items, footerLinks] = await Promise.all([

@@ -1,8 +1,16 @@
+import type { Metadata } from "next";
 import CategoryGrid, { GridItem } from "@/components/CategoryGrid";
 import { getItemsByCategory, getSetting } from "@/lib/items";
 import type { FooterLinks } from "@/components/Footer";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Courses",
+  description: "Self-paced business and AI courses you buy once and keep forever. Start the minute you pay.",
+  alternates: { canonical: "/courses" },
+  openGraph: { title: "Courses", description: "Self-paced business and AI courses you buy once and keep forever. Start the minute you pay.", url: "/courses" },
+};
 
 export default async function CoursesPage() {
   const [items, footerLinks] = await Promise.all([

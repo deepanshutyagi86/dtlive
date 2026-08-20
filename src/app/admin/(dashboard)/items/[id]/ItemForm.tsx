@@ -5,6 +5,8 @@ import { upload } from "@vercel/blob/client";
 import { compressImage } from "@/lib/image-compress";
 import FocalPointPicker from "@/components/admin/FocalPointPicker";
 import { DEFAULT_REGISTRATION_FIELDS, type RegistrationField } from "@/lib/types";
+import { slugify } from "@/lib/guide-utils";
+import SalesFields from "./SalesFields";
 
 type Category = "course" | "workshop" | "agency" | "shop" | "venture";
 
@@ -122,12 +124,37 @@ export default function ItemForm({ existing }: { existing: ExistingItem | null }
           </select>
         </Field>
         <Field label="Slug (URL)">
-          <input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="e.g. build-in-public-workshop" className="input" />
+          <input
+            value={slug}
+            onChange={(e) => setSlug(e.target.value)}
+            // Normalised on blur rather than on every keystroke, so typing
+            // a space doesn't turn into a hyphen mid-word under the cursor.
+            // The server normalises again on save — that is the real gate,
+            // this is just so the admin sees the URL they will actually get.
+            onBlur={() => setSlug(slugify(slug))}
+            placeholder="e.g. build-in-public-workshop"
+            className="input"
+          />
+          <p className="text-[12px] text-muted mt-1.5">
+            Lowercase letters, numbers and hyphens only — it is forced to that on save. Public URL:{" "}
+            <span className="font-mono">/items/{slugify(slug) || "…"}</span>
+          </p>
         </Field>
       </div>
 
       <Field label="Title">
-        <input value={title} onChange={(e) => setTitle(e.target.value)} className="input" />
+        <input
+          value={title}
+          onChange={(e) => {
+            const next = e.target.value;
+            // Only auto-derives while creating AND while the slug still
+            // matches what the previous title produced — the moment the
+            // admin edits the slug by hand, it stops being overwritten.
+            if (isNew && (slug === "" || slug === slugify(title))) setSlug(slugify(next));
+            setTitle(next);
+          }}
+          className="input"
+        />
       </Field>
 
       <Field label="Short description">
@@ -167,7 +194,11 @@ export default function ItemForm({ existing }: { existing: ExistingItem | null }
       {category === "shop" && <ShopFields details={details} setDetails={setDetails} />}
       {category === "venture" && <VentureFields details={details} setDetails={setDetails} />}
 
-      {error && <p className="text-live text-sm mt-5">{error}</p>}
+      {(category === "course" || category === "workshop") && (
+        <SalesFields details={details} setDetails={setDetails} category={category} />
+      )}
+
+      {error && <p className="text-live-ink text-sm mt-5">{error}</p>}
 
       <div className="flex gap-3 mt-8">
         <button
@@ -282,7 +313,7 @@ function ThumbnailField({ value, onChange }: { value: string; onChange: (url: st
         }}
       />
 
-      {uploadError && <p className="text-live text-sm mt-2">{uploadError}</p>}
+      {uploadError && <p className="text-live-ink text-sm mt-2">{uploadError}</p>}
 
       <div className="mt-3">
         {!value ? (
@@ -290,7 +321,7 @@ function ThumbnailField({ value, onChange }: { value: string; onChange: (url: st
             No image
           </div>
         ) : previewBroken ? (
-          <div className="w-28 h-28 rounded-[10px] border border-live flex items-center justify-center text-[10.5px] text-live font-mono text-center px-2">
+          <div className="w-28 h-28 rounded-[10px] border border-live flex items-center justify-center text-[10.5px] text-live-ink font-mono text-center px-2">
             Broken link — won&apos;t load
           </div>
         ) : (
@@ -341,14 +372,14 @@ function BlockListEditor({
               onChange(next);
             }}
           />
-          <button onClick={() => onChange(blocks.filter((_, j) => j !== i))} className="text-live px-2">
+          <button onClick={() => onChange(blocks.filter((_, j) => j !== i))} className="text-live-ink px-2">
             ×
           </button>
         </div>
       ))}
       <button
         onClick={() => onChange([...blocks, { title: "", body: "" }])}
-        className="text-sm font-semibold text-marigold-deep"
+        className="text-sm font-semibold text-marigold-ink"
       >
         + Add block
       </button>
@@ -519,14 +550,14 @@ function RegistrationFieldsEditor({
             />
             Required
           </label>
-          <button onClick={() => onChange(fields.filter((_, j) => j !== i))} className="text-live px-2">
+          <button onClick={() => onChange(fields.filter((_, j) => j !== i))} className="text-live-ink px-2">
             ×
           </button>
         </div>
       ))}
       <button
         onClick={() => onChange([...fields, { key: "", label: "", type: "text", required: false }])}
-        className="text-sm font-semibold text-marigold-deep"
+        className="text-sm font-semibold text-marigold-ink"
       >
         + Add field
       </button>

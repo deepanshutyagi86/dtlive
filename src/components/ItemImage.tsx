@@ -1,6 +1,7 @@
 import Image from "next/image";
 import ItemPlaceholder from "./ItemPlaceholder";
 import { Category, ImageFocal } from "@/lib/types";
+import { isOptimisableImage } from "@/lib/image-hosts";
 
 // Single source of truth for the card image proportions and crop anchor —
 // change these two tokens to retune every card at once instead of hunting
@@ -53,6 +54,9 @@ export default function ItemImage({
           alt={title}
           fill
           sizes={sizes}
+          // A thumbnail on a host outside images.remotePatterns would
+          // otherwise throw and blank the entire page, not just this card.
+          unoptimized={!isOptimisableImage(thumbnail)}
           className={`object-cover ${ITEM_IMAGE_OBJECT_POSITION_CLASS}`}
           style={imageFocal ? { objectPosition: `${imageFocal.x}% ${imageFocal.y}%` } : undefined}
           draggable={false}

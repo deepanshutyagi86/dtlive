@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 const STATUS_STYLE: Record<string, string> = {
   paid: "bg-marigold text-ink",
   pending: "bg-line text-ink-soft",
-  failed: "bg-live/15 text-live",
+  failed: "bg-live/15 text-live-ink",
 };
 
 export default async function AdminOrdersPage() {
@@ -27,7 +27,7 @@ export default async function AdminOrdersPage() {
                 <div className="font-semibold">
                   {o.buyerName} <span className="font-normal text-muted">· {o.buyerEmail} · {o.buyerPhone}</span>
                 </div>
-                <div className="text-xs text-marigold-deep font-mono mt-1">{o.itemTitle}</div>
+                <div className="text-xs text-marigold-ink font-mono mt-1">{o.itemTitle}</div>
                 <div className="text-xs text-muted font-mono mt-1">{new Date(o.createdAt).toLocaleString("en-IN", { timeZone: SITE_TZ })}</div>
               </div>
               <div className="flex items-center gap-3">

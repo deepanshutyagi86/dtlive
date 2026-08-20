@@ -91,7 +91,7 @@ export default function Doors({
                 </span>
                 <Link
                   href={d.href}
-                  className="font-semibold text-sm hover:text-marigold-deep transition-colors whitespace-nowrap"
+                  className="font-semibold text-sm hover:text-marigold-ink transition-colors whitespace-nowrap"
                 >
                   See all →
                 </Link>

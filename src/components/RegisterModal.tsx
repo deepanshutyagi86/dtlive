@@ -1,10 +1,11 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import ItemImage from "./ItemImage";
 import { useModalBehavior } from "@/lib/useModalBehavior";
 import { DEFAULT_REGISTRATION_FIELDS, type Category, type ImageFocal, type RegistrationField } from "@/lib/types";
 import { SITE_TZ } from "@/lib/dates";
+import { isValidEmail, isValidPhone, stripToPhoneChars } from "@/lib/validate";
 
 declare global {
   interface Window {
@@ -44,6 +45,7 @@ export default function RegisterModal({
   const [form, setForm] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [registered, setRegistered] = useState(false);
   // Portal target (document.body) only exists client-side; without this
   // guard, SSR/hydration would try to render into a nonexistent node.
@@ -52,6 +54,9 @@ export default function RegisterModal({
 
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  // Stable per-instance prefix so htmlFor points at exactly one input even
+  // with several register modals mounted on the same page.
+  const uid = useId();
 
   // Meta Pixel drops these cookies itself; forwarding them lets the
   // server-side Conversions API call match the same browser/click as the
@@ -66,6 +71,7 @@ export default function RegisterModal({
     // Reset for next open, after the close animation-less unmount.
     setForm({});
     setError(null);
+    setFieldErrors({});
     setRegistered(false);
   }
 
@@ -73,12 +79,29 @@ export default function RegisterModal({
 
   async function register() {
     setError(null);
+
+    // Per-field, not one blanket message: "please fill in all required
+    // fields" makes someone re-read the whole form to find the one that is
+    // wrong. Format is checked here AND server-side in /api/leads — this
+    // copy is the fast feedback, that one is the rule.
+    const nextErrors: Record<string, string> = {};
     for (const f of fields) {
-      if (f.required && !form[f.key]?.trim()) {
-        setError("Please fill in all required fields.");
-        return;
+      const value = (form[f.key] ?? "").trim();
+      if (f.required && !value) {
+        nextErrors[f.key] = `${f.label} is required.`;
+        continue;
+      }
+      if (!value) continue;
+      if (f.type === "email" && !isValidEmail(value)) {
+        nextErrors[f.key] = "That doesn't look right — check for a typo.";
+      }
+      if (f.type === "tel" && !isValidPhone(value)) {
+        nextErrors[f.key] = "10 digits, or include the country code.";
       }
     }
+    setFieldErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+
     setLoading(true);
     try {
       const res = await fetch("/api/leads", {
@@ -208,30 +231,61 @@ export default function RegisterModal({
                     {dateObj ? "Free · reserve your seat" : "Tell us about your project"}
                   </p>
 
-                  {fields.map((f) => (
-                    <div className="mb-3.5" key={f.key}>
-                      <label className="block font-mono text-[10.5px] uppercase tracking-wider text-muted mb-1.5">
-                        {f.label}
-                      </label>
-                      <input
-                        type={f.type}
-                        value={form[f.key] ?? ""}
-                        onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
-                        placeholder={
-                          f.key === "name"
-                            ? "e.g. Deepanshu"
-                            : f.type === "tel"
-                              ? "e.g. 9870600903"
-                              : f.type === "email"
-                                ? "e.g. you@example.com"
-                                : ""
-                        }
-                        className="w-full px-3.5 py-3.5 text-[16px] text-ink bg-card border border-line rounded-[10px] placeholder-ink-soft focus:outline-none focus:border-marigold focus:ring-2 focus:ring-marigold"
-                      />
-                    </div>
-                  ))}
+                  {fields.map((f) => {
+                    const id = `${uid}-${f.key}`;
+                    const errId = `${id}-error`;
+                    const err = fieldErrors[f.key];
+                    return (
+                      <div className="mb-3.5" key={f.key}>
+                        <label
+                          htmlFor={id}
+                          className="block font-mono text-[10.5px] uppercase tracking-wider text-muted mb-1.5"
+                        >
+                          {f.label}
+                          {!f.required && <span className="text-muted/70 normal-case"> (optional)</span>}
+                        </label>
+                        <input
+                          id={id}
+                          name={f.key}
+                          type={f.type}
+                          inputMode={f.type === "tel" ? "tel" : undefined}
+                          autoComplete={
+                            f.key === "name" ? "name" : f.type === "email" ? "email" : f.type === "tel" ? "tel" : undefined
+                          }
+                          value={form[f.key] ?? ""}
+                          onChange={(e) => {
+                            // A phone field accepts digits, spaces, hyphens
+                            // and one leading + — nothing else can be typed
+                            // into it at all.
+                            const next = f.type === "tel" ? stripToPhoneChars(e.target.value) : e.target.value;
+                            setForm({ ...form, [f.key]: next });
+                            if (err) setFieldErrors({ ...fieldErrors, [f.key]: "" });
+                          }}
+                          placeholder={
+                            f.key === "name"
+                              ? "e.g. Deepanshu"
+                              : f.type === "tel"
+                                ? "e.g. 9870600903"
+                                : f.type === "email"
+                                  ? "e.g. you@example.com"
+                                  : ""
+                          }
+                          aria-invalid={err ? true : undefined}
+                          aria-describedby={err ? errId : undefined}
+                          className={`w-full px-3.5 py-3.5 text-[16px] text-ink bg-card border rounded-[10px] placeholder-ink-soft focus:outline-none focus:ring-2 focus:ring-marigold ${
+                            err ? "border-live-ink" : "border-line focus:border-marigold"
+                          }`}
+                        />
+                        {err && (
+                          <p id={errId} className="text-live-ink text-[13px] mt-1.5">
+                            {err}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
 
-                  {error && <p className="text-live text-sm mb-3">{error}</p>}
+                  {error && <p className="text-live-ink text-sm mb-3">{error}</p>}
 
                   <button
                     onClick={register}

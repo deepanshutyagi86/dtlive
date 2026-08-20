@@ -58,7 +58,7 @@ export default function FocalPointPicker({
         <button
           type="button"
           onClick={() => onChange(undefined)}
-          className="text-xs font-semibold text-marigold-deep hover:underline"
+          className="text-xs font-semibold text-marigold-ink hover:underline"
         >
           Reset to default
         </button>

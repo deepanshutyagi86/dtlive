@@ -56,7 +56,7 @@ export default function Spotlight({ data }: { data: SpotlightData }) {
             <span className="font-mono text-[10px] font-bold tracking-wider uppercase px-[9px] py-1 rounded-full border border-marigold text-marigold">
               Featured
             </span>
-            <span className="flex items-center gap-1.5 font-mono text-[10px] text-live font-bold">
+            <span className="flex items-center gap-1.5 font-mono text-[10px] text-live-ink font-bold">
               <span className="w-1.5 h-1.5 rounded-full bg-live live-dot" />
               LIVE
             </span>
@@ -117,7 +117,7 @@ export default function Spotlight({ data }: { data: SpotlightData }) {
           >
             {data.ctaLabel} →
           </Link>
-          <span className="font-mono text-[11px] text-[#8b8a80]">Secured by Razorpay · instant receipt</span>
+          <span className="font-mono text-[11px] text-[#8b8a80]">Secured by Razorpay · instant confirmation</span>
         </div>
       </div>
     </section>

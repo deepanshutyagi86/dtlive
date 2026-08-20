@@ -3,6 +3,10 @@ import { getSetting } from "@/lib/items";
 import type { FooterLinks } from "@/components/Footer";
 import { BUSINESS } from "@/lib/legal";
 
+
+// Stays dynamic: this page reads footerLinks from the settings table,
+// so a static render would bake the footer in at build time and break
+// the rule that the DB row always wins over a deploy.
 export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Refund & Cancellation Policy — Deepanshu Tyagi Live" };

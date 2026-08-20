@@ -6,6 +6,7 @@ import { getItemById, getNotifyEmail, getSetting } from "@/lib/items";
 import { DEFAULT_REGISTRATION_FIELDS } from "@/lib/types";
 import type { WorkshopDetails } from "@/lib/types";
 import { rateLimit, clientIpFrom } from "@/lib/rate-limit";
+import { isValidEmail, isValidPhone, normalisePhone } from "@/lib/validate";
 import { sendEmail } from "@/lib/email";
 import { DEFAULT_EMAIL_COPY, resolveTemplate, renderTemplate } from "@/lib/email-templates";
 import type { EmailCopy } from "@/lib/email-templates";
@@ -31,7 +32,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "This item is not available." }, { status: 404 });
   }
 
-  const details = item?.details as WorkshopDetails | undefined;
+  // A workshop that has already started must stop accepting registrations.
+  // Nothing checked this before, so a stale shared link kept collecting
+  // people for a session that had happened (audit P1-02).
+  const workshopDetails = item?.category === "workshop" ? (item.details as WorkshopDetails) : null;
+  const isFreeWorkshopItem = !!workshopDetails && workshopDetails.price === 0;
+
+  if (workshopDetails?.date) {
+    const startsAt = new Date(workshopDetails.date).getTime();
+    if (!Number.isNaN(startsAt) && startsAt < Date.now()) {
+      return NextResponse.json(
+        { error: "This workshop has already started — registration is closed." },
+        { status: 409 }
+      );
+    }
+  }
+
+  // Checked here rather than only at decrement time, so a full workshop
+  // rejects the registration instead of creating a lead, emailing Meta,
+  // emailing the person, and telling them "You're in" while the seat count
+  // silently refused to move.
+  if (isFreeWorkshopItem && !workshopDetails!.unlimitedSeats && (workshopDetails!.seatsLeft ?? 0) <= 0) {
+    return NextResponse.json({ error: "This one is full — all seats are taken." }, { status: 409 });
+  }
+
+  const details = workshopDetails ?? (item?.details as WorkshopDetails | undefined);
   const fields =
     details?.registrationFields && details.registrationFields.length > 0
       ? details.registrationFields
@@ -60,6 +85,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "At least one contact field (email or phone) is required." }, { status: 400 });
   }
 
+  // Same reasoning as the checkout route: `type="email"` on the input is
+  // decoration, because the form posts from a click handler and never runs
+  // native validation. This is the only place the rule is actually
+  // enforced.
+  if (email && !isValidEmail(email)) {
+    return NextResponse.json({ error: "That email doesn't look right — check for a typo." }, { status: 400 });
+  }
+  if (phone && !isValidPhone(phone)) {
+    return NextResponse.json(
+      { error: "That phone number doesn't look right — 10 digits, or include the country code." },
+      { status: 400 }
+    );
+  }
+
   const extraAnswers: Record<string, string> = {};
   for (const f of fields) {
     if (f.key === nameField?.key || f === emailField || f === phoneField) continue;
@@ -76,7 +115,7 @@ export async function POST(req: NextRequest) {
     contact: email || phone || name,
     itemId: itemId || null,
     email,
-    phone,
+    phone: phone ? normalisePhone(phone) : null,
     fbc: typeof fbc === "string" ? fbc : null,
     fbp: typeof fbp === "string" ? fbp : null,
     clientIp,
@@ -127,11 +166,17 @@ export async function POST(req: NextRequest) {
   // on the Razorpay verify-payment / webhook paths, on confirmed payment —
   // otherwise anyone could zero out a paid workshop's seats by POSTing to
   // this public endpoint.
-  const isFreeWorkshop =
-    item?.category === "workshop" && (item.details as WorkshopDetails).price === 0;
-
-  if (isFreeWorkshop) {
-    await decrementWorkshopSeats(item!.id);
+  // decrementWorkshopSeats returns false when the workshop is full or
+  // unlimited. The seats check above is the real gate; this is the last
+  // word, and it is logged rather than surfaced because the lead has
+  // already been created and the person already has their email — telling
+  // them "actually, no" at this point would be worse than one seat of
+  // drift that the admin can correct.
+  if (isFreeWorkshopItem) {
+    const decremented = await decrementWorkshopSeats(item!.id);
+    if (!decremented && !workshopDetails!.unlimitedSeats) {
+      console.error("Leads: seat decrement did not apply for item", item!.id, "- check seatsLeft.");
+    }
   }
 
   return NextResponse.json({ ok: true, id: lead.id }, { status: 201 });

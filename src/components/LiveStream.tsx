@@ -21,7 +21,13 @@ export interface StreamItem {
 // even:rotate-[1.3deg]), its hover:!rotate-0 straightener, and the
 // even:translate-y-2 that dropped every second card 8px. Keep them aligned.
 const CARD_CLASS =
-  "flex-none w-[270px] md:w-[290px] bg-card border border-line rounded-card overflow-hidden flex flex-col shadow-[0_14px_34px_-18px_rgba(25,25,19,0.28)] transition-transform duration-300 hover:-translate-y-1.5 hover:scale-[1.02] hover:shadow-[0_26px_50px_-20px_rgba(25,25,19,0.4)] hover:z-10 group";
+  "flex-none w-[270px] md:w-[290px] bg-card border border-line rounded-card overflow-hidden flex flex-col shadow-[0_14px_34px_-18px_rgba(25,25,19,0.28)] transition-transform duration-300 hover:-translate-y-1.5 hover:scale-[1.02] hover:shadow-[0_26px_50px_-20px_rgba(25,25,19,0.4)] hover:z-10 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marigold focus-visible:ring-offset-2 focus-visible:ring-offset-bone";
+
+// Past this many pixels of pointer travel, the gesture was a drag and the
+// click that the browser fires on release must be swallowed. Below it, the
+// user meant to tap the card. 6px is roughly the wobble of a deliberate
+// click on a trackpad — low enough that a real click never gets eaten.
+const DRAG_CLICK_THRESHOLD = 6;
 
 // course/workshop have a real detail page; agency has no per-item page (it
 // links to the /agency listing instead — see CategoryGrid for the actual
@@ -34,7 +40,7 @@ function hrefFor(item: StreamItem): { href: string; external: boolean } | null {
   return null;
 }
 
-function Card({ item }: { item: StreamItem }) {
+function Card({ item, clone }: { item: StreamItem; clone?: boolean }) {
   const link = hrefFor(item);
   const inner = (
     <>
@@ -51,7 +57,7 @@ function Card({ item }: { item: StreamItem }) {
           <span className={`font-mono text-[10px] font-bold tracking-wider uppercase px-[9px] py-1 rounded-full border ${CHIP_CLASS[item.category]}`}>
             {CATEGORY_LABELS[item.category]}
           </span>
-          <span className="flex items-center gap-1.5 font-mono text-[10px] text-live font-bold">
+          <span className="flex items-center gap-1.5 font-mono text-[10px] text-live-ink font-bold">
             <span className="w-1.5 h-1.5 rounded-full bg-live live-dot" />
             LIVE
           </span>
@@ -60,7 +66,7 @@ function Card({ item }: { item: StreamItem }) {
         <div className="text-[16px] leading-relaxed text-ink-soft flex-1">{item.description}</div>
         <div className="font-mono text-[11px] text-muted">{item.meta}</div>
         {link && (
-          <div className="flex items-center justify-between font-semibold text-sm border-t border-line pt-3 mt-0.5 group-hover:text-marigold-deep">
+          <div className="flex items-center justify-between font-semibold text-sm border-t border-line pt-3 mt-0.5 group-hover:text-marigold-ink">
             <span>{CATEGORY_CTA[item.category]}</span>
             <span className="transition-transform group-hover:translate-x-1.5">→</span>
           </div>
@@ -78,6 +84,12 @@ function Card({ item }: { item: StreamItem }) {
       href={link.href}
       target={link.external ? "_blank" : undefined}
       rel={link.external ? "noopener" : undefined}
+      // The track renders every item twice so the loop can wrap seamlessly.
+      // The second copy is decorative: without these two attributes a
+      // screen reader announces the whole catalogue twice and a keyboard
+      // user has to Tab through it twice to get past the carousel.
+      aria-hidden={clone ? true : undefined}
+      tabIndex={clone ? -1 : undefined}
       className={CARD_CLASS}
     >
       {inner}
@@ -88,7 +100,10 @@ function Card({ item }: { item: StreamItem }) {
 export default function LiveStream({ items }: { items: StreamItem[] }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<HTMLDivElement>(null);
-  const state = useRef({ x: 0, vx: -0.55, dragging: false, lastPX: 0, half: 0, paused: false, wheeling: false });
+  const state = useRef({
+    x: 0, vx: -0.55, dragging: false, lastPX: 0, half: 0,
+    paused: false, wheeling: false, travel: 0, suppressClick: false,
+  });
 
   useEffect(() => {
     const stream = streamRef.current;
@@ -102,7 +117,7 @@ export default function LiveStream({ items }: { items: StreamItem[] }) {
     measure();
     window.addEventListener("resize", measure);
 
-    let raf: number;
+    let raf = 0;
     const frame = () => {
       if (!s.dragging) {
         // Autoplay decay is suppressed both on hover (s.paused) and while
@@ -119,11 +134,30 @@ export default function LiveStream({ items }: { items: StreamItem[] }) {
       stream.style.transform = `translateX(${s.x}px)`;
       raf = requestAnimationFrame(frame);
     };
-    raf = requestAnimationFrame(frame);
+    const start = () => { if (!raf) raf = requestAnimationFrame(frame); };
+    const stop = () => { if (raf) { cancelAnimationFrame(raf); raf = 0; } };
+    start();
+
+    // The old version ran requestAnimationFrame for the life of the page,
+    // repainting a transform on an element scrolled far off screen — real
+    // battery cost on a phone for zero visible effect. The observer parks
+    // the loop entirely whenever the carousel isn't on screen.
+    let observer: IntersectionObserver | null = null;
+    if (typeof IntersectionObserver !== "undefined") {
+      observer = new IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting) start();
+          else stop();
+        },
+        { rootMargin: "200px" }
+      );
+      observer.observe(wrap);
+    }
 
     const px = (e: MouseEvent | TouchEvent) => ("touches" in e ? e.touches[0].clientX : e.clientX);
     const down = (e: MouseEvent | TouchEvent) => {
       s.dragging = true;
+      s.travel = 0;
       wrap.classList.add("cursor-grabbing");
       s.lastPX = px(e);
       s.vx = 0;
@@ -135,10 +169,28 @@ export default function LiveStream({ items }: { items: StreamItem[] }) {
       s.lastPX = p;
       s.x += dx;
       s.vx = dx;
+      s.travel += Math.abs(dx);
     };
     const up = () => {
+      if (!s.dragging) return;
       s.dragging = false;
+      // The browser fires a click on release regardless of how far the
+      // pointer travelled, so a drag that ends over a card used to
+      // navigate away mid-scroll — on a surface whose own label says
+      // "drag to scroll". Arm the suppression here and disarm it in the
+      // capture-phase click handler below.
+      s.suppressClick = s.travel > DRAG_CLICK_THRESHOLD;
       wrap.classList.remove("cursor-grabbing");
+    };
+
+    // Capture phase, so this runs before the anchor's own default and
+    // before React's synthetic handlers. stopPropagation alone wouldn't
+    // stop navigation — the anchor's default has to be prevented too.
+    const clickGuard = (e: MouseEvent) => {
+      if (!s.suppressClick) return;
+      s.suppressClick = false;
+      e.preventDefault();
+      e.stopPropagation();
     };
 
     let wheelIdleTimer: ReturnType<typeof setTimeout>;
@@ -172,23 +224,40 @@ export default function LiveStream({ items }: { items: StreamItem[] }) {
       }, 150);
     };
 
+    const onEnter = () => (s.paused = true);
+    const onLeave = () => (s.paused = false);
+
     wrap.addEventListener("mousedown", down);
     window.addEventListener("mousemove", move);
     window.addEventListener("mouseup", up);
+    wrap.addEventListener("click", clickGuard, true);
     wrap.addEventListener("touchstart", down, { passive: true });
     wrap.addEventListener("touchmove", move, { passive: true });
     window.addEventListener("touchend", up);
-    wrap.addEventListener("mouseenter", () => (s.paused = true));
-    wrap.addEventListener("mouseleave", () => (s.paused = false));
+    wrap.addEventListener("mouseenter", onEnter);
+    wrap.addEventListener("mouseleave", onLeave);
     wrap.addEventListener("wheel", wheel, { passive: false });
 
     return () => {
-      cancelAnimationFrame(raf);
+      stop();
+      observer?.disconnect();
       clearTimeout(wheelIdleTimer);
       window.removeEventListener("resize", measure);
       window.removeEventListener("mousemove", move);
       window.removeEventListener("mouseup", up);
       window.removeEventListener("touchend", up);
+      wrap.removeEventListener("mousedown", down);
+      // touchstart/touchmove were added and never removed. The effect
+      // re-runs whenever `items` changes identity, against the SAME
+      // persistent wrap node and with fresh closures, so the handlers
+      // stacked: after one re-run every touchmove applied its delta twice
+      // and dragging on a phone ran at double speed.
+      wrap.removeEventListener("touchstart", down);
+      wrap.removeEventListener("touchmove", move);
+      wrap.removeEventListener("click", clickGuard, true);
+      wrap.removeEventListener("mouseenter", onEnter);
+      wrap.removeEventListener("mouseleave", onLeave);
+      wrap.removeEventListener("wheel", wheel);
     };
   }, [items]);
 
@@ -200,13 +269,19 @@ export default function LiveStream({ items }: { items: StreamItem[] }) {
     );
   }
 
-  const doubled = [...items, ...items];
-
   return (
-    <div ref={wrapRef} className="relative w-full overflow-hidden py-6 pb-10 cursor-grab select-none touch-pan-y">
+    <div
+      ref={wrapRef}
+      className="relative w-full overflow-hidden py-6 pb-10 cursor-grab select-none touch-pan-y"
+      aria-roledescription="carousel"
+      aria-label="What's live right now"
+    >
       <div ref={streamRef} className="flex gap-[22px] w-max px-5 will-change-transform">
-        {doubled.map((item, i) => (
-          <Card key={`${item.id}-${i}`} item={item} />
+        {items.map((item) => (
+          <Card key={`a-${item.id}`} item={item} />
+        ))}
+        {items.map((item) => (
+          <Card key={`b-${item.id}`} item={item} clone />
         ))}
       </div>
     </div>

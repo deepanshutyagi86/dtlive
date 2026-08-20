@@ -8,12 +8,21 @@ const config: Config = {
         bone: "#F2F1EC",
         ink: "#191913",
         "ink-soft": "#41403a",
-        muted: "#8b8a80",
+        muted: "#6E6D63",
         card: "#FFFFFF",
         line: "#DEDCD2",
         marigold: "#F5A300",
-        "marigold-deep": "#D98E00",
+        // Large display type on the bone background. 3.19:1 — clears the WCAG AA
+        // bar for text at/above 24px (or 18.66px bold), which is every place it
+        // is used. #D98E00 measured 2.37:1 and failed even that.
+        "marigold-deep": "#B87A00",
+        // Small text on bone: links, wordmarks, 11px labels. 5.24:1.
+        "marigold-ink": "#8A5A00",
+        // Non-text only: the pulsing dot and any solid fill. At 3.14:1 it must
+        // never carry copy on the bone background.
         live: "#FF3B30",
+        // The text-safe red, for error messages and small LIVE labels. 4.84:1.
+        "live-ink": "#C92A1E",
       },
       fontFamily: {
         display: ["var(--font-bricolage)", "sans-serif"],

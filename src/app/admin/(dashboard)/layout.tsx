@@ -31,7 +31,7 @@ export default async function AdminDashboardLayout({
       <aside className="md:w-[220px] md:min-h-screen md:border-r border-line bg-card">
         <div className="px-5 py-4 border-b border-line flex items-center justify-between md:block">
           <Link href="/admin" className="font-display font-extrabold text-[16px]">
-            DT<span className="text-marigold-deep">.live</span>
+            DT<span className="text-marigold-ink">.live</span>
           </Link>
           <span className="font-mono text-[10px] text-muted md:block md:mt-1">admin panel</span>
         </div>

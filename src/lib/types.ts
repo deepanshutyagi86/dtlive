@@ -27,6 +27,49 @@ export interface ImageFocal {
   y: number;
 }
 
+/* --- Sales content, shared by courses and workshops ---------------- */
+
+export interface FaqEntry {
+  q: string;
+  a: string;
+}
+
+// Everything a buyer needs AFTER paying. Rendered on the confirmation
+// page and pushed into the confirmation email, so a buyer never has to
+// ask "so… how do I actually join?".
+export interface JoiningInfo {
+  groupUrl?: string;
+  groupLabel?: string;
+  meetingUrl?: string;
+  meetingLabel?: string;
+  /** Free text shown under the links, e.g. "Recording sent within 24h." */
+  note?: string;
+  /** Physical or virtual location string, also used in the calendar file. */
+  location?: string;
+  /** Used to compute the calendar event's end time. Defaults to 60. */
+  durationMinutes?: number;
+}
+
+// All optional. Every read site must render nothing at all when a field is
+// absent — these shipped after items already existed, so an item saved
+// before this commit has none of them and must look exactly as it did.
+interface SalesContent {
+  /** "What you'll walk away with" — one concrete outcome per entry. */
+  outcomes?: string[];
+  /** "Who this is for" */
+  forWho?: string[];
+  /** "Who this isn't for" — as valuable as forWho; lets the wrong person leave happy. */
+  notForWho?: string[];
+  faq?: FaqEntry[];
+  joining?: JoiningInfo;
+  /** Comparison strip on /courses. */
+  level?: string;
+  bestFor?: string;
+  buildOutcome?: string;
+  /** Per-item override of the GST invoice setting. */
+  invoice?: "default" | "always" | "never";
+}
+
 // Shared by every category's details shape.
 interface ItemDetailsBase {
   imageFocal?: ImageFocal;
@@ -35,7 +78,7 @@ interface ItemDetailsBase {
 // Shared by CourseDetails/WorkshopDetails — all optional, all read sites
 // must treat undefined as: fields = DEFAULT_REGISTRATION_FIELDS, every
 // showX flag = true, unlimitedSeats = false.
-interface RegistrationDisplayOptions extends ItemDetailsBase {
+interface RegistrationDisplayOptions extends ItemDetailsBase, SalesContent {
   registrationFields?: RegistrationField[];
   showSeatsBadge?: boolean;
   showCountdown?: boolean;

@@ -1,6 +1,7 @@
 import Nav from "@/components/Nav";
 import Footer, { FooterLinks } from "@/components/Footer";
 import { getSetting } from "@/lib/items";
+import { getBio, getNav } from "@/lib/site-settings";
 import { BUSINESS, fullAddress } from "@/lib/legal";
 
 export const dynamic = "force-dynamic";
@@ -8,11 +9,15 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Contact Us — Deepanshu Tyagi Live" };
 
 export default async function ContactPage() {
-  const footerLinks = await getSetting<FooterLinks>("footerLinks", {});
+  const [footerLinks, nav, bio] = await Promise.all([
+    getSetting<FooterLinks>("footerLinks", {}),
+    getNav(),
+    getBio(),
+  ]);
 
   return (
     <>
-      <Nav />
+      <Nav nav={nav} />
       <main className="max-w-[760px] mx-auto px-5 pt-[118px] pb-24">
         <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-muted mb-2">Get in touch</p>
         <h1 className="font-display font-extrabold text-[40px] md:text-[64px] tracking-tight leading-none">
@@ -52,7 +57,7 @@ export default async function ContactPage() {
           </p>
         </div>
       </main>
-      <Footer links={footerLinks} />
+      <Footer links={footerLinks} nav={nav} bio={bio} />
     </>
   );
 }

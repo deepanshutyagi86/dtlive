@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { claimMetaPurchaseEvent, decrementWorkshopSeats, getOrderById, setOrderStatus } from "@/lib/admin-repo";
+import { claimMetaPurchaseEvent, claimOrderPaid, decrementWorkshopSeats, getOrderById, setOrderStatus } from "@/lib/admin-repo";
 import { verifyRazorpayWebhookSignature } from "@/lib/razorpay";
 import { sendMetaPurchaseEvent } from "@/lib/meta-capi";
 import { sendPaidOrderNotifications } from "@/lib/order-notifications";
@@ -38,20 +38,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unknown order" }, { status: 404 });
     }
 
-    if (order.status !== "paid") {
-      await setOrderStatus(order.id, "paid");
-
+    // Same atomic claim as verify-payment — see claimOrderPaid in
+    // admin-repo.ts. Webhook retries and a concurrent verify-payment call
+    // for the same order both land here safely.
+    if (await claimOrderPaid(order.id)) {
+      // Each step is guarded separately. The claim above has ALREADY
+      // committed, so a throw here is unrecoverable: the webhook retry and
+      // the /order/confirmed fallback would both get `false` from
+      // claimOrderPaid forever, and the buyer would never receive their
+      // confirmation. Log and continue instead — a seat count the admin can
+      // correct by hand beats a silent no-email.
       if (order.item.category === "workshop") {
-        // Atomic conditional decrement — safe under webhook retries and a
-        // concurrent verify-payment call for the same order.
-        await decrementWorkshopSeats(order.itemId);
+        try {
+          await decrementWorkshopSeats(order.itemId);
+        } catch (err) {
+          console.error("Seat decrement failed for paid order", order.id, err);
+        }
       }
-
-      // Idempotency note: guarded only by the `order.status !== "paid"`
-      // check above — same non-atomic guard verify-payment and the
-      // /order/confirmed fallback use (audit P1-01). See the matching
-      // note in verify-payment/route.ts.
-      await sendPaidOrderNotifications(order);
+      try {
+        await sendPaidOrderNotifications({ ...order, status: "paid" });
+      } catch (err) {
+        console.error("Paid order notifications failed for", order.id, err);
+      }
     }
 
     // Claimed independently of the status flip above: whichever of the

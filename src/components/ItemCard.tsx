@@ -143,7 +143,7 @@ export default function ItemCard({
               thumbnail={item.thumbnail}
               imageFocal={item.imageFocal}
               triggerLabel={`${CATEGORY_CTA[item.category]} →`}
-              triggerClassName="font-semibold text-sm hover:text-marigold-deep transition-colors"
+              triggerClassName="font-semibold text-sm hover:text-marigold-ink transition-colors"
             />
           </div>
         </div>
@@ -167,7 +167,7 @@ export default function ItemCard({
         {image}
         <div className={bodyClass}>
           {head}
-          <div className={`${footerClass} group-hover:text-marigold-deep`}>
+          <div className={`${footerClass} group-hover:text-marigold-ink`}>
             <span>{CATEGORY_CTA[item.category]}</span>
             <span className="group-hover:translate-x-1.5 transition-transform">↗</span>
           </div>
@@ -181,7 +181,7 @@ export default function ItemCard({
       {image}
       <div className={bodyClass}>
         {head}
-        <div className={`${footerClass} group-hover:text-marigold-deep`}>
+        <div className={`${footerClass} group-hover:text-marigold-ink`}>
           <span>{CATEGORY_CTA[item.category]}</span>
           <span className="group-hover:translate-x-1.5 transition-transform">→</span>
         </div>

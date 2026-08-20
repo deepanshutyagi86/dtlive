@@ -4,6 +4,7 @@ import Nav from "@/components/Nav";
 import Footer, { FooterLinks } from "@/components/Footer";
 import GuideCover from "@/components/GuideCover";
 import { getSetting } from "@/lib/items";
+import { getBio, getNav } from "@/lib/site-settings";
 import { getLiveGuides, formatBytes } from "@/lib/guides";
 
 export const dynamic = "force-dynamic";
@@ -20,14 +21,16 @@ export const metadata: Metadata = {
 const GRID_IMAGE_SIZES = "(min-width: 768px) 33vw, 100vw";
 
 export default async function GuidesPage() {
-  const [guides, footerLinks] = await Promise.all([
+  const [guides, footerLinks, nav, bio] = await Promise.all([
     getLiveGuides(),
     getSetting<FooterLinks>("footerLinks", {}),
+    getNav(),
+    getBio(),
   ]);
 
   return (
     <>
-      <Nav />
+      <Nav nav={nav} />
       <main className="max-w-[1200px] mx-auto px-5 pt-[118px] pb-24">
         <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-muted mb-2">Free downloads</p>
         <h1 className="font-display font-extrabold text-[40px] md:text-[64px] tracking-tight leading-none">Guides</h1>
@@ -52,7 +55,7 @@ export default async function GuidesPage() {
                 </Link>
                 <div className="p-5 flex flex-col flex-1">
                   <h2 className="font-display font-bold text-[20px] leading-tight tracking-tight">
-                    <Link href={`/guide/${guide.slug}`} className="hover:text-marigold-deep transition-colors">
+                    <Link href={`/guide/${guide.slug}`} className="hover:text-marigold-ink transition-colors">
                       {guide.title}
                     </Link>
                   </h2>
@@ -79,7 +82,7 @@ export default async function GuidesPage() {
           </div>
         )}
       </main>
-      <Footer links={footerLinks} />
+      <Footer links={footerLinks} nav={nav} bio={bio} />
     </>
   );
 }

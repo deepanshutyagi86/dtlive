@@ -1,8 +1,16 @@
+import type { Metadata } from "next";
 import DirectoryGrid, { DirectoryItem } from "@/components/DirectoryGrid";
 import { getItemsByCategory, getSetting } from "@/lib/items";
 import type { FooterLinks } from "@/components/Footer";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Ventures",
+  description: "The businesses I hold equity in and work on every day.",
+  alternates: { canonical: "/ventures" },
+  openGraph: { title: "Ventures", description: "The businesses I hold equity in and work on every day.", url: "/ventures" },
+};
 
 export default async function VenturesPage() {
   const [items, footerLinks] = await Promise.all([

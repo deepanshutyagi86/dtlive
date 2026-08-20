@@ -1,6 +1,7 @@
 import Nav from "./Nav";
 import Footer, { FooterLinks } from "./Footer";
 import ItemCard, { type CardItem } from "./ItemCard";
+import { getBio, getNav } from "@/lib/site-settings";
 
 // Same card as the category pages and the homepage sections; the shop and
 // venture variations (which storefront, how much equity, external link
@@ -12,7 +13,7 @@ export type DirectoryItem = CardItem;
 // carousel's.
 const GRID_IMAGE_SIZES = "(min-width: 768px) 33vw, 100vw";
 
-export default function DirectoryGrid({
+export default async function DirectoryGrid({
   kind,
   title,
   blurb,
@@ -25,9 +26,11 @@ export default function DirectoryGrid({
   items: DirectoryItem[];
   footerLinks: FooterLinks;
 }) {
+  const [nav, bio] = await Promise.all([getNav(), getBio()]);
+
   return (
     <>
-      <Nav />
+      <Nav nav={nav} />
       <main className="max-w-[1200px] mx-auto px-5 pt-[118px] pb-24">
         <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-muted mb-2">
           {kind === "shop" ? "Directory" : "Equity"}
@@ -50,7 +53,7 @@ export default function DirectoryGrid({
           </div>
         )}
       </main>
-      <Footer links={footerLinks} />
+      <Footer links={footerLinks} nav={nav} bio={bio} />
     </>
   );
 }

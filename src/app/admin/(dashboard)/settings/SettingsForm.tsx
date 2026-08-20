@@ -1,5 +1,25 @@
 "use client";
 import { useEffect, useState } from "react";
+import {
+  BrandingSection,
+  NavSection,
+  BioSection,
+  StarterSection,
+  CouponsSection,
+  InvoiceSection,
+} from "./SettingsSections";
+import {
+  DEFAULT_BIO,
+  DEFAULT_INVOICE,
+  DEFAULT_NAV,
+  DEFAULT_STARTER,
+  type BioSettings,
+  type Branding,
+  type Coupon,
+  type InvoiceSettings,
+  type NavSettings,
+  type StarterSettings,
+} from "@/lib/settings-types";
 
 interface Testimonial {
   quote: string;
@@ -99,11 +119,22 @@ export default function SettingsForm() {
   const [emailCopy, setEmailCopy] = useState<EmailCopy>({});
   const [notifyEmail, setNotifyEmail] = useState("");
   const [links, setLinks] = useState<FooterLinks>({});
+  const [branding, setBranding] = useState<Branding>({});
+  const [nav, setNav] = useState<NavSettings>(DEFAULT_NAV);
+  const [bio, setBio] = useState<BioSettings>(DEFAULT_BIO);
+  const [starter, setStarter] = useState<StarterSettings>(DEFAULT_STARTER);
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [invoice, setInvoice] = useState<InvoiceSettings>(DEFAULT_INVOICE);
+  // Only used to render the "applies to" checkboxes on a coupon.
+  const [items, setItems] = useState<{ id: string; title: string; category: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
+    // Each stored value is merged OVER its defaults rather than replacing
+    // them, so a settings row written before a field existed still renders
+    // a sensible form instead of blanks.
     fetch("/api/settings")
       .then((r) => r.json())
       .then((d) => {
@@ -113,8 +144,25 @@ export default function SettingsForm() {
         setEmailCopy(d.emailCopy ?? {});
         setLinks(d.footerLinks ?? {});
         setNotifyEmail(d.notifyEmail ?? "");
+        setBranding(d.branding ?? {});
+        setNav({ ...DEFAULT_NAV, ...(d.nav ?? {}), links: d.nav?.links?.length ? d.nav.links : DEFAULT_NAV.links });
+        setBio({ ...DEFAULT_BIO, ...(d.bio ?? {}) });
+        setStarter({
+          ...DEFAULT_STARTER,
+          ...(d.starter ?? {}),
+          options: d.starter?.options?.length ? d.starter.options : DEFAULT_STARTER.options,
+        });
+        setCoupons(Array.isArray(d.coupons) ? d.coupons : []);
+        setInvoice({ ...DEFAULT_INVOICE, ...(d.invoice ?? {}) });
         setLoading(false);
       });
+
+    // A failure here only costs the coupon checkboxes their labels, so it
+    // is deliberately not part of the loading gate.
+    fetch("/api/items")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((rows) => setItems(Array.isArray(rows) ? rows : []))
+      .catch(() => setItems([]));
   }, []);
 
   async function save() {
@@ -123,7 +171,22 @@ export default function SettingsForm() {
     await fetch("/api/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ heroCopy, ticker, testimonials, emailCopy, footerLinks: links, notifyEmail }),
+      body: JSON.stringify({
+        heroCopy,
+        ticker,
+        testimonials,
+        emailCopy,
+        footerLinks: links,
+        notifyEmail,
+        branding,
+        nav,
+        bio,
+        starter,
+        // Blank rows are dropped on save rather than on every keystroke,
+        // so a half-typed code isn't deleted out from under the cursor.
+        coupons: coupons.filter((c) => (c.code ?? "").trim()),
+        invoice,
+      }),
     });
     setSaving(false);
     setSaved(true);
@@ -212,14 +275,14 @@ export default function SettingsForm() {
                 setTestimonials(next);
               }}
             />
-            <button onClick={() => setTestimonials(testimonials.filter((_, j) => j !== i))} className="text-live px-2">
+            <button onClick={() => setTestimonials(testimonials.filter((_, j) => j !== i))} className="text-live-ink px-2">
               ×
             </button>
           </div>
         ))}
         <button
           onClick={() => setTestimonials([...testimonials, { quote: "", who: "" }])}
-          className="text-sm font-semibold text-marigold-deep"
+          className="text-sm font-semibold text-marigold-ink"
         >
           + Add testimonial
         </button>
@@ -295,6 +358,15 @@ export default function SettingsForm() {
         </div>
       </section>
 
+      <hr className="border-line" />
+
+      <BrandingSection value={branding} onChange={setBranding} />
+      <NavSection value={nav} onChange={setNav} />
+      <StarterSection value={starter} onChange={setStarter} />
+      <BioSection value={bio} onChange={setBio} />
+      <CouponsSection value={coupons} onChange={setCoupons} items={items} />
+      <InvoiceSection value={invoice} onChange={setInvoice} />
+
       <div className="flex items-center gap-4">
         <button
           onClick={save}
@@ -303,7 +375,7 @@ export default function SettingsForm() {
         >
           {saving ? "Saving…" : "Save settings"}
         </button>
-        {saved && <span className="text-marigold-deep font-medium text-sm">Saved ✓</span>}
+        {saved && <span className="text-marigold-ink font-medium text-sm">Saved ✓</span>}
       </div>
     </div>
   );

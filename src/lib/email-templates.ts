@@ -19,10 +19,41 @@ export interface EmailCopy {
 // The full set of tokens every template may use. A token with no value for
 // a given send renders as an empty string — never the literal "{token}"
 // and never "undefined".
-export type PlaceholderKey = "name" | "firstName" | "item" | "amount" | "orderId" | "email" | "phone";
+export type PlaceholderKey =
+  | "name"
+  | "firstName"
+  | "item"
+  | "amount"
+  | "orderId"
+  | "email"
+  | "phone"
+  // Joining + post-purchase tokens. Each resolves to "" when the item has
+  // no such detail configured, so a template that uses {groupUrl} on an
+  // item with no group link renders a blank rather than a broken link —
+  // the same rule every other token already followed.
+  | "date"
+  | "groupUrl"
+  | "meetingUrl"
+  | "calendarUrl"
+  | "invoiceUrl"
+  | "joiningNote";
 export type PlaceholderValues = Partial<Record<PlaceholderKey, string>>;
 
-export const PLACEHOLDER_KEYS: PlaceholderKey[] = ["name", "firstName", "item", "amount", "orderId", "email", "phone"];
+export const PLACEHOLDER_KEYS: PlaceholderKey[] = [
+  "name",
+  "firstName",
+  "item",
+  "amount",
+  "orderId",
+  "email",
+  "phone",
+  "date",
+  "groupUrl",
+  "meetingUrl",
+  "calendarUrl",
+  "invoiceUrl",
+  "joiningNote",
+];
 
 export const DEFAULT_EMAIL_COPY: Record<"paidBuyer" | "paidAdmin" | "leadBuyer" | "leadAdmin", EmailTemplate> = {
   paidBuyer: {

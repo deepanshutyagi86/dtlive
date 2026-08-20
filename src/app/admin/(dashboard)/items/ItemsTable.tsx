@@ -16,7 +16,7 @@ export interface AdminItemRow {
 
 function NoImageBadge() {
   return (
-    <span className="ml-2 inline-block font-mono text-[9.5px] uppercase tracking-wider text-live border border-live/40 bg-live/10 px-1.5 py-0.5 rounded-full align-middle">
+    <span className="ml-2 inline-block font-mono text-[9.5px] uppercase tracking-wider text-live-ink border border-live/40 bg-live/10 px-1.5 py-0.5 rounded-full align-middle">
       No image
     </span>
   );
@@ -73,9 +73,9 @@ export default function ItemsTable({ items }: { items: AdminItemRow[] }) {
   return (
     <div className="space-y-10">
       {error && (
-        <div className="flex items-start justify-between gap-3 bg-live/10 border border-live rounded-card px-4 py-3 text-sm text-live">
+        <div className="flex items-start justify-between gap-3 bg-live/10 border border-live rounded-card px-4 py-3 text-sm text-live-ink">
           <span>{error}</span>
-          <button onClick={() => setError(null)} aria-label="Dismiss" className="text-live font-bold leading-none">
+          <button onClick={() => setError(null)} aria-label="Dismiss" className="text-live-ink font-bold leading-none">
             ×
           </button>
         </div>
@@ -112,10 +112,10 @@ export default function ItemsTable({ items }: { items: AdminItemRow[] }) {
                     </td>
                     <td className="px-4 py-3 font-mono text-xs text-muted">{r.order}</td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <Link href={`/admin/items/${r.id}`} className="text-sm font-semibold text-marigold-deep hover:underline mr-4">
+                      <Link href={`/admin/items/${r.id}`} className="text-sm font-semibold text-marigold-ink hover:underline mr-4">
                         Edit
                       </Link>
-                      <button onClick={() => remove(r.id, r.title)} className="text-sm text-live hover:underline">
+                      <button onClick={() => remove(r.id, r.title)} className="text-sm text-live-ink hover:underline">
                         Delete
                       </button>
                     </td>
@@ -134,7 +134,7 @@ export default function ItemsTable({ items }: { items: AdminItemRow[] }) {
                     {r.title}
                     {!r.thumbnail && <NoImageBadge />}
                   </span>
-                  <Link href={`/admin/items/${r.id}`} className="text-sm font-semibold text-marigold-deep">
+                  <Link href={`/admin/items/${r.id}`} className="text-sm font-semibold text-marigold-ink">
                     Edit
                   </Link>
                 </div>
@@ -148,7 +148,7 @@ export default function ItemsTable({ items }: { items: AdminItemRow[] }) {
                     <Toggle checked={r.featured} disabled={busyId === r.id} onChange={(v) => toggle(r.id, "featured", v)} />
                   </label>
                 </div>
-                <button onClick={() => remove(r.id, r.title)} className="text-sm text-live">
+                <button onClick={() => remove(r.id, r.title)} className="text-sm text-live-ink">
                   Delete
                 </button>
               </div>

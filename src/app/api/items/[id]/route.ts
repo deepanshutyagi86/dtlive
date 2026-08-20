@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/auth";
+import { slugify } from "@/lib/guide-utils";
 import { updateItem, deleteItem, isSlugTaken, DeleteBlockedError } from "@/lib/admin-repo";
 import { getItemById } from "@/lib/items";
 
@@ -17,6 +18,16 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
+
+  // Same rule as create: the server normalises, so a slug can never be
+  // saved in a casing that its own URL won't resolve (audit P2-07).
+  if (typeof body.slug === "string" && body.slug.trim()) {
+    const normalised = slugify(body.slug);
+    if (!normalised) {
+      return NextResponse.json({ error: "That slug has no usable characters." }, { status: 400 });
+    }
+    body.slug = normalised;
+  }
 
   if (body.slug && (await isSlugTaken(body.slug, params.id))) {
     return NextResponse.json({ error: "That slug is already in use." }, { status: 409 });

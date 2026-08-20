@@ -151,9 +151,14 @@ export async function claimMetaPurchaseEvent(orderId: string): Promise<boolean> 
   return rows.length > 0;
 }
 
-export async function getOrderById(id: string): Promise<(Order & { item: { title: string; category: string; details: any } }) | null> {
+// item.slug is selected too: the confirmation page and the buyer email
+// both link to /items/<slug>/calendar, and without it they had no way to
+// build that URL from an order.
+export async function getOrderById(
+  id: string
+): Promise<(Order & { item: { title: string; slug: string; category: string; details: any } }) | null> {
   const { rows } = await sql`
-    SELECT o.*, i.title as item_title, i.category as item_category, i.details as item_details
+    SELECT o.*, i.title as item_title, i.slug as item_slug, i.category as item_category, i.details as item_details
     FROM orders o JOIN items i ON i.id = o.item_id
     WHERE o.id = ${id}
   `;
@@ -161,12 +166,36 @@ export async function getOrderById(id: string): Promise<(Order & { item: { title
   const r: any = rows[0];
   return {
     ...toOrder(r),
-    item: { title: r.item_title, category: r.item_category, details: r.item_details },
+    item: { title: r.item_title, slug: r.item_slug, category: r.item_category, details: r.item_details },
   };
 }
 
 export async function setOrderStatus(id: string, status: Order["status"]): Promise<void> {
   await sql`UPDATE orders SET status = ${status} WHERE id = ${id}`;
+}
+
+/**
+ * The atomic replacement for the `order.status !== "paid"` read-then-branch
+ * that all three paid paths used to share (audit P1-01). Postgres decides
+ * the winner inside a single statement, so exactly one of
+ * verify-payment / the Razorpay webhook / the /order/confirmed fallback
+ * gets `true` for a given order no matter how they interleave.
+ *
+ * Everything that must happen once per paid order — the seat decrement,
+ * the buyer and admin emails — belongs INSIDE the `if` this returns.
+ *
+ * `status <> 'paid'` rather than `status = 'pending'` on purpose: a
+ * payment that first reported failed and then captured on retry must still
+ * be claimable. A row already at 'paid' can never be re-claimed, which is
+ * the whole point.
+ */
+export async function claimOrderPaid(id: string): Promise<boolean> {
+  const { rows } = await sql`
+    UPDATE orders SET status = 'paid'
+    WHERE id = ${id} AND status <> 'paid'
+    RETURNING id
+  `;
+  return rows.length > 0;
 }
 
 export async function listOrders(limit = 100): Promise<(Order & { itemTitle: string })[]> {

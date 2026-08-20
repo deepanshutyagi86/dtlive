@@ -53,24 +53,24 @@ export default function LeadsTable({ leads }: { leads: LeadRow[] }) {
             <div className="font-semibold">{lead.name}</div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm">
               {lead.email && (
-                <a href={`mailto:${lead.email}`} className="text-marigold-deep hover:underline">
+                <a href={`mailto:${lead.email}`} className="text-marigold-ink hover:underline">
                   {lead.email}
                 </a>
               )}
               {lead.phone && (
                 <span className="flex items-center gap-2">
-                  <a href={`tel:${lead.phone}`} className="text-marigold-deep hover:underline">
+                  <a href={`tel:${lead.phone}`} className="text-marigold-ink hover:underline">
                     {lead.phone}
                   </a>
                   {wa && (
-                    <a href={wa} target="_blank" rel="noopener" className="text-xs font-mono text-muted hover:text-marigold-deep">
+                    <a href={wa} target="_blank" rel="noopener" className="text-xs font-mono text-muted hover:text-marigold-ink">
                       (WhatsApp)
                     </a>
                   )}
                 </span>
               )}
             </div>
-            {lead.item && <div className="text-xs text-marigold-deep font-mono mt-1">re: {lead.item.title}</div>}
+            {lead.item && <div className="text-xs text-marigold-ink font-mono mt-1">re: {lead.item.title}</div>}
             {lead.message && <div className="text-sm text-ink-soft mt-1.5 max-w-md">{lead.message}</div>}
             {answerEntries.length > 0 && (
               <div className="text-xs text-ink-soft mt-1.5 space-y-0.5">
