@@ -3,6 +3,7 @@
 // can never disagree.
 
 import type { InvoiceSettings } from "./settings-types";
+import type { OrderTaxSnapshot } from "./order-tax";
 
 export interface InvoiceLine {
   description: string;
@@ -25,35 +26,60 @@ export interface InvoiceComputation {
   /** True when buyer and seller are in the same state, so CGST+SGST applies. */
   intraState: boolean;
   ratePercent: number;
+  /** True when the numbers came from the snapshot saved at purchase time. */
+  fromSnapshot: boolean;
 }
 
 /**
+ * Turns an order into invoice numbers.
+ *
+ * PREFERS THE SNAPSHOT. Every order created after the tax work saves the
+ * exact split it was charged under (rate, taxable value, CGST/SGST/IGST) in
+ * `orders.tax_details`. A tax invoice is a legal record of a past
+ * transaction: if it were recomputed from today's settings, raising the GST
+ * rate would silently rewrite every invoice ever issued. So the snapshot
+ * wins, and the live settings are only a fallback for orders that predate
+ * it.
+ *
  * @param grossPaid  what the buyer actually paid, in RUPEES.
  *
- * Intra-state (buyer in the seller's own state) splits the rate into equal
- * CGST + SGST halves; inter-state charges the whole rate as IGST. We have
- * no reliable buyer state — a checkout that only collects name, email and
- * phone cannot know it — so `intraState` is passed in by the caller, which
- * defaults it to true (the seller's own state). That is the conservative
- * choice: it never under-reports the total tax, only its split.
+ * The fallback back-computes the tax OUT of the amount paid, in both tax
+ * modes. That is correct either way: in exclusive mode the GST was already
+ * added before the charge, so the amount paid is tax-inclusive by the time
+ * it reaches here. The invoice's "Total paid" therefore always equals what
+ * hit the Razorpay account — which is the one property this document
+ * cannot get wrong.
+ *
+ * `intraState` is passed in by the caller: it comes from the buyer's own
+ * state when they supplied a GSTIN, and otherwise defaults to true (the
+ * seller's state), which is the correct place of supply for an online
+ * service to an unregistered person whose address is not on record.
  */
 export function computeInvoice(
-  settings: InvoiceSettings,
+  ratePercent: number,
   grossPaid: number,
-  intraState = true
+  intraState = true,
+  snapshot?: OrderTaxSnapshot | null
 ): InvoiceComputation {
-  const rate = Number.isFinite(settings.taxRatePercent) ? settings.taxRatePercent : 0;
+  if (snapshot && Number.isFinite(snapshot.taxableValue) && Number.isFinite(snapshot.taxTotal)) {
+    const snapIntra = snapshot.igst > 0 ? false : true;
+    return {
+      taxableValue: snapshot.taxableValue,
+      cgst: snapshot.cgst,
+      sgst: snapshot.sgst,
+      igst: snapshot.igst,
+      taxTotal: snapshot.taxTotal,
+      grandTotal: round2(snapshot.taxableValue + snapshot.taxTotal),
+      intraState: snapIntra,
+      ratePercent: snapshot.ratePercent,
+      fromSnapshot: true,
+    };
+  }
 
-  const taxableValue =
-    settings.taxMode === "inclusive"
-      ? round2((grossPaid * 100) / (100 + rate))
-      : round2(grossPaid);
-
-  const taxTotal =
-    settings.taxMode === "inclusive"
-      ? round2(grossPaid - taxableValue)
-      : round2((taxableValue * rate) / 100);
-
+  const rate = Number.isFinite(ratePercent) ? Math.max(ratePercent, 0) : 0;
+  const taxableValue = rate > 0 ? round2((grossPaid * 100) / (100 + rate)) : round2(grossPaid);
+  const taxTotal = round2(grossPaid - taxableValue);
+  // Derived so cgst + sgst === taxTotal exactly, even on an odd paisa.
   const half = round2(taxTotal / 2);
 
   return {
@@ -65,6 +91,7 @@ export function computeInvoice(
     grandTotal: round2(taxableValue + taxTotal),
     intraState,
     ratePercent: rate,
+    fromSnapshot: false,
   };
 }
 

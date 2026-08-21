@@ -9,7 +9,8 @@ import Footer, { FooterLinks } from "@/components/Footer";
 import StarterRouter from "@/components/StarterRouter";
 import JsonLd from "@/components/JsonLd";
 import { getDoorCounts, getFeaturedItem, getLiveStreamItems, getSetting } from "@/lib/items";
-import { getBio, getNav, getStarter, SITE_URL } from "@/lib/site-settings";
+import { getBio, getNav, getStarter, getTaxSettingsForDisplay, SITE_URL } from "@/lib/site-settings";
+import { priceLabel } from "@/lib/tax";
 import { metaFor, externalFor } from "@/lib/homepage";
 import type { CourseDetails, WorkshopDetails } from "@/lib/types";
 import { SITE_TZ } from "@/lib/dates";
@@ -19,7 +20,7 @@ import { SITE_TZ } from "@/lib/dates";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const [items, featured, counts, ticker, testimonials, footerLinks, heroCopySetting, nav, bio, starter] =
+  const [items, featured, counts, ticker, testimonials, footerLinks, heroCopySetting, nav, bio, starter, tax] =
     await Promise.all([
       getLiveStreamItems(),
       getFeaturedItem(),
@@ -31,6 +32,7 @@ export default async function HomePage() {
       getNav(),
       getBio(),
       getStarter(),
+      getTaxSettingsForDisplay(),
     ]);
 
   // Blank/missing fields fall back to the default individually, never
@@ -48,7 +50,7 @@ export default async function HomePage() {
     title: i.title,
     description: i.description,
     category: i.category,
-    meta: metaFor(i),
+    meta: metaFor(i, tax),
     external: externalFor(i),
     thumbnail: i.thumbnail,
     imageFocal: i.details?.imageFocal ?? null,
@@ -87,9 +89,9 @@ export default async function HomePage() {
         "Live on Zoom"
       );
       if (showSeats) chips.push(`${(d as WorkshopDetails).seatsLeft} seats left`);
-      if (showPrice) chips.push(`₹${(d as WorkshopDetails).price} early bird`);
+      if (showPrice) chips.push(`${priceLabel((d as WorkshopDetails).price, tax)} early bird`);
     } else {
-      if (showPrice) chips.push(`₹${(d as CourseDetails).price}`);
+      if (showPrice) chips.push(priceLabel((d as CourseDetails).price, tax));
       chips.push((d as CourseDetails).duration ?? "self-paced");
     }
 
@@ -165,7 +167,7 @@ export default async function HomePage() {
 
       <StarterRouter data={starter} />
 
-      <Doors counts={counts} items={cardItems} />
+      <Doors counts={counts} items={cardItems} tax={tax} />
       <Testimonials items={testimonials} />
       <Footer links={footerLinks} nav={nav} bio={bio} />
     </>

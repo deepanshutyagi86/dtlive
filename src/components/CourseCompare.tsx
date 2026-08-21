@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { CardItem } from "./ItemCard";
 import type { CourseDetails } from "@/lib/types";
+import { priceLabel } from "@/lib/tax";
+import { DEFAULT_TAX, type TaxSettings } from "@/lib/settings-types";
 
 // Three courses at the same price with one sentence each is a decision
 // people avoid by leaving. This strip answers "which one is mine?" in a
@@ -10,7 +12,7 @@ import type { CourseDetails } from "@/lib/types";
 // details.buildOutcome, details.level, details.duration) and the whole
 // block hides itself when fewer than two courses are live or when nobody
 // has filled anything in — an empty comparison table is worse than none.
-export default function CourseCompare({ items }: { items: CardItem[] }) {
+export default function CourseCompare({ items, tax = DEFAULT_TAX }: { items: CardItem[]; tax?: TaxSettings }) {
   const courses = items.filter((i) => i.category === "course");
   if (courses.length < 2) return null;
 
@@ -73,7 +75,7 @@ export default function CourseCompare({ items }: { items: CardItem[] }) {
                     {r.title}
                   </Link>
                   {Number.isFinite(r.price) && (
-                    <span className="block font-mono text-[11px] text-muted mt-1">₹{r.price}</span>
+                    <span className="block font-mono text-[11px] text-muted mt-1">{priceLabel(r.price, tax)}</span>
                   )}
                 </th>
                 <td className="py-5 pr-4 text-[15px] leading-relaxed text-ink-soft">{r.bestFor || "—"}</td>

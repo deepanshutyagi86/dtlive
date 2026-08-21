@@ -3,7 +3,7 @@ import Footer, { FooterLinks } from "./Footer";
 import ItemCard, { type CardItem } from "./ItemCard";
 import CourseCompare from "./CourseCompare";
 import { CATEGORY_LABELS } from "@/lib/types";
-import { getBio, getNav } from "@/lib/site-settings";
+import { getBio, getNav, getTaxSettingsForDisplay } from "@/lib/site-settings";
 
 // The card shape is shared with the directories and the homepage sections.
 // Re-exported under the old name so the three category pages keep importing
@@ -33,7 +33,7 @@ export default async function CategoryGrid({
   items: GridItem[];
   footerLinks: FooterLinks;
 }) {
-  const [nav, bio] = await Promise.all([getNav(), getBio()]);
+  const [nav, bio, tax] = await Promise.all([getNav(), getBio(), getTaxSettingsForDisplay()]);
   const copy = COPY[category];
 
   return (
@@ -55,10 +55,10 @@ export default async function CategoryGrid({
           <>
             <div className="grid md:grid-cols-3 gap-5 mt-12">
               {items.map((item) => (
-                <ItemCard key={item.slug} item={item} sizes={GRID_IMAGE_SIZES} />
+                <ItemCard key={item.slug} item={item} sizes={GRID_IMAGE_SIZES} tax={tax} />
               ))}
             </div>
-            {category === "course" && <CourseCompare items={items} />}
+            {category === "course" && <CourseCompare items={items} tax={tax} />}
           </>
         )}
       </main>

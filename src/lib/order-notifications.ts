@@ -15,6 +15,7 @@ import { DEFAULT_EMAIL_COPY, resolveTemplate, renderTemplate } from "./email-tem
 import type { EmailCopy } from "./email-templates";
 import type { WorkshopDetails } from "./types";
 import { SITE_TZ } from "./dates";
+import { formatRupees } from "./tax";
 
 type PaidOrder = Order & { item: { title: string; slug: string; category: string; details: any } };
 
@@ -35,7 +36,9 @@ export async function sendPaidOrderNotifications(order: PaidOrder): Promise<void
     }),
   ]);
 
-  const amountLabel = `₹${order.amount / 100}`;
+  // Indian grouping, and paise only when there are any — a GST total
+  // of 8258.82 must not render as "₹8258.82" in a confirmation email.
+  const amountLabel = `₹${formatRupees(order.amount / 100)}`;
   const buyerFirstName = order.buyerName.split(" ")[0];
 
   // Joining details live on the item, so every workshop and course can

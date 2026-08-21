@@ -1,4 +1,5 @@
 import { sql, newId, toItem, toOrder, toLead, Item, Order, Lead, ItemRow, OrderRow, LeadRow } from "./db";
+import { readTaxSnapshot, type OrderTaxSnapshot } from "./order-tax";
 
 // Thrown by deleteItem() when the item is still referenced by orders/leads.
 // The API route maps this to a 409 with the message shown directly to the
@@ -118,8 +119,33 @@ export async function createOrder(input: {
   clientIp?: string | null;
   clientUserAgent?: string | null;
   eventSourceUrl?: string | null;
+  /**
+   * The frozen tax split for this order. Only persisted once the
+   * `tax_details` column exists (see docs/MIGRATIONS.md) — until then it is
+   * dropped, and the invoice falls back to computing from the amount paid.
+   * The order itself is created either way: a missing column must never
+   * block a sale.
+   */
+  taxDetails?: OrderTaxSnapshot | null;
 }): Promise<Order> {
   const id = newId();
+
+  if (input.taxDetails && (await hasTaxDetailsColumn())) {
+    const { rows } = await sql<OrderRow>`
+      INSERT INTO orders (
+        id, item_id, buyer_name, buyer_email, buyer_phone, amount, status,
+        fbc, fbp, client_ip, client_user_agent, event_source_url, tax_details
+      )
+      VALUES (
+        ${id}, ${input.itemId}, ${input.buyerName}, ${input.buyerEmail}, ${input.buyerPhone}, ${input.amount}, 'pending',
+        ${input.fbc ?? null}, ${input.fbp ?? null}, ${input.clientIp ?? null}, ${input.clientUserAgent ?? null}, ${input.eventSourceUrl ?? null},
+        ${JSON.stringify(input.taxDetails)}
+      )
+      RETURNING *
+    `;
+    return toOrder(rows[0]);
+  }
+
   const { rows } = await sql<OrderRow>`
     INSERT INTO orders (
       id, item_id, buyer_name, buyer_email, buyer_phone, amount, status,
@@ -132,6 +158,32 @@ export async function createOrder(input: {
     RETURNING *
   `;
   return toOrder(rows[0]);
+}
+
+// Cached per serverless instance. The answer only changes when someone runs
+// a migration, so re-asking on every checkout would be a wasted round trip
+// on the hot path — but caching a `false` forever would mean the column
+// stays unused until the next cold start, which is the right trade: no
+// deploy is needed, the feature just switches itself on within minutes of
+// the ALTER.
+let taxDetailsColumnExists: boolean | null = null;
+
+export async function hasTaxDetailsColumn(): Promise<boolean> {
+  if (taxDetailsColumnExists !== null) return taxDetailsColumnExists;
+  try {
+    const { rows } = await sql`
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name = 'orders' AND column_name = 'tax_details'
+      LIMIT 1
+    `;
+    taxDetailsColumnExists = rows.length > 0;
+  } catch (err) {
+    // Never let a schema probe break a checkout. Assuming "no" costs a
+    // snapshot; assuming "yes" would make the INSERT fail and lose the sale.
+    console.error("Could not check for orders.tax_details, assuming absent:", err);
+    taxDetailsColumnExists = false;
+  }
+  return taxDetailsColumnExists;
 }
 
 export async function setOrderCashfreeId(orderId: string, cashfreeOrderId: string): Promise<void> {
@@ -156,7 +208,13 @@ export async function claimMetaPurchaseEvent(orderId: string): Promise<boolean> 
 // build that URL from an order.
 export async function getOrderById(
   id: string
-): Promise<(Order & { item: { title: string; slug: string; category: string; details: any } }) | null> {
+): Promise<
+  | (Order & {
+      item: { title: string; slug: string; category: string; details: any };
+      taxDetails: OrderTaxSnapshot | null;
+    })
+  | null
+> {
   const { rows } = await sql`
     SELECT o.*, i.title as item_title, i.slug as item_slug, i.category as item_category, i.details as item_details
     FROM orders o JOIN items i ON i.id = o.item_id
@@ -167,6 +225,10 @@ export async function getOrderById(
   return {
     ...toOrder(r),
     item: { title: r.item_title, slug: r.item_slug, category: r.item_category, details: r.item_details },
+    // `SELECT o.*` returns the column when it exists and simply omits it
+    // when the migration has not been run — readTaxSnapshot turns both the
+    // missing case and a malformed one into null.
+    taxDetails: readTaxSnapshot(r.tax_details),
   };
 }
 

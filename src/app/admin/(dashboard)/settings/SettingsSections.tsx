@@ -8,6 +8,7 @@ import {
   TextField,
   Toggle,
 } from "@/components/admin/AdminFields";
+import { computePricing, formatRupees } from "@/lib/tax";
 import {
   BRANDING_HELP,
   DEFAULT_BIO,
@@ -20,6 +21,8 @@ import {
   type InvoiceSettings,
   type NavSettings,
   type StarterSettings,
+  type TaxSettings,
+  DEFAULT_TAX,
 } from "@/lib/settings-types";
 
 /* ------------------------------------------------------------------ */
@@ -369,6 +372,139 @@ export function CouponsSection({
 }
 
 /* ------------------------------------------------------------------ */
+/* Tax & pricing — decides what the buyer is CHARGED                   */
+/* ------------------------------------------------------------------ */
+
+export function TaxSection({
+  value,
+  onChange,
+  b2bReady,
+}: {
+  value: TaxSettings;
+  onChange: (v: TaxSettings) => void;
+  /** False until the tax_details column exists — see docs/MIGRATIONS.md. */
+  b2bReady: boolean;
+}) {
+  const set = (patch: Partial<TaxSettings>) => onChange({ ...value, ...patch });
+  const rate = Number.isFinite(value.ratePercent) ? value.ratePercent : 18;
+  const example = 6999;
+  // Computed by the same function that charges, then formatted the same
+  // way — a rounded estimate here would quote ₹8,259 for a charge of
+  // ₹8,258.82, which is exactly the mismatch this panel exists to warn about.
+  const exampleTotal = formatRupees(
+    computePricing({
+      listPrice: example,
+      tax: { ...value, ratePercent: rate },
+      sellerStateCode: "",
+    }).payable
+  );
+
+  return (
+    <section>
+      <h2 className="font-display font-bold text-lg mb-1">Tax &amp; pricing</h2>
+      <p className="text-sm text-muted mb-5">
+        This is the only setting on the site that changes what people are charged. Read the example before
+        you touch it.
+      </p>
+
+      <div className="bg-marigold/10 border border-marigold rounded-card p-4 mb-5">
+        <p className="font-mono text-[10.5px] uppercase tracking-wider text-marigold-ink mb-2">
+          Careful — this moves money
+        </p>
+        <p className="text-[13px] text-ink-soft leading-relaxed">
+          Turning GST on in <b>&ldquo;added on top&rdquo;</b> mode raises the price of every paid item at
+          once. A course you typed as ₹{example.toLocaleString("en-IN")} starts charging{" "}
+          <b>₹{exampleTotal}</b>. Nobody who already bought is affected — only new
+          orders. Change it when you are ready to collect the tax, not before.
+        </p>
+      </div>
+
+      <Toggle
+        label="Charge GST"
+        checked={value.enabled}
+        onChange={(v) => set({ enabled: v })}
+        help="Off means buyers pay exactly the price on the item and no tax logic runs at all."
+      />
+
+      {value.enabled && (
+        <>
+          <div className="grid sm:grid-cols-2 gap-3 mt-4">
+            <NumberField
+              label="GST rate %"
+              value={rate}
+              onChange={(v) => set({ ratePercent: v })}
+              min={0}
+              max={28}
+              help="18% is the usual rate for online courses and training."
+            />
+            <SelectField
+              label="The price I type is"
+              value={value.mode}
+              onChange={(v) => set({ mode: v as TaxSettings["mode"] })}
+              options={[
+                { value: "exclusive", label: "Before GST — add it on top" },
+                { value: "inclusive", label: "The final price — GST is inside it" },
+              ]}
+              help={
+                value.mode === "exclusive"
+                  ? `Type ${example}, buyer pays ₹${exampleTotal}.`
+                  : `Type ${example}, buyer pays ₹${example.toLocaleString("en-IN")} and the invoice shows the GST inside it.`
+              }
+            />
+          </div>
+
+          {value.mode === "exclusive" && (
+            <SelectField
+              label="On cards and item pages, show"
+              value={value.display}
+              onChange={(v) => set({ display: v as TaxSettings["display"] })}
+              options={[
+                { value: "plus-gst", label: `"₹${example.toLocaleString("en-IN")} + GST"` },
+                { value: "total", label: `"₹${exampleTotal}" with "incl. ${rate}% GST" under it` },
+              ]}
+              help="Either way the checkout shows the full breakdown and charges the same total. This is only about the first number a stranger sees."
+            />
+          )}
+
+          <hr className="border-line my-6" />
+          <p className="font-mono text-[10.5px] uppercase tracking-wider text-muted mb-3">Business buyers</p>
+
+          {b2bReady ? (
+            <>
+              <Toggle
+                label="Let buyers add their GSTIN at checkout"
+                checked={value.b2bEnabled}
+                onChange={(v) => set({ b2bEnabled: v })}
+                help="Adds an optional 'Buying for a business?' link in the checkout. The invoice is then raised to their company, and taxed as IGST when they are outside your state."
+              />
+              {value.b2bEnabled && (
+                <TextField
+                  label="What buyers see above the GSTIN field"
+                  rows={3}
+                  value={value.b2bPrompt}
+                  onChange={(v) => set({ b2bPrompt: v })}
+                  placeholder={DEFAULT_TAX.b2bPrompt}
+                />
+              )}
+            </>
+          ) : (
+            <div className="bg-card border border-line rounded-card p-4">
+              <p className="text-[13px] text-ink-soft leading-relaxed">
+                <b>One database change needed first.</b> Storing a buyer&apos;s GSTIN — and freezing each
+                order&apos;s tax split so old invoices never change when you change the rate — needs one new
+                column on the orders table. Run the single line in{" "}
+                <code className="font-mono text-[12px]">docs/MIGRATIONS.md</code> in your Neon console, and
+                this switch turns itself on within a few minutes. Nothing else breaks in the meantime.
+              </p>
+            </div>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* GST invoicing                                                       */
 /* ------------------------------------------------------------------ */
 
@@ -429,35 +565,14 @@ export function InvoiceSection({ value, onChange }: { value: InvoiceSettings; on
       />
 
       <hr className="border-line my-6" />
-      <p className="font-mono text-[10.5px] uppercase tracking-wider text-muted mb-3">Tax</p>
 
-      <div className="grid sm:grid-cols-3 gap-3">
-        <TextField
-          label="SAC code"
-          value={value.hsnSac}
-          onChange={(v) => set({ hsnSac: v })}
-          placeholder="999293"
-          help="999293 is commercial training & coaching."
-        />
-        <NumberField
-          label="GST rate %"
-          value={value.taxRatePercent}
-          onChange={(v) => set({ taxRatePercent: v })}
-          min={0}
-          max={28}
-          help="Split into equal CGST + SGST on the invoice."
-        />
-        <div className="mb-3">
-          <p className="font-mono text-[10.5px] uppercase tracking-wider text-muted mb-1.5">Your listed prices are</p>
-          <p className="text-sm py-2.5">Inclusive of GST</p>
-          <p className="text-[12px] text-muted leading-relaxed">
-            Fixed, and not an option on purpose: checkout charges exactly the price on the item, it never
-            adds tax on top. The invoice back-computes the taxable value from what was actually paid, so the
-            &ldquo;Total paid&rdquo; line always equals the amount that hit your Razorpay account. Changing
-            this would need checkout to start adding GST first.
-          </p>
-        </div>
-      </div>
+      <TextField
+        label="SAC code"
+        value={value.hsnSac}
+        onChange={(v) => set({ hsnSac: v })}
+        placeholder="999293"
+        help="999293 is commercial training & coaching. The GST rate and whether tax is added on top now live in the Tax & pricing section above — they decide what buyers are charged, not just what this document says."
+      />
 
       <div className="grid sm:grid-cols-2 gap-3">
         <TextField

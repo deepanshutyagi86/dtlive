@@ -1,5 +1,6 @@
 import Link from "next/link";
 import ItemCard, { type CardItem } from "./ItemCard";
+import { DEFAULT_TAX, type TaxSettings } from "@/lib/settings-types";
 
 // Each door now says what it actually is before showing what's in it. The
 // old version was five names and a hover-revealed line — a visitor had to
@@ -61,9 +62,11 @@ const SECTION_IMAGE_SIZES = "(min-width: 1200px) 570px, 50vw";
 export default function Doors({
   counts,
   items,
+  tax = DEFAULT_TAX,
 }: {
   counts: Record<string, number>;
   items: CardItem[];
+  tax?: TaxSettings;
 }) {
   return (
     <section className="max-w-[1200px] mx-auto px-5 pt-20 pb-10">
@@ -108,7 +111,7 @@ export default function Doors({
             ) : (
               <div className="grid grid-cols-2 gap-3 sm:gap-5 mt-7">
                 {list.map((item) => (
-                  <ItemCard key={item.slug} item={item} sizes={SECTION_IMAGE_SIZES} compact />
+                  <ItemCard key={item.slug} item={item} sizes={SECTION_IMAGE_SIZES} compact tax={tax} />
                 ))}
               </div>
             )}

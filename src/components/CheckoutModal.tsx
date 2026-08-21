@@ -1,9 +1,11 @@
 "use client";
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import ItemImage from "./ItemImage";
 import { useModalBehavior } from "@/lib/useModalBehavior";
 import { isValidEmail, isValidPhone, stripToPhoneChars } from "@/lib/validate";
+import { formatRupees, isValidGstin } from "@/lib/tax";
+import { GST_STATES, type TaxSettings } from "@/lib/settings-types";
 import type { Category, ImageFocal } from "@/lib/types";
 import type { RazorpayHandlerResponse } from "@/types/razorpay";
 
@@ -24,6 +26,24 @@ function loadRazorpayScript(): Promise<void> {
   });
 }
 
+interface Quote {
+  discount: number;
+  /**
+   * The discount expressed in tax-exclusive rupees. Equal to `discount` in
+   * exclusive mode; in inclusive mode the coupon came off a tax-inclusive
+   * price, so its taxable share is smaller. Rendering `discount` directly
+   * made the breakdown fail to add up.
+   */
+  discountTaxable: number;
+  taxableValue: number;
+  taxTotal: number;
+  ratePercent: number;
+  taxApplied: boolean;
+  intraState: boolean;
+  payable: number;
+  listPrice: number;
+}
+
 const FIELDS = [
   { key: "name" as const, label: "Full name", type: "text", placeholder: "e.g. Deepanshu", mode: "text" as const },
   { key: "email" as const, label: "Email", type: "email", placeholder: "e.g. you@example.com", mode: "email" as const },
@@ -38,6 +58,7 @@ export default function CheckoutModal({
   thumbnail,
   imageFocal,
   priceLabel,
+  tax,
   triggerClassName,
   triggerLabel,
 }: {
@@ -48,6 +69,8 @@ export default function CheckoutModal({
   thumbnail: string | null;
   imageFocal?: ImageFocal | null;
   priceLabel: string;
+  /** Drives the breakdown and whether the GSTIN block is offered at all. */
+  tax: TaxSettings;
   triggerClassName: string;
   triggerLabel: string;
 }) {
@@ -64,7 +87,15 @@ export default function CheckoutModal({
   const [couponInput, setCouponInput] = useState("");
   const [couponChecking, setCouponChecking] = useState(false);
   const [couponError, setCouponError] = useState<string | null>(null);
-  const [applied, setApplied] = useState<{ code: string; label: string; discount: number; payable: number } | null>(null);
+  // The server's own breakdown, fetched on open and re-fetched whenever the
+  // coupon or the GSTIN changes. The modal never does its own arithmetic —
+  // it renders whatever create-order is going to charge.
+  const [quote, setQuote] = useState<Quote | null>(null);
+  const [applied, setApplied] = useState<{ code: string; label: string } | null>(null);
+
+  const [gstOpen, setGstOpen] = useState(false);
+  const [gst, setGst] = useState({ gstin: "", legalName: "", stateCode: "" });
+  const [gstError, setGstError] = useState<string | null>(null);
 
   // Portal target (document.body) only exists client-side; without this
   // guard, SSR/hydration would try to render into a nonexistent node.
@@ -88,7 +119,38 @@ export default function CheckoutModal({
     return match ? decodeURIComponent(match[1]) : null;
   }
 
-  const payLabel = applied ? `₹${applied.payable}` : priceLabel;
+  const payable = quote ? quote.payable : null;
+  const payLabel = payable !== null ? `₹${formatRupees(payable)}` : priceLabel;
+
+  // Fetches the authoritative breakdown. Called on open with no code so the
+  // buyer sees the GST line before they type anything, and again on every
+  // change that could move the number.
+  const refreshQuote = useCallback(
+    async (code: string | null, gstDetails: typeof gst | null): Promise<Quote | null> => {
+      try {
+        const res = await fetch("/api/checkout/apply-coupon", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ itemId, code: code ?? "", buyerGst: gstDetails }),
+        });
+        const data = (await res.json()) as Quote & { ok: boolean; reason?: string };
+        if (!data.ok && code) return null;
+        setQuote(data);
+        return data;
+      } catch {
+        return null;
+      }
+    },
+    [itemId]
+  );
+
+  // Open with a fresh quote so the GST line is correct from the first
+  // render, rather than appearing only after someone tries a coupon.
+  useEffect(() => {
+    if (!open) return;
+    refreshQuote(applied?.code ?? null, gstOpen ? gst : null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   function validate(): boolean {
     const next: Partial<Record<"name" | "email" | "phone", string>> = {};
@@ -110,21 +172,41 @@ export default function CheckoutModal({
       const res = await fetch("/api/checkout/apply-coupon", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ itemId, code }),
+        body: JSON.stringify({ itemId, code, buyerGst: gstOpen ? gst : null }),
       });
       const data = await res.json();
-      if (data.ok) {
-        setApplied({ code: data.code, label: data.label, discount: data.discount, payable: data.payable });
+      if (data.ok && data.code) {
+        setApplied({ code: data.code, label: data.label ?? "" });
+        setQuote(data);
         setCouponError(null);
       } else {
         setApplied(null);
         setCouponError(data.reason || "That code isn't valid.");
+        // Re-price without the code so the total on the button goes back to
+        // the undiscounted one instead of silently keeping a stale figure.
+        refreshQuote(null, gstOpen ? gst : null);
       }
     } catch {
       setCouponError("Couldn't check that code. Try again.");
     } finally {
       setCouponChecking(false);
     }
+  }
+
+  // A GSTIN can change the tax SPLIT (IGST instead of CGST+SGST) but never
+  // the total, so this re-prices rather than just validating locally.
+  async function applyGstDetails() {
+    const value = gst.gstin.trim().toUpperCase();
+    if (value && !isValidGstin(value)) {
+      setGstError("That doesn't look like a valid GSTIN — 15 characters, e.g. 09ABCDE1234F1Z5.");
+      return;
+    }
+    setGstError(null);
+    // The state code is the first two characters of a GSTIN by definition,
+    // so it is derived rather than asked for twice.
+    const next = { ...gst, gstin: value, stateCode: value ? value.slice(0, 2) : gst.stateCode };
+    setGst(next);
+    await refreshQuote(applied?.code ?? null, next);
   }
 
   async function pay() {
@@ -140,6 +222,7 @@ export default function CheckoutModal({
           itemId,
           ...form,
           couponCode: applied?.code ?? null,
+          buyerGst: tax.b2bEnabled && gst.gstin.trim() ? gst : null,
           fbc: readCookie("_fbc"),
           fbp: readCookie("_fbp"),
           eventSourceUrl: window.location.href,
@@ -248,11 +331,7 @@ export default function CheckoutModal({
               <h3 className="font-display font-extrabold text-[22px] tracking-tight">{title}</h3>
               <p className="font-mono text-[11px] text-muted mt-1.5 mb-5">
                 {applied ? (
-                  <>
-                    <span className="line-through">{priceLabel}</span>{" "}
-                    <span className="text-ink font-bold">₹{applied.payable}</span>{" "}
-                    <span className="text-marigold-ink">· {applied.label}</span>
-                  </>
+                  <span className="text-marigold-ink">{applied.code} applied · {applied.label}</span>
                 ) : (
                   priceLabel
                 )}
@@ -319,7 +398,7 @@ export default function CheckoutModal({
                 ) : applied ? (
                   <div className="flex items-center justify-between gap-3 bg-card border border-line rounded-[10px] px-3.5 py-2.5">
                     <span className="font-mono text-[11px]">
-                      <b>{applied.code}</b> applied · ₹{applied.discount} off
+                      <b>{applied.code}</b> applied{quote && quote.discount > 0 ? ` · ₹${formatRupees(quote.discount)} off` : ""}
                     </span>
                     <button
                       type="button"
@@ -327,6 +406,11 @@ export default function CheckoutModal({
                         setApplied(null);
                         setCouponInput("");
                         setCouponOpen(false);
+                        // MUST re-quote. Without this the breakdown and the
+                        // pay button kept showing the discounted total while
+                        // pay() sent no code at all, so the buyer was shown
+                        // one number and charged another.
+                        refreshQuote(null, gstOpen ? gst : null);
                       }}
                       className="font-mono text-[11px] text-muted hover:text-ink"
                     >
@@ -368,6 +452,129 @@ export default function CheckoutModal({
                   </>
                 )}
               </div>
+
+              {/* Business invoice. Collapsed and entirely optional: most
+                  buyers are individuals, and an always-visible GSTIN field
+                  reads as "this isn't for you" to a student. Hidden
+                  altogether unless B2B is switched on in the admin panel. */}
+              {tax.b2bEnabled && (
+                <div className="mb-4">
+                  {!gstOpen ? (
+                    <button
+                      type="button"
+                      onClick={() => setGstOpen(true)}
+                      className="font-mono text-[11px] uppercase tracking-wider text-marigold-ink hover:underline"
+                    >
+                      Buying for a business?
+                    </button>
+                  ) : (
+                    <div className="bg-card border border-line rounded-[10px] p-4">
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <p className="text-[13px] leading-relaxed text-ink-soft">{tax.b2bPrompt}</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setGstOpen(false);
+                            setGst({ gstin: "", legalName: "", stateCode: "" });
+                            setGstError(null);
+                            refreshQuote(applied?.code ?? null, null);
+                          }}
+                          aria-label="Remove GST details"
+                          className="font-mono text-[11px] text-muted hover:text-ink shrink-0"
+                        >
+                          Skip
+                        </button>
+                      </div>
+
+                      <label
+                        htmlFor={`${uid}-gstin`}
+                        className="block font-mono text-[10.5px] uppercase tracking-wider text-muted mb-1.5"
+                      >
+                        GSTIN
+                      </label>
+                      <input
+                        id={`${uid}-gstin`}
+                        value={gst.gstin}
+                        onChange={(e) => {
+                          // Uppercase and strip anything a GSTIN can't
+                          // contain, so a pasted value with spaces still works.
+                          setGst({ ...gst, gstin: e.target.value.toUpperCase().replace(/[^0-9A-Z]/g, "").slice(0, 15) });
+                          if (gstError) setGstError(null);
+                        }}
+                        onBlur={applyGstDetails}
+                        placeholder="09ABCDE1234F1Z5"
+                        aria-invalid={gstError ? true : undefined}
+                        className={`w-full px-3.5 py-3 text-[16px] text-ink bg-bone border rounded-[10px] font-mono tracking-wider placeholder-ink-soft focus:outline-none focus:ring-2 focus:ring-marigold ${
+                          gstError ? "border-live-ink" : "border-line focus:border-marigold"
+                        }`}
+                      />
+                      {gstError && <p className="text-live-ink text-[13px] mt-1.5">{gstError}</p>}
+
+                      <label
+                        htmlFor={`${uid}-legal-name`}
+                        className="block font-mono text-[10.5px] uppercase tracking-wider text-muted mb-1.5 mt-3"
+                      >
+                        Registered business name
+                      </label>
+                      <input
+                        id={`${uid}-legal-name`}
+                        value={gst.legalName}
+                        onChange={(e) => setGst({ ...gst, legalName: e.target.value })}
+                        onBlur={applyGstDetails}
+                        placeholder="As it appears on your GST certificate"
+                        className="w-full px-3.5 py-3 text-[16px] text-ink bg-bone border border-line rounded-[10px] placeholder-ink-soft focus:outline-none focus:border-marigold focus:ring-2 focus:ring-marigold"
+                      />
+
+                      {gst.stateCode && (
+                        <p className="font-mono text-[11px] text-muted mt-2.5">
+                          State:{" "}
+                          {GST_STATES.find((st) => st.code === gst.stateCode)?.name ?? gst.stateCode}
+                          {quote && !quote.intraState ? " · taxed as IGST" : ""}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* The authoritative breakdown, straight from the server. It
+                  renders even before a coupon is tried, because in
+                  "+ GST" mode the total is the first genuinely new number a
+                  buyer sees and burying it until checkout is exactly the
+                  surprise this section exists to prevent. */}
+              {quote && (
+                <div className="bg-card border border-line rounded-[10px] px-4 py-3 mb-4 text-[13px]">
+                  {/* Every line here is tax-EXCLUSIVE so the column adds up
+                      to the total printed below it. In inclusive mode the
+                      listed price already contains the tax, so showing it
+                      raw next to a separate GST line produced a bill whose
+                      own arithmetic was wrong. */}
+                  <div className="flex justify-between py-1">
+                    <span className="text-ink-soft">{title.length > 24 ? "Price" : title}</span>
+                    <span>₹{formatRupees(quote.taxableValue + quote.discountTaxable)}</span>
+                  </div>
+                  {quote.discountTaxable > 0 && (
+                    <div className="flex justify-between py-1 text-marigold-ink">
+                      <span>Discount{applied ? ` (${applied.code})` : ""}</span>
+                      <span>−₹{formatRupees(quote.discountTaxable)}</span>
+                    </div>
+                  )}
+                  {quote.taxApplied && quote.taxTotal > 0 && (
+                    <div className="flex justify-between py-1">
+                      <span className="text-ink-soft">
+                        {quote.intraState
+                          ? `CGST + SGST (${quote.ratePercent}%)`
+                          : `IGST (${quote.ratePercent}%)`}
+                      </span>
+                      <span>₹{formatRupees(quote.taxTotal)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between pt-2 mt-1 border-t border-line font-semibold text-[15px]">
+                    <span>Total</span>
+                    <span>₹{formatRupees(quote.payable)}</span>
+                  </div>
+                </div>
+              )}
 
               {error && <p className="text-live-ink text-sm mb-3">{error}</p>}
 

@@ -13,6 +13,7 @@ import {
   DEFAULT_INVOICE,
   DEFAULT_NAV,
   DEFAULT_STARTER,
+  DEFAULT_TAX,
   type BioSettings,
   type Branding,
   type Coupon,
@@ -20,6 +21,7 @@ import {
   type NavLink,
   type NavSettings,
   type StarterSettings,
+  type TaxSettings,
 } from "./settings-types";
 
 export const SITE_URL = "https://www.deepanshutyagi.live";
@@ -116,16 +118,51 @@ export async function getInvoiceSettings(): Promise<InvoiceSettings> {
       Array.isArray(stored.addressLines) && stored.addressLines.length > 0
         ? stored.addressLines.filter((l) => typeof l === "string" && l.trim())
         : DEFAULT_INVOICE.addressLines,
-    taxRatePercent: Number.isFinite(stored.taxRatePercent as number)
-      ? Number(stored.taxRatePercent)
-      : DEFAULT_INVOICE.taxRatePercent,
     enabled: stored.enabled === true,
     mode: stored.mode === "all" ? "all" : "none",
-    // Forced. Checkout charges the listed price and never adds GST, so an
-    // "exclusive" invoice would print a total nobody paid and over-declare
-    // output tax. A stored "exclusive" value from before this rule is
-    // ignored rather than honoured.
-    taxMode: "inclusive",
+  };
+}
+
+/**
+ * Tax governs what the buyer is CHARGED, so this is deliberately NOT read
+ * through readChromeSetting — a swallowed failure here would silently
+ * charge the wrong amount. It must fail loudly.
+ *
+ * Use this ONLY on the money path: create-order and apply-coupon. Anything
+ * that merely renders a price label must use getTaxSettingsForDisplay()
+ * below, or a transient database blip takes the homepage down instead of
+ * showing a slightly stale price string.
+ *
+ * Back-compat: the rate and mode used to live inside the `invoice` row.
+ * A site that saved settings before the `tax` row existed still has them
+ * there, so those values are honoured as the fallback rather than
+ * silently resetting to the defaults and changing every price.
+ */
+export async function getTaxSettings(): Promise<TaxSettings> {
+  const [stored, legacyInvoice] = await Promise.all([
+    getSetting<Partial<TaxSettings>>("tax", {}),
+    getSetting<Record<string, unknown>>("invoice", {}),
+  ]);
+
+  const legacyRate = Number(legacyInvoice?.taxRatePercent);
+  const legacyMode = legacyInvoice?.taxMode === "exclusive" ? "exclusive" : undefined;
+
+  const rate = Number.isFinite(stored.ratePercent as number)
+    ? Number(stored.ratePercent)
+    : Number.isFinite(legacyRate)
+      ? legacyRate
+      : DEFAULT_TAX.ratePercent;
+
+  return {
+    // Defaults to OFF. Turning tax on changes what every item costs, so it
+    // has to be a deliberate act in the admin panel, never something a
+    // deploy switches on by itself.
+    enabled: stored.enabled === true,
+    ratePercent: Math.min(Math.max(rate, 0), 100),
+    mode: stored.mode === "inclusive" ? "inclusive" : stored.mode === "exclusive" ? "exclusive" : legacyMode ?? DEFAULT_TAX.mode,
+    display: stored.display === "total" ? "total" : "plus-gst",
+    b2bEnabled: stored.b2bEnabled === true,
+    b2bPrompt: (typeof stored.b2bPrompt === "string" && stored.b2bPrompt.trim()) || DEFAULT_TAX.b2bPrompt,
   };
 }
 
@@ -147,4 +184,24 @@ function clean(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const t = value.trim();
   return t ? t : undefined;
+}
+
+/**
+ * The same settings, for surfaces that only render a price LABEL — the
+ * homepage, category grids, item pages. Degrades to the defaults (tax off,
+ * so the listed price shows unchanged) rather than throwing.
+ *
+ * That trade is deliberate and it only goes one way: a failure here shows a
+ * price that is missing its "+ GST" suffix for one render. The same failure
+ * on the charging path would take money at the wrong amount, which is why
+ * getTaxSettings() above stays loud and is the one create-order calls.
+ */
+export async function getTaxSettingsForDisplay(): Promise<TaxSettings> {
+  try {
+    return await getTaxSettings();
+  } catch (err) {
+    if (err && typeof err === "object" && "digest" in err) throw err;
+    console.error("Tax settings unreadable, rendering prices without tax:", err);
+    return DEFAULT_TAX;
+  }
 }

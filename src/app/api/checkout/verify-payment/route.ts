@@ -28,6 +28,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unknown order" }, { status: 404 });
     }
 
+    // SECURITY, load-bearing. The signature only proves that
+    // razorpayOrderId/razorpayPaymentId is a genuine Razorpay pair — it says
+    // nothing about WHICH of our orders it belongs to, and both that pair
+    // and `orderId` arrive in the same request body.
+    //
+    // Without this check, anyone could buy the cheapest item on the site,
+    // keep the valid {order_id, payment_id, signature} triple, then create
+    // an order for the most expensive course and replay the cheap triple
+    // against it. claimOrderPaid would succeed, the seat would decrement,
+    // the confirmation would send and a GST invoice would be issued for
+    // money that never arrived.
+    //
+    // The column is still named cashfree_order_id for historical reasons;
+    // it holds whichever gateway's order ID, set in create-order.
+    if (!order.cashfreeOrderId || order.cashfreeOrderId !== razorpayOrderId) {
+      console.error(
+        "verify-payment: razorpay order mismatch for order", order.id,
+        "expected", order.cashfreeOrderId, "got", razorpayOrderId
+      );
+      return NextResponse.json({ error: "Payment does not match this order." }, { status: 400 });
+    }
+
     // Atomic claim, not a read-then-branch. Exactly one of the three paid
     // paths wins this UPDATE for a given order, so the seat decrement and
     // the notification emails below can never double-fire under a race

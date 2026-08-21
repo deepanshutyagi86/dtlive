@@ -1,7 +1,7 @@
 import Nav from "./Nav";
 import Footer, { FooterLinks } from "./Footer";
 import ItemCard, { type CardItem } from "./ItemCard";
-import { getBio, getNav } from "@/lib/site-settings";
+import { getBio, getNav, getTaxSettingsForDisplay } from "@/lib/site-settings";
 
 // Same card as the category pages and the homepage sections; the shop and
 // venture variations (which storefront, how much equity, external link
@@ -26,7 +26,7 @@ export default async function DirectoryGrid({
   items: DirectoryItem[];
   footerLinks: FooterLinks;
 }) {
-  const [nav, bio] = await Promise.all([getNav(), getBio()]);
+  const [nav, bio, tax] = await Promise.all([getNav(), getBio(), getTaxSettingsForDisplay()]);
 
   return (
     <>
@@ -48,7 +48,7 @@ export default async function DirectoryGrid({
         ) : (
           <div className="grid md:grid-cols-3 gap-5 mt-12">
             {items.map((item) => (
-              <ItemCard key={item.slug} item={item} sizes={GRID_IMAGE_SIZES} />
+              <ItemCard key={item.slug} item={item} sizes={GRID_IMAGE_SIZES} tax={tax} />
             ))}
           </div>
         )}

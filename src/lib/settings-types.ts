@@ -158,7 +158,102 @@ export interface Coupon {
 export const DEFAULT_COUPONS: Coupon[] = [];
 
 /* ------------------------------------------------------------------ */
-/* GST invoicing                                                       */
+/* Tax & pricing — decides what the buyer is CHARGED                   */
+/* ------------------------------------------------------------------ */
+
+export interface TaxSettings {
+  /** Off = the buyer pays exactly the price on the item, no tax logic at all. */
+  enabled: boolean;
+  /** Combined GST rate as a percentage, e.g. 18. */
+  ratePercent: number;
+  /**
+   * "exclusive" — the price you type is BEFORE tax, and GST is added on top.
+   *               Type 6999, the buyer is charged 8259.
+   * "inclusive" — the price you type is the final amount, and the invoice
+   *               back-computes the tax out of it. Type 6999, the buyer is
+   *               charged 6999 and the invoice shows ~1067 of that as GST.
+   *
+   * This is the single most consequential setting on the site: switching it
+   * changes what every existing item costs.
+   */
+  mode: "inclusive" | "exclusive";
+  /**
+   * How a price reads on cards and detail pages. Only meaningful in
+   * exclusive mode, where the pre-tax and final numbers differ.
+   *
+   * "plus-gst" — "₹6,999 + GST"; the total appears at checkout.
+   * "total"    — "₹8,259" with a small "incl. 18% GST" underneath.
+   */
+  display: "plus-gst" | "total";
+  /**
+   * Lets a buyer supply their own GSTIN at checkout so the invoice is
+   * raised to their business. Turning this on requires the one-time
+   * migration in docs/MIGRATIONS.md — until that has run, the fields are
+   * hidden automatically rather than silently dropping what people type.
+   */
+  b2bEnabled: boolean;
+  /** Shown above the B2B fields so a buyer knows why they'd bother. */
+  b2bPrompt: string;
+}
+
+export const DEFAULT_TAX: TaxSettings = {
+  enabled: false,
+  ratePercent: 18,
+  mode: "exclusive",
+  display: "plus-gst",
+  b2bEnabled: false,
+  b2bPrompt: "Buying through a company? Add your GSTIN and we'll raise the invoice to your business so you can claim input credit.",
+};
+
+// GST state codes. Needed for the CGST+SGST vs IGST decision: same state as
+// the seller splits the rate in two, a different state charges it whole as
+// IGST. Ordered by code so the checkout dropdown is predictable.
+export const GST_STATES: { code: string; name: string }[] = [
+  { code: "01", name: "Jammu & Kashmir" },
+  { code: "02", name: "Himachal Pradesh" },
+  { code: "03", name: "Punjab" },
+  { code: "04", name: "Chandigarh" },
+  { code: "05", name: "Uttarakhand" },
+  { code: "06", name: "Haryana" },
+  { code: "07", name: "Delhi" },
+  { code: "08", name: "Rajasthan" },
+  { code: "09", name: "Uttar Pradesh" },
+  { code: "10", name: "Bihar" },
+  { code: "11", name: "Sikkim" },
+  { code: "12", name: "Arunachal Pradesh" },
+  { code: "13", name: "Nagaland" },
+  { code: "14", name: "Manipur" },
+  { code: "15", name: "Mizoram" },
+  { code: "16", name: "Tripura" },
+  { code: "17", name: "Meghalaya" },
+  { code: "18", name: "Assam" },
+  { code: "19", name: "West Bengal" },
+  { code: "20", name: "Jharkhand" },
+  { code: "21", name: "Odisha" },
+  { code: "22", name: "Chhattisgarh" },
+  { code: "23", name: "Madhya Pradesh" },
+  { code: "24", name: "Gujarat" },
+  { code: "26", name: "Dadra & Nagar Haveli and Daman & Diu" },
+  { code: "27", name: "Maharashtra" },
+  { code: "29", name: "Karnataka" },
+  { code: "30", name: "Goa" },
+  { code: "31", name: "Lakshadweep" },
+  { code: "32", name: "Kerala" },
+  { code: "33", name: "Tamil Nadu" },
+  { code: "34", name: "Puducherry" },
+  { code: "35", name: "Andaman & Nicobar Islands" },
+  { code: "36", name: "Telangana" },
+  { code: "37", name: "Andhra Pradesh" },
+  { code: "38", name: "Ladakh" },
+  { code: "97", name: "Other Territory" },
+];
+
+export function stateNameForCode(code: string): string {
+  return GST_STATES.find((s) => s.code === code)?.name ?? "";
+}
+
+/* ------------------------------------------------------------------ */
+/* GST invoicing — the DOCUMENT, not the pricing                        */
 /* ------------------------------------------------------------------ */
 
 export interface InvoiceSettings {
@@ -181,15 +276,13 @@ export interface InvoiceSettings {
   phone: string;
   /** SAC code for online educational/training services. */
   hsnSac: string;
-  /** Combined GST rate as a percentage, e.g. 18. */
-  taxRatePercent: number;
   /**
-   * "inclusive" — the price the buyer paid already contains GST, and the
-   *               invoice back-computes the taxable value. This is what
-   *               almost every Indian D2C listing does.
-   * "exclusive" — GST is added on top of the listed price.
+   * NOTE: the rate and inclusive/exclusive mode used to live here. They now
+   * live in TaxSettings, because they decide what the buyer is CHARGED and
+   * not merely what the document says. They are read from a saved snapshot
+   * on the order when one exists, so changing the rate never rewrites an
+   * invoice that has already been issued.
    */
-  taxMode: "inclusive" | "exclusive";
   /** Invoice numbers render as <prefix><financialYear>-<sequence>. */
   numberPrefix: string;
   financialYear: string;
@@ -211,8 +304,6 @@ export const DEFAULT_INVOICE: InvoiceSettings = {
   email: "dtyagi.main@gmail.com",
   phone: "+91 98706 00903",
   hsnSac: "999293",
-  taxRatePercent: 18,
-  taxMode: "inclusive",
   numberPrefix: "DE/",
   financialYear: "2026-27",
   declaration:

@@ -6,6 +6,7 @@ import {
   BioSection,
   StarterSection,
   CouponsSection,
+  TaxSection,
   InvoiceSection,
 } from "./SettingsSections";
 import {
@@ -13,12 +14,14 @@ import {
   DEFAULT_INVOICE,
   DEFAULT_NAV,
   DEFAULT_STARTER,
+  DEFAULT_TAX,
   type BioSettings,
   type Branding,
   type Coupon,
   type InvoiceSettings,
   type NavSettings,
   type StarterSettings,
+  type TaxSettings,
 } from "@/lib/settings-types";
 
 interface Testimonial {
@@ -125,6 +128,10 @@ export default function SettingsForm() {
   const [starter, setStarter] = useState<StarterSettings>(DEFAULT_STARTER);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [invoice, setInvoice] = useState<InvoiceSettings>(DEFAULT_INVOICE);
+  const [tax, setTax] = useState<TaxSettings>(DEFAULT_TAX);
+  // Whether the orders table can store a tax snapshot yet. Gates the B2B
+  // switch so it can't be turned on into a void.
+  const [b2bReady, setB2bReady] = useState(false);
   // Only used to render the "applies to" checkboxes on a coupon.
   const [items, setItems] = useState<{ id: string; title: string; category: string }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -154,6 +161,8 @@ export default function SettingsForm() {
         });
         setCoupons(Array.isArray(d.coupons) ? d.coupons : []);
         setInvoice({ ...DEFAULT_INVOICE, ...(d.invoice ?? {}) });
+        setTax({ ...DEFAULT_TAX, ...(d.tax ?? {}) });
+        setB2bReady(d.b2bReady === true);
         setLoading(false);
       });
 
@@ -185,6 +194,7 @@ export default function SettingsForm() {
         // Blank rows are dropped on save rather than on every keystroke,
         // so a half-typed code isn't deleted out from under the cursor.
         coupons: coupons.filter((c) => (c.code ?? "").trim()),
+        tax,
         invoice,
       }),
     });
@@ -365,6 +375,7 @@ export default function SettingsForm() {
       <StarterSection value={starter} onChange={setStarter} />
       <BioSection value={bio} onChange={setBio} />
       <CouponsSection value={coupons} onChange={setCoupons} items={items} />
+      <TaxSection value={tax} onChange={setTax} b2bReady={b2bReady} />
       <InvoiceSection value={invoice} onChange={setInvoice} />
 
       <div className="flex items-center gap-4">

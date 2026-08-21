@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getOrderById } from "@/lib/admin-repo";
-import { getInvoiceSettings, invoiceAppliesTo } from "@/lib/site-settings";
+import { getInvoiceSettings, getTaxSettings, invoiceAppliesTo } from "@/lib/site-settings";
 import { amountInWords, computeInvoice, formatMoney, invoiceNumber } from "@/lib/invoice";
 import { SITE_TZ } from "@/lib/dates";
 import PrintButton from "./PrintButton";
@@ -19,7 +19,11 @@ export const metadata: Metadata = {
 };
 
 export default async function InvoicePage({ params }: { params: { id: string } }) {
-  const [order, settings] = await Promise.all([getOrderById(params.id), getInvoiceSettings()]);
+  const [order, settings, tax] = await Promise.all([
+    getOrderById(params.id),
+    getInvoiceSettings(),
+    getTaxSettings(),
+  ]);
 
   if (!order) notFound();
   // An unpaid order has no invoice — issuing a tax document for money that
@@ -28,7 +32,22 @@ export default async function InvoicePage({ params }: { params: { id: string } }
   if (!invoiceAppliesTo(settings, order.item.details)) notFound();
 
   const gross = order.amount / 100;
-  const calc = computeInvoice(settings, gross);
+  const snapshot = order.taxDetails;
+  // The snapshot wins. A tax invoice records a past transaction, so
+  // changing the rate today must not rewrite a document already issued —
+  // the live rate is only the fallback for orders created before the
+  // snapshot existed. See computeInvoice.
+  const calc = computeInvoice(tax.ratePercent, gross, snapshot ? snapshot.igst <= 0 : true, snapshot);
+  const buyerGstin = snapshot?.buyerGstin;
+  // The taxable share of any discount. In exclusive mode that is the whole
+  // discount; in inclusive mode the coupon came off a tax-inclusive price,
+  // so only part of it belongs in the taxable column.
+  const discountTaxable =
+    snapshot && snapshot.discount > 0
+      ? snapshot.mode === "inclusive"
+        ? Math.round((snapshot.discount * 100) / (100 + snapshot.ratePercent) * 100) / 100
+        : snapshot.discount
+      : 0;
   const number = invoiceNumber(settings, order.id, order.createdAt);
   const dateLabel = new Date(order.createdAt).toLocaleDateString("en-IN", {
     day: "numeric",
@@ -80,7 +99,9 @@ export default async function InvoicePage({ params }: { params: { id: string } }
               <tr>
                 <td className="text-muted pr-4 py-0.5">Place of supply</td>
                 <td className="py-0.5">
-                  {settings.stateName} ({settings.stateCode})
+                  {calc.intraState
+                    ? `${settings.stateName} (${settings.stateCode})`
+                    : `${snapshot?.buyerStateName ?? "Other state"} (${snapshot?.buyerStateCode ?? "--"})`}
                 </td>
               </tr>
             </tbody>
@@ -90,7 +111,24 @@ export default async function InvoicePage({ params }: { params: { id: string } }
 
       <section className="mt-7">
         <p className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-muted mb-2">Billed to</p>
-        <p className="font-semibold text-[16px]">{order.buyerName}</p>
+        {/* A B2B invoice is billed to the registered business, with the
+            individual kept as the contact. Without the GSTIN on the face of
+            the document the buyer cannot claim input credit, which is the
+            entire reason they supplied it. */}
+        <p className="font-semibold text-[16px]">{snapshot?.buyerLegalName || order.buyerName}</p>
+        {buyerGstin && (
+          <p className="text-[13px] mt-0.5">
+            GSTIN: <b className="font-mono">{buyerGstin}</b>
+          </p>
+        )}
+        {snapshot?.buyerStateName && (
+          <p className="text-[13px] text-ink-soft">
+            {snapshot.buyerStateName} ({snapshot.buyerStateCode})
+          </p>
+        )}
+        {snapshot?.buyerLegalName && (
+          <p className="text-[13px] text-ink-soft mt-1">Contact: {order.buyerName}</p>
+        )}
         <p className="text-[13px] text-ink-soft">{order.buyerEmail}</p>
         <p className="text-[13px] text-ink-soft">{order.buyerPhone}</p>
       </section>
@@ -130,6 +168,22 @@ export default async function InvoicePage({ params }: { params: { id: string } }
       <section className="mt-6 flex flex-wrap justify-end">
         <table className="text-[13px] min-w-[280px]">
           <tbody>
+            {/* Both rows are tax-EXCLUSIVE, so the column subtracts to the
+                taxable value below it. Printing the raw listed price here
+                did not subtract in inclusive mode, because that price
+                already contained the tax. */}
+            {discountTaxable > 0 && (
+              <>
+                <tr>
+                  <td className="text-muted py-1 pr-8">Gross value</td>
+                  <td className="text-right py-1">{formatMoney(calc.taxableValue + discountTaxable)}</td>
+                </tr>
+                <tr>
+                  <td className="text-muted py-1 pr-8">Discount</td>
+                  <td className="text-right py-1">− {formatMoney(discountTaxable)}</td>
+                </tr>
+              </>
+            )}
             <tr>
               <td className="text-muted py-1 pr-8">Taxable value</td>
               <td className="text-right py-1">{formatMoney(calc.taxableValue)}</td>
@@ -189,8 +243,9 @@ export default async function InvoicePage({ params }: { params: { id: string } }
       </footer>
 
       <p className="mt-8 font-mono text-[10px] text-muted">
-        Computer-generated invoice. Amounts shown are {settings.taxMode === "inclusive" ? "inclusive of" : "exclusive of"}{" "}
-        GST as charged at checkout.
+        Computer-generated invoice. The total shown is exactly the amount charged at checkout
+        {calc.fromSnapshot ? " and the tax split recorded at that time" : ""}.
+        {!calc.intraState && " Taxed as IGST — the place of supply is outside the seller's state."}
       </p>
 
       <style>{`

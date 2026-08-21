@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/auth";
-import { getAllSettings, upsertSetting } from "@/lib/admin-repo";
+import { getAllSettings, hasTaxDetailsColumn, upsertSetting } from "@/lib/admin-repo";
 
 // The allowlist IS the security boundary for this route — anything not
 // named here cannot be written through it, no matter what the form posts.
@@ -19,6 +19,7 @@ const ALLOWED_KEYS = [
   "bio",
   "starter",
   "coupons",
+  "tax",
   "invoice",
 ];
 
@@ -27,7 +28,10 @@ export async function GET() {
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const result = await getAllSettings(ALLOWED_KEYS);
-  return NextResponse.json(result);
+  // Not a setting — a capability. The B2B switch in the Tax section stays
+  // disabled until the orders table can actually store a buyer's GSTIN, so
+  // it can never be turned on into a void.
+  return NextResponse.json({ ...result, b2bReady: await hasTaxDetailsColumn() });
 }
 
 export async function PUT(req: NextRequest) {

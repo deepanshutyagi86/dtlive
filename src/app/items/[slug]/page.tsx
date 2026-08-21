@@ -8,7 +8,9 @@ import MobileMenu from "@/components/MobileMenu";
 import JsonLd from "@/components/JsonLd";
 import { Outcomes, WhoFor, Faq } from "@/components/ItemSections";
 import { getItemBySlug, getSetting } from "@/lib/items";
-import { getBio, getNav, SITE_URL } from "@/lib/site-settings";
+import { hasTaxDetailsColumn } from "@/lib/admin-repo";
+import { getBio, getNav, getTaxSettingsForDisplay, SITE_URL } from "@/lib/site-settings";
+import { computePricing, priceLabel as taxPriceLabel, priceSubLabel } from "@/lib/tax";
 import type { CourseDetails, WorkshopDetails } from "@/lib/types";
 import type { Metadata } from "next";
 import { SITE_TZ } from "@/lib/dates";
@@ -58,16 +60,24 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 }
 
 export default async function ItemDetailPage({ params }: { params: { slug: string } }) {
-  const [item, footerLinks, bio, nav] = await Promise.all([
+  const [item, footerLinks, bio, nav, taxSettings, b2bReady] = await Promise.all([
     getItemBySlug(params.slug),
     getSetting<FooterLinks>("footerLinks", {}),
     getBio(),
     getNav(),
+    getTaxSettingsForDisplay(),
+    // Whether an order can actually STORE a buyer's GSTIN yet. Gating the
+    // checkout block on the stored setting alone meant a buyer could type
+    // one, pay, and have it silently dropped at insert time — no invoice
+    // credit, and nothing to tell them why.
+    hasTaxDetailsColumn().catch(() => false),
   ]);
 
   if (!item || !item.live || (item.category !== "course" && item.category !== "workshop")) {
     notFound();
   }
+
+  const tax = { ...taxSettings, b2bEnabled: taxSettings.b2bEnabled && b2bReady };
 
   const isWorkshop = item!.category === "workshop";
   const d = item!.details as any;
@@ -77,7 +87,18 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
   // the section below decide not to render.
   const agenda: { title: string; body: string }[] =
     (isWorkshop ? (d as WorkshopDetails).agenda : (d as CourseDetails).curriculum) ?? [];
-  const priceLabel = `₹${price}`;
+  // Reads "₹6,999 + GST" or the tax-inclusive total, depending on the
+  // admin's display choice. One helper, so the nav, the badge, the sticky
+  // bar and the checkout button can never disagree about the price.
+  const priceLabel = taxPriceLabel(price, tax);
+  const priceNote = priceSubLabel(price, tax);
+  // schema.org defines Offer.price as the amount PAYABLE. Publishing the
+  // pre-tax figure would put ₹6,999 in Google's rich result while checkout
+  // charges ₹8,258.82 — the same show-one-charge-another problem as the
+  // checkout button, but on a machine-read public surface.
+  // sellerStateCode only decides the CGST/SGST-vs-IGST split, never the
+  // total, so the displayed price does not need the invoice settings.
+  const payablePrice = computePricing({ listPrice: price, tax, sellerStateCode: "" }).payable;
   // Free workshops skip payment entirely — a lead-capture registration
   // instead of a checkout. Courses aren't part of this flow.
   const isFreeWorkshop = isWorkshop && price === 0;
@@ -125,7 +146,7 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
         organizer: { "@type": "Person", name: bio.name, url: SITE_URL },
         offers: {
           "@type": "Offer",
-          price: String(price),
+          price: String(payablePrice),
           priceCurrency: "INR",
           // Keyed off the fact, not off showSeatsBadge — a sold-out
           // workshop with the counter hidden was publishing InStock.
@@ -146,7 +167,7 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
         provider: { "@type": "Person", name: bio.name, url: SITE_URL },
         offers: {
           "@type": "Offer",
-          price: String(price),
+          price: String(payablePrice),
           priceCurrency: "INR",
           category: "Paid",
           url: `${SITE_URL}/items/${item!.slug}`,
@@ -203,6 +224,7 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
             <CheckoutModal
               {...ctaProps}
               priceLabel={priceLabel}
+              tax={tax}
               triggerLabel={triggerLabel}
               triggerClassName="bg-marigold border border-marigold text-ink font-semibold text-sm px-[18px] py-[10px] rounded-full hover:bg-ink hover:text-bone hover:border-ink transition-colors"
             />
@@ -254,7 +276,10 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
             </>
           )}
           {showPriceBadge && (
-            <span className="font-mono text-[11px] px-3 py-1.5 border border-ink rounded-full">{priceLabel}</span>
+            <span className="font-mono text-[11px] px-3 py-1.5 border border-ink rounded-full">
+              {priceLabel}
+              {priceNote && <span className="text-muted"> · {priceNote}</span>}
+            </span>
           )}
         </div>
 
@@ -321,6 +346,7 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
             <CheckoutModal
               {...ctaProps}
               priceLabel={priceLabel}
+              tax={tax}
               triggerLabel={triggerLabel}
               triggerClassName="bg-marigold border border-marigold text-ink font-semibold text-[16px] px-7 py-3.5 rounded-full hover:bg-bone hover:border-bone transition-colors"
             />
@@ -353,6 +379,7 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
           <CheckoutModal
             {...ctaProps}
             priceLabel={priceLabel}
+            tax={tax}
             triggerLabel={triggerLabel}
             triggerClassName="bg-marigold text-ink font-semibold text-sm px-5 py-2.5 rounded-full"
           />

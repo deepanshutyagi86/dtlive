@@ -2,6 +2,8 @@ import Link from "next/link";
 import RegisterModal from "./RegisterModal";
 import ItemImage from "./ItemImage";
 import { CATEGORY_CTA, CATEGORY_LABELS, CHIP_CLASS } from "@/lib/types";
+import { priceLabel } from "@/lib/tax";
+import { DEFAULT_TAX, type TaxSettings } from "@/lib/settings-types";
 import { SITE_TZ } from "@/lib/dates";
 import type {
   AgencyDetails,
@@ -48,11 +50,14 @@ export function chipLabel(item: CardItem): string {
   return CATEGORY_LABELS[item.category];
 }
 
-export function metaLine(item: CardItem): string {
+// `tax` defaults to the off state so a caller that hasn't been threaded
+// through yet renders exactly what it always did, rather than dropping the
+// price entirely.
+export function metaLine(item: CardItem, tax: TaxSettings = DEFAULT_TAX): string {
   const d = item.details as any;
   if (item.category === "course") {
     const c = d as CourseDetails;
-    return `₹${c.price} · ${c.duration ?? "self-paced"}`;
+    return `${priceLabel(c.price, tax)} · ${c.duration ?? "self-paced"}`;
   }
   if (item.category === "workshop") {
     const w = d as WorkshopDetails;
@@ -81,16 +86,18 @@ export default function ItemCard({
   item,
   sizes,
   compact = false,
+  tax = DEFAULT_TAX,
 }: {
   item: CardItem;
   sizes: string;
+  tax?: TaxSettings;
   // Set by the homepage's two-up mobile grid (Doors.tsx) only. Tightens
   // padding/type on small screens so two narrow cards read cleanly side by
   // side; the category/directory pages stay full-width on mobile and don't
   // pass this, so their cards keep the normal, larger treatment.
   compact?: boolean;
 }) {
-  const meta = metaLine(item);
+  const meta = metaLine(item, tax);
   const external = externalUrlFor(item);
 
   const bodyClass = `${compact ? "p-3 sm:p-5" : "p-5"} flex flex-col ${compact ? "gap-2 sm:gap-3" : "gap-3"} flex-1`;

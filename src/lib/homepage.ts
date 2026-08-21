@@ -1,12 +1,16 @@
+import { priceLabel } from "./tax";
+import { DEFAULT_TAX, type TaxSettings } from "./settings-types";
 import type { Item } from "@/lib/db";
 import type { AgencyDetails, CourseDetails, ShopDetails, VentureDetails, WorkshopDetails } from "@/lib/types";
 import { SITE_TZ } from "@/lib/dates";
 
-export function metaFor(item: Item): string {
+// `tax` defaults to the off state so the signature stays
+// backward-compatible for any caller not yet threaded through.
+export function metaFor(item: Item, tax: TaxSettings = DEFAULT_TAX): string {
   const d = item.details as any;
   switch (item.category) {
     case "course":
-      return `₹${(d as CourseDetails).price} · ${(d as CourseDetails).duration ?? "self-paced"}`;
+      return `${priceLabel((d as CourseDetails).price, tax)} · ${(d as CourseDetails).duration ?? "self-paced"}`;
     case "workshop": {
       const w = d as WorkshopDetails;
       const date = new Date(w.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: SITE_TZ });

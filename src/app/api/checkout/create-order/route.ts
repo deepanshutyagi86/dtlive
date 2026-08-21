@@ -5,8 +5,9 @@ import { createRazorpayOrder } from "@/lib/razorpay";
 import type { CourseDetails, WorkshopDetails } from "@/lib/types";
 import { rateLimit, clientIpFrom } from "@/lib/rate-limit";
 import { isValidEmail, isValidPhone, normalisePhone } from "@/lib/validate";
-import { getCoupons } from "@/lib/site-settings";
-import { applyCoupon, markCouponUsed } from "@/lib/coupons";
+import { getCoupons, getInvoiceSettings, getTaxSettings } from "@/lib/site-settings";
+import { markCouponUsed } from "@/lib/coupons";
+import { quoteOrder } from "@/lib/checkout-pricing";
 
 // A workshop whose start time has passed must stop selling seats. Nothing
 // checked this before, so a stale link — a WhatsApp forward, an old story
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { itemId, name, email, phone, couponCode, fbc, fbp, eventSourceUrl } = await req.json();
+    const { itemId, name, email, phone, couponCode, buyerGst, fbc, fbp, eventSourceUrl } = await req.json();
 
     if (!itemId || !name || !email || !phone) {
       return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
@@ -75,19 +76,43 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // The charged amount is ALWAYS recomputed here from the item's own
-    // price plus a server-verified coupon. The client's displayed discount
-    // is a preview and is never trusted.
-    let amount = listPrice;
-    let appliedCode: string | null = null;
-    if (typeof couponCode === "string" && couponCode.trim()) {
-      const coupons = await getCoupons();
-      const result = applyCoupon(coupons, couponCode, item.id, listPrice);
-      if (!result.ok) {
-        return NextResponse.json({ error: result.reason ?? "That code isn't valid." }, { status: 400 });
-      }
-      amount = result.payable;
-      appliedCode = result.code ?? null;
+    // The charged amount is ALWAYS recomputed here, server-side, from the
+    // item's own price plus the live tax settings and a server-verified
+    // coupon. Whatever the browser displayed is a preview and is never
+    // trusted — a tampered client can change what the modal shows and
+    // nothing else.
+    const [coupons, tax, invoice] = await Promise.all([
+      getCoupons(),
+      getTaxSettings(),
+      getInvoiceSettings(),
+    ]);
+
+    const quote = quoteOrder({
+      listPrice,
+      itemId: item.id,
+      couponCode: typeof couponCode === "string" ? couponCode : null,
+      coupons,
+      tax,
+      invoice,
+      buyerGst: buyerGst && typeof buyerGst === "object" ? buyerGst : null,
+    });
+
+    if (!quote.ok) {
+      return NextResponse.json({ error: quote.error ?? "Could not price this order." }, { status: 400 });
+    }
+
+    const amountPaise = quote.pricing.payablePaise;
+    const appliedCode = quote.coupon?.ok ? quote.coupon.code ?? null : null;
+
+    // Razorpay rejects a zero or sub-rupee charge. A price that survives the
+    // guards above but prices to nothing here means a coupon floor or a
+    // rounding edge went wrong, and charging ₹0 through a payment gateway
+    // would create a "paid" order nobody paid for.
+    if (amountPaise < 100) {
+      return NextResponse.json(
+        { error: "This item isn't purchasable right now." },
+        { status: 400 }
+      );
     }
 
     // x-forwarded-for can carry a "client, proxy1, proxy2" chain — the
@@ -100,17 +125,23 @@ export async function POST(req: NextRequest) {
       buyerName: String(name).trim(),
       buyerEmail: String(email).trim(),
       buyerPhone: normalisePhone(String(phone)),
-      amount: Math.round(amount * 100), // store in paise
+      // Paise, computed once in computePricing so the amount stored, the
+      // amount charged and the amount shown can never drift apart.
+      amount: amountPaise,
       fbc: typeof fbc === "string" ? fbc : null,
       fbp: typeof fbp === "string" ? fbp : null,
       clientIp,
       clientUserAgent,
       eventSourceUrl: typeof eventSourceUrl === "string" ? eventSourceUrl : null,
+      // Frozen at purchase so a later rate change can never rewrite an
+      // invoice that has already been issued. Silently skipped until the
+      // tax_details column exists — see docs/MIGRATIONS.md.
+      taxDetails: quote.snapshot,
     });
 
     const rzpOrder = await createRazorpayOrder({
       orderId: order.id,
-      amountPaise: Math.round(amount * 100),
+      amountPaise,
     });
 
     // Column is still named cashfree_order_id — it just stores whichever
