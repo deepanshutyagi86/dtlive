@@ -12,11 +12,13 @@ import { computePricing, formatRupees } from "@/lib/tax";
 import {
   BRANDING_HELP,
   DEFAULT_BIO,
+  DEFAULT_BUSINESS,
   DEFAULT_INVOICE,
   DEFAULT_NAV,
   DEFAULT_STARTER,
   type BioSettings,
   type Branding,
+  type BusinessSettings,
   type Coupon,
   type InvoiceSettings,
   type NavSettings,
@@ -505,6 +507,51 @@ export function TaxSection({
 }
 
 /* ------------------------------------------------------------------ */
+/* Business details — the one place to change a phone number, email,   */
+/* GSTIN or address. Read by the GST invoice AND by                    */
+/* Terms/Privacy/Refund/Shipping/Contact, so it lives once here rather  */
+/* than as separate copies on each.                                    */
+/* ------------------------------------------------------------------ */
+
+export function BusinessSection({ value, onChange }: { value: BusinessSettings; onChange: (v: BusinessSettings) => void }) {
+  const set = (patch: Partial<BusinessSettings>) => onChange({ ...value, ...patch });
+
+  return (
+    <section>
+      <h2 className="font-display font-bold text-lg mb-1">Business details</h2>
+      <p className="text-sm text-muted mb-5">
+        Your legal identity and contact details. This is the single source for all of it — the GST invoice
+        header and the Terms, Privacy, Refund, Shipping and Contact pages all read from here. Blank fields
+        fall back to what&apos;s already on those pages, so nothing goes empty while you fill this in.
+      </p>
+
+      <div className="grid sm:grid-cols-2 gap-3">
+        <TextField label="Legal name" value={value.legalName} onChange={(v) => set({ legalName: v })} placeholder={DEFAULT_BUSINESS.legalName} />
+        <TextField label="Trade name" value={value.tradeName} onChange={(v) => set({ tradeName: v })} placeholder={DEFAULT_BUSINESS.tradeName} />
+        <TextField label="GSTIN" value={value.gstin} onChange={(v) => set({ gstin: v.toUpperCase() })} placeholder={DEFAULT_BUSINESS.gstin} />
+        <TextField label="State" value={value.stateName} onChange={(v) => set({ stateName: v })} placeholder={DEFAULT_BUSINESS.stateName} />
+        <TextField
+          label="State code"
+          value={value.stateCode}
+          onChange={(v) => set({ stateCode: v })}
+          placeholder={DEFAULT_BUSINESS.stateCode}
+          help="Two digits. The first two of your GSTIN — also decides CGST+SGST vs IGST on every order."
+        />
+        <TextField label="Contact email" value={value.email} onChange={(v) => set({ email: v })} placeholder={DEFAULT_BUSINESS.email} />
+        <TextField label="Contact phone" value={value.phone} onChange={(v) => set({ phone: v })} placeholder={DEFAULT_BUSINESS.phone} />
+      </div>
+
+      <LinesField
+        label="Address (one line per line)"
+        value={value.addressLines}
+        onChange={(v) => set({ addressLines: v })}
+        placeholder={DEFAULT_BUSINESS.addressLines.join("\n")}
+      />
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* GST invoicing                                                       */
 /* ------------------------------------------------------------------ */
 
@@ -539,39 +586,13 @@ export function InvoiceSection({ value, onChange }: { value: InvoiceSettings; on
       />
 
       <hr className="border-line my-6" />
-      <p className="font-mono text-[10.5px] uppercase tracking-wider text-muted mb-3">Seller details</p>
-
-      <div className="grid sm:grid-cols-2 gap-3">
-        <TextField label="Legal name" value={value.legalName} onChange={(v) => set({ legalName: v })} placeholder={DEFAULT_INVOICE.legalName} />
-        <TextField label="Trade name" value={value.tradeName} onChange={(v) => set({ tradeName: v })} placeholder={DEFAULT_INVOICE.tradeName} />
-        <TextField label="GSTIN" value={value.gstin} onChange={(v) => set({ gstin: v.toUpperCase() })} placeholder={DEFAULT_INVOICE.gstin} />
-        <TextField label="State" value={value.stateName} onChange={(v) => set({ stateName: v })} placeholder="Uttar Pradesh" />
-        <TextField
-          label="State code"
-          value={value.stateCode}
-          onChange={(v) => set({ stateCode: v })}
-          placeholder="09"
-          help="Two digits. The first two of your GSTIN."
-        />
-        <TextField label="Contact email" value={value.email} onChange={(v) => set({ email: v })} />
-        <TextField label="Contact phone" value={value.phone} onChange={(v) => set({ phone: v })} />
-      </div>
-
-      <LinesField
-        label="Address (one line per line)"
-        value={value.addressLines}
-        onChange={(v) => set({ addressLines: v })}
-        placeholder={"Badum, Meerut\nMeerut, Uttar Pradesh – 250502\nIndia"}
-      />
-
-      <hr className="border-line my-6" />
 
       <TextField
         label="SAC code"
         value={value.hsnSac}
         onChange={(v) => set({ hsnSac: v })}
         placeholder="999293"
-        help="999293 is commercial training & coaching. The GST rate and whether tax is added on top now live in the Tax & pricing section above — they decide what buyers are charged, not just what this document says."
+        help="999293 is commercial training & coaching. Your legal name, GSTIN, address and contact details now live in the Business details section above — this document reads them from there."
       />
 
       <div className="grid sm:grid-cols-2 gap-3">

@@ -1,7 +1,9 @@
 import LegalPage from "@/components/LegalPage";
 import { getSetting } from "@/lib/items";
 import type { FooterLinks } from "@/components/Footer";
-import { BUSINESS, fullAddress } from "@/lib/legal";
+import { getBusinessSettings } from "@/lib/site-settings";
+import { businessFullAddress } from "@/lib/settings-types";
+import { BUSINESS } from "@/lib/legal";
 
 
 // Stays dynamic: this page reads footerLinks from the settings table,
@@ -12,21 +14,25 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Terms & Conditions — Deepanshu Tyagi Live" };
 
 export default async function TermsPage() {
-  const footerLinks = await getSetting<FooterLinks>("footerLinks", {});
+  const [footerLinks, business] = await Promise.all([
+    getSetting<FooterLinks>("footerLinks", {}),
+    getBusinessSettings(),
+  ]);
+  const fullAddress = businessFullAddress(business);
 
   return (
     <LegalPage title="Terms & Conditions" updated="4 August 2026" footerLinks={footerLinks}>
       <p>
         This website, {BUSINESS.siteName} (&quot;the Site&quot;), is owned and operated by{" "}
-        <strong>{BUSINESS.legalName}</strong>, trading as <strong>{BUSINESS.tradeName}</strong>{" "}
-        ({BUSINESS.constitution}), GSTIN {BUSINESS.gstin}, registered at {fullAddress}. By
+        <strong>{business.legalName}</strong>, trading as <strong>{business.tradeName}</strong>{" "}
+        ({BUSINESS.constitution}), GSTIN {business.gstin}, registered at {fullAddress}. By
         accessing or using this Site, purchasing a course, workshop seat, agency service, or any
         product listed here, you agree to the terms below.
       </p>
 
       <h2>1. Who we are</h2>
       <p>
-        {BUSINESS.tradeName} operates {BUSINESS.siteName} as a single hub for courses, live
+        {business.tradeName} operates {BUSINESS.siteName} as a single hub for courses, live
         workshops, agency services, and links to affiliated ventures (including Vyrelle, Muchhad
         Eats, Sanskriti the Antique, and FlatBot). Each venture may have its own separate terms
         where noted.
@@ -72,7 +78,7 @@ export default async function TermsPage() {
       <h2>7. Limitation of liability</h2>
       <p>
         Courses, workshops, and agency advice are provided on a best-effort, informational basis.
-        {" "}{BUSINESS.tradeName} is not liable for business outcomes, income claims, or decisions
+        {" "}{business.tradeName} is not liable for business outcomes, income claims, or decisions
         made based on this content. Agency service deliverables are governed by the specific scope
         agreed with each client.
       </p>
@@ -92,7 +98,7 @@ export default async function TermsPage() {
       <h2>10. Contact</h2>
       <p>
         Questions about these Terms? Reach us at{" "}
-        <a href={`mailto:${BUSINESS.email}`}>{BUSINESS.email}</a> or {BUSINESS.phone}.
+        <a href={`mailto:${business.email}`}>{business.email}</a> or {business.phone}.
       </p>
     </LegalPage>
   );

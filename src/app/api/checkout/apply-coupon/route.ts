@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getItemById } from "@/lib/items";
-import { getCoupons, getInvoiceSettings, getTaxSettings } from "@/lib/site-settings";
+import { getBusinessSettings, getCoupons, getTaxSettings } from "@/lib/site-settings";
 import { quoteOrder } from "@/lib/checkout-pricing";
 import { rateLimit, clientIpFrom } from "@/lib/rate-limit";
 import type { CourseDetails, WorkshopDetails } from "@/lib/types";
@@ -39,10 +39,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, reason: "No discount applies here." }, { status: 400 });
     }
 
-    const [coupons, tax, invoice] = await Promise.all([
+    const [coupons, tax, business] = await Promise.all([
       getCoupons(),
       getTaxSettings(),
-      getInvoiceSettings(),
+      getBusinessSettings(),
     ]);
 
     const quote = quoteOrder({
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
       couponCode: typeof code === "string" ? code : null,
       coupons,
       tax,
-      invoice,
+      sellerStateCode: business.stateCode,
       buyerGst: buyerGst && typeof buyerGst === "object" ? buyerGst : null,
     });
 

@@ -5,7 +5,7 @@ import { createRazorpayOrder } from "@/lib/razorpay";
 import type { CourseDetails, WorkshopDetails } from "@/lib/types";
 import { rateLimit, clientIpFrom } from "@/lib/rate-limit";
 import { isValidEmail, isValidPhone, normalisePhone } from "@/lib/validate";
-import { getCoupons, getInvoiceSettings, getTaxSettings } from "@/lib/site-settings";
+import { getBusinessSettings, getCoupons, getTaxSettings } from "@/lib/site-settings";
 import { markCouponUsed } from "@/lib/coupons";
 import { quoteOrder } from "@/lib/checkout-pricing";
 
@@ -81,10 +81,10 @@ export async function POST(req: NextRequest) {
     // coupon. Whatever the browser displayed is a preview and is never
     // trusted — a tampered client can change what the modal shows and
     // nothing else.
-    const [coupons, tax, invoice] = await Promise.all([
+    const [coupons, tax, business] = await Promise.all([
       getCoupons(),
       getTaxSettings(),
-      getInvoiceSettings(),
+      getBusinessSettings(),
     ]);
 
     const quote = quoteOrder({
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
       couponCode: typeof couponCode === "string" ? couponCode : null,
       coupons,
       tax,
-      invoice,
+      sellerStateCode: business.stateCode,
       buyerGst: buyerGst && typeof buyerGst === "object" ? buyerGst : null,
     });
 

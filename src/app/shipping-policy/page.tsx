@@ -1,6 +1,7 @@
 import LegalPage from "@/components/LegalPage";
 import { getSetting } from "@/lib/items";
 import type { FooterLinks } from "@/components/Footer";
+import { getBusinessSettings } from "@/lib/site-settings";
 import { BUSINESS } from "@/lib/legal";
 
 
@@ -12,7 +13,10 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Shipping & Delivery Policy — Deepanshu Tyagi Live" };
 
 export default async function ShippingPolicyPage() {
-  const footerLinks = await getSetting<FooterLinks>("footerLinks", {});
+  const [footerLinks, business] = await Promise.all([
+    getSetting<FooterLinks>("footerLinks", {}),
+    getBusinessSettings(),
+  ]);
 
   return (
     <LegalPage title="Shipping & Delivery Policy" updated="4 August 2026" footerLinks={footerLinks}>
@@ -29,7 +33,7 @@ export default async function ShippingPolicyPage() {
       <p>
         If you haven&apos;t received access within 24 hours of a successful payment, please check
         your spam folder first, then contact us at{" "}
-        <a href={`mailto:${BUSINESS.email}`}>{BUSINESS.email}</a>.
+        <a href={`mailto:${business.email}`}>{business.email}</a>.
       </p>
 
       <h2>2. Physical products (Vyrelle and other ventures)</h2>
@@ -44,7 +48,7 @@ export default async function ShippingPolicyPage() {
       <h2>3. Contact</h2>
       <p>
         For any delivery-related question on a current digital purchase, email{" "}
-        <a href={`mailto:${BUSINESS.email}`}>{BUSINESS.email}</a> or call {BUSINESS.phone}.
+        <a href={`mailto:${business.email}`}>{business.email}</a> or call {business.phone}.
       </p>
     </LegalPage>
   );

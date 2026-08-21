@@ -21,6 +21,7 @@ const ALLOWED_KEYS = [
   "coupons",
   "tax",
   "invoice",
+  "business",
 ];
 
 export async function GET() {

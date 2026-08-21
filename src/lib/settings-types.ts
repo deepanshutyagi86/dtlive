@@ -253,7 +253,42 @@ export function stateNameForCode(code: string): string {
 }
 
 /* ------------------------------------------------------------------ */
-/* GST invoicing — the DOCUMENT, not the pricing                        */
+/* Business details — the one set of contact/legal facts everything    */
+/* else (invoice, Terms, Privacy, Refund, Shipping, Contact) reads      */
+/* from. src/lib/legal.ts is the fallback for a blank or missing field, */
+/* never a second copy of these facts.                                  */
+/* ------------------------------------------------------------------ */
+
+export interface BusinessSettings {
+  legalName: string;
+  tradeName: string;
+  gstin: string;
+  addressLines: string[];
+  stateName: string;
+  /** Two-digit GST state code, e.g. "09" for Uttar Pradesh. */
+  stateCode: string;
+  email: string;
+  phone: string;
+}
+
+export const DEFAULT_BUSINESS: BusinessSettings = {
+  legalName: "Deepanshu",
+  tradeName: "Deepanshu Empire",
+  gstin: "09HXMPD1277C1ZF",
+  addressLines: ["Badum, Meerut", "Meerut, Uttar Pradesh – 250502", "India"],
+  stateName: "Uttar Pradesh",
+  stateCode: "09",
+  email: "dtyagi.main@gmail.com",
+  phone: "+91 98706 00903",
+};
+
+/** The address lines joined into one sentence-friendly string. */
+export function businessFullAddress(b: BusinessSettings): string {
+  return b.addressLines.join(", ");
+}
+
+/* ------------------------------------------------------------------ */
+/* GST invoicing — the DOCUMENT, not the pricing or the seller identity */
 /* ------------------------------------------------------------------ */
 
 export interface InvoiceSettings {
@@ -265,15 +300,6 @@ export interface InvoiceSettings {
    * Per-item override lives on the item as details.invoice.
    */
   mode: "all" | "none";
-  legalName: string;
-  tradeName: string;
-  gstin: string;
-  addressLines: string[];
-  stateName: string;
-  /** Two-digit GST state code, e.g. "09" for Uttar Pradesh. */
-  stateCode: string;
-  email: string;
-  phone: string;
   /** SAC code for online educational/training services. */
   hsnSac: string;
   /**
@@ -282,6 +308,11 @@ export interface InvoiceSettings {
    * not merely what the document says. They are read from a saved snapshot
    * on the order when one exists, so changing the rate never rewrites an
    * invoice that has already been issued.
+   *
+   * The seller's legal identity (name, GSTIN, address, state, contact) used
+   * to live here too. It now lives in BusinessSettings above, because the
+   * same facts are also printed on Terms/Privacy/Refund/Shipping/Contact —
+   * one place to change a GSTIN or a phone number, not two that can drift.
    */
   /** Invoice numbers render as <prefix><financialYear>-<sequence>. */
   numberPrefix: string;
@@ -295,14 +326,6 @@ export interface InvoiceSettings {
 export const DEFAULT_INVOICE: InvoiceSettings = {
   enabled: false,
   mode: "none",
-  legalName: "Deepanshu",
-  tradeName: "Deepanshu Empire",
-  gstin: "09HXMPD1277C1ZF",
-  addressLines: ["Badum, Meerut", "Meerut, Uttar Pradesh – 250502", "India"],
-  stateName: "Uttar Pradesh",
-  stateCode: "09",
-  email: "dtyagi.main@gmail.com",
-  phone: "+91 98706 00903",
   hsnSac: "999293",
   numberPrefix: "DE/",
   financialYear: "2026-27",

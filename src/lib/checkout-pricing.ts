@@ -8,7 +8,7 @@
 
 import { applyCoupon, type CouponResult } from "./coupons";
 import { computePricing, isValidGstin, stateCodeFromGstin, type Pricing } from "./tax";
-import type { Coupon, InvoiceSettings, TaxSettings } from "./settings-types";
+import type { Coupon, TaxSettings } from "./settings-types";
 import { stateNameForCode } from "./settings-types";
 import type { OrderTaxSnapshot } from "./order-tax";
 
@@ -37,7 +37,7 @@ export function quoteOrder({
   couponCode,
   coupons,
   tax,
-  invoice,
+  sellerStateCode,
   buyerGst,
 }: {
   listPrice: number;
@@ -45,7 +45,8 @@ export function quoteOrder({
   couponCode?: string | null;
   coupons: Coupon[];
   tax: TaxSettings;
-  invoice: InvoiceSettings;
+  /** The seller's own GST state code — from BusinessSettings.stateCode. */
+  sellerStateCode: string;
   buyerGst?: BuyerGstInput | null;
 }): QuoteResult {
   let coupon: CouponResult | null = null;
@@ -58,7 +59,7 @@ export function quoteOrder({
         ok: false,
         error: coupon.reason ?? "That code isn't valid.",
         coupon,
-        pricing: computePricing({ listPrice, tax, sellerStateCode: invoice.stateCode }),
+        pricing: computePricing({ listPrice, tax, sellerStateCode }),
         snapshot: emptySnapshot(listPrice, tax),
       };
     }
@@ -75,7 +76,7 @@ export function quoteOrder({
       ok: false,
       error: "That GSTIN doesn't look right — it should be 15 characters, e.g. 09ABCDE1234F1Z5.",
       coupon,
-      pricing: computePricing({ listPrice, discount, tax, sellerStateCode: invoice.stateCode }),
+      pricing: computePricing({ listPrice, discount, tax, sellerStateCode }),
       snapshot: emptySnapshot(listPrice, tax),
     };
   }
@@ -91,7 +92,7 @@ export function quoteOrder({
     listPrice,
     discount,
     tax,
-    sellerStateCode: invoice.stateCode,
+    sellerStateCode,
     buyerStateCode,
   });
 

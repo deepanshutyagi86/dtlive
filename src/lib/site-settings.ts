@@ -6,6 +6,7 @@
 // coming through as undefined. Same rule the hero copy already followed.
 
 import { getSetting } from "./items";
+import { BUSINESS, BUSINESS_ADDRESS_LINES } from "./legal";
 import {
   DEFAULT_BIO,
   DEFAULT_BRANDING,
@@ -16,6 +17,7 @@ import {
   DEFAULT_TAX,
   type BioSettings,
   type Branding,
+  type BusinessSettings,
   type Coupon,
   type InvoiceSettings,
   type NavLink,
@@ -114,12 +116,35 @@ export async function getInvoiceSettings(): Promise<InvoiceSettings> {
   return {
     ...DEFAULT_INVOICE,
     ...stored,
+    enabled: stored.enabled === true,
+    mode: stored.mode === "all" ? "all" : "none",
+  };
+}
+
+/**
+ * The seller's own contact/legal identity — name, GSTIN, address, state,
+ * phone, email. Single source of truth for the GST invoice AND for
+ * Terms/Privacy/Refund/Shipping/Contact, so there is one place to correct a
+ * phone number instead of two that can silently drift apart.
+ *
+ * Merged field-by-field, not wholesale: a blank field in the stored row
+ * (nothing typed into /admin/settings yet, or cleared back to empty) falls
+ * back to src/lib/legal.ts rather than rendering empty on a legal page.
+ */
+export async function getBusinessSettings(): Promise<BusinessSettings> {
+  const stored = await readChromeSetting<Partial<BusinessSettings>>("business", {});
+  return {
+    legalName: clean(stored.legalName) || BUSINESS.legalName,
+    tradeName: clean(stored.tradeName) || BUSINESS.tradeName,
+    gstin: clean(stored.gstin) || BUSINESS.gstin,
     addressLines:
       Array.isArray(stored.addressLines) && stored.addressLines.length > 0
         ? stored.addressLines.filter((l) => typeof l === "string" && l.trim())
-        : DEFAULT_INVOICE.addressLines,
-    enabled: stored.enabled === true,
-    mode: stored.mode === "all" ? "all" : "none",
+        : BUSINESS_ADDRESS_LINES,
+    stateName: clean(stored.stateName) || BUSINESS.address.state,
+    stateCode: clean(stored.stateCode) || BUSINESS.address.stateCode,
+    email: clean(stored.email) || BUSINESS.email,
+    phone: clean(stored.phone) || BUSINESS.phone,
   };
 }
 

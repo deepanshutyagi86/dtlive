@@ -12,6 +12,8 @@ export const BUSINESS = {
     city: "Meerut",
     district: "Meerut",
     state: "Uttar Pradesh",
+    // Two-digit GST state code — the first two characters of the GSTIN above.
+    stateCode: "09",
     pin: "250502",
     country: "India",
   },
@@ -21,3 +23,11 @@ export const BUSINESS = {
 } as const;
 
 export const fullAddress = `${BUSINESS.address.line1}, ${BUSINESS.address.city}, ${BUSINESS.address.district}, ${BUSINESS.address.state} – ${BUSINESS.address.pin}, ${BUSINESS.address.country}`;
+
+// Same address, one entry per display line — the shape getBusinessSettings()
+// falls back to when no line has been typed into the admin panel yet.
+export const BUSINESS_ADDRESS_LINES: string[] = [
+  BUSINESS.address.line1,
+  `${BUSINESS.address.city}, ${BUSINESS.address.state} – ${BUSINESS.address.pin}`,
+  BUSINESS.address.country,
+];

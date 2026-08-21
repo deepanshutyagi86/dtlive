@@ -1,6 +1,7 @@
 import LegalPage from "@/components/LegalPage";
 import { getSetting } from "@/lib/items";
 import type { FooterLinks } from "@/components/Footer";
+import { getBusinessSettings } from "@/lib/site-settings";
 import { BUSINESS } from "@/lib/legal";
 
 
@@ -12,13 +13,16 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Refund & Cancellation Policy — Deepanshu Tyagi Live" };
 
 export default async function RefundPolicyPage() {
-  const footerLinks = await getSetting<FooterLinks>("footerLinks", {});
+  const [footerLinks, business] = await Promise.all([
+    getSetting<FooterLinks>("footerLinks", {}),
+    getBusinessSettings(),
+  ]);
 
   return (
     <LegalPage title="Refund & Cancellation Policy" updated="4 August 2026" footerLinks={footerLinks}>
       <p>
         This policy covers everything sold through {BUSINESS.siteName}&apos;s checkout, operated
-        by {BUSINESS.tradeName}. It varies by product type — please read the section relevant to
+        by {business.tradeName}. It varies by product type — please read the section relevant to
         your purchase.
       </p>
 
@@ -37,7 +41,7 @@ export default async function RefundPolicyPage() {
         basis, so a booking directly holds a spot that would otherwise go to someone else.
       </p>
       <p>
-        If {BUSINESS.tradeName} cancels or reschedules a workshop, you will be offered a seat in
+        If {business.tradeName} cancels or reschedules a workshop, you will be offered a seat in
         the next available session or, if that doesn&apos;t work for you, a full refund to your
         original payment method.
       </p>
@@ -62,7 +66,7 @@ export default async function RefundPolicyPage() {
         If a payment is deducted from your account but the order does not show as successful on
         our end, or you are charged twice for the same order due to a technical error, the full
         amount will be refunded to your original payment method within 5–7 business days. Contact
-        us at <a href={`mailto:${BUSINESS.email}`}>{BUSINESS.email}</a> with your payment
+        us at <a href={`mailto:${business.email}`}>{business.email}</a> with your payment
         reference so we can trace it with Razorpay.
       </p>
 
@@ -76,7 +80,7 @@ export default async function RefundPolicyPage() {
       <h2>7. Contact</h2>
       <p>
         For any refund or cancellation query, email{" "}
-        <a href={`mailto:${BUSINESS.email}`}>{BUSINESS.email}</a> or call {BUSINESS.phone}.
+        <a href={`mailto:${business.email}`}>{business.email}</a> or call {business.phone}.
       </p>
     </LegalPage>
   );

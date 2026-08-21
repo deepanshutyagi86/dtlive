@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getOrderById } from "@/lib/admin-repo";
-import { getInvoiceSettings, getTaxSettings, invoiceAppliesTo } from "@/lib/site-settings";
+import { getBusinessSettings, getInvoiceSettings, getTaxSettings, invoiceAppliesTo } from "@/lib/site-settings";
 import { amountInWords, computeInvoice, formatMoney, invoiceNumber } from "@/lib/invoice";
 import { SITE_TZ } from "@/lib/dates";
 import PrintButton from "./PrintButton";
@@ -19,9 +19,10 @@ export const metadata: Metadata = {
 };
 
 export default async function InvoicePage({ params }: { params: { id: string } }) {
-  const [order, settings, tax] = await Promise.all([
+  const [order, settings, business, tax] = await Promise.all([
     getOrderById(params.id),
     getInvoiceSettings(),
+    getBusinessSettings(),
     getTaxSettings(),
   ]);
 
@@ -64,22 +65,22 @@ export default async function InvoicePage({ params }: { params: { id: string } }
         <div>
           <p className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-muted mb-1.5">Tax invoice</p>
           <h1 className="font-display font-extrabold text-[26px] tracking-tight leading-tight">
-            {settings.tradeName}
+            {business.tradeName}
           </h1>
-          <p className="text-[13px] text-ink-soft mt-1">{settings.legalName}</p>
-          {settings.addressLines.map((line, i) => (
+          <p className="text-[13px] text-ink-soft mt-1">{business.legalName}</p>
+          {business.addressLines.map((line, i) => (
             <p key={i} className="text-[13px] text-ink-soft leading-snug">
               {line}
             </p>
           ))}
           <p className="text-[13px] text-ink-soft mt-1.5">
-            GSTIN: <b>{settings.gstin}</b>
+            GSTIN: <b>{business.gstin}</b>
           </p>
           <p className="text-[13px] text-ink-soft">
-            State: {settings.stateName} ({settings.stateCode})
+            State: {business.stateName} ({business.stateCode})
           </p>
-          {settings.email && <p className="text-[13px] text-ink-soft">{settings.email}</p>}
-          {settings.phone && <p className="text-[13px] text-ink-soft">{settings.phone}</p>}
+          {business.email && <p className="text-[13px] text-ink-soft">{business.email}</p>}
+          {business.phone && <p className="text-[13px] text-ink-soft">{business.phone}</p>}
         </div>
         <div className="text-right">
           <table className="text-[13px] ml-auto">
@@ -100,7 +101,7 @@ export default async function InvoicePage({ params }: { params: { id: string } }
                 <td className="text-muted pr-4 py-0.5">Place of supply</td>
                 <td className="py-0.5">
                   {calc.intraState
-                    ? `${settings.stateName} (${settings.stateCode})`
+                    ? `${business.stateName} (${business.stateCode})`
                     : `${snapshot?.buyerStateName ?? "Other state"} (${snapshot?.buyerStateCode ?? "--"})`}
                 </td>
               </tr>
@@ -236,7 +237,7 @@ export default async function InvoicePage({ params }: { params: { id: string } }
             <img src={settings.signatureUrl} alt="" className="h-14 ml-auto mb-1 object-contain" />
           )}
           <p className="text-[13px] border-t border-ink pt-2 mt-8 min-w-[180px]">
-            For <b>{settings.tradeName}</b>
+            For <b>{business.tradeName}</b>
             <span className="block text-muted text-[11px] mt-1">Authorised signatory</span>
           </p>
         </div>

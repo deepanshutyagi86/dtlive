@@ -1,19 +1,22 @@
 import Nav from "@/components/Nav";
 import Footer, { FooterLinks } from "@/components/Footer";
 import { getSetting } from "@/lib/items";
-import { getBio, getNav } from "@/lib/site-settings";
-import { BUSINESS, fullAddress } from "@/lib/legal";
+import { getBio, getBusinessSettings, getNav } from "@/lib/site-settings";
+import { businessFullAddress } from "@/lib/settings-types";
+import { BUSINESS } from "@/lib/legal";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Contact Us — Deepanshu Tyagi Live" };
 
 export default async function ContactPage() {
-  const [footerLinks, nav, bio] = await Promise.all([
+  const [footerLinks, nav, bio, business] = await Promise.all([
     getSetting<FooterLinks>("footerLinks", {}),
     getNav(),
     getBio(),
+    getBusinessSettings(),
   ]);
+  const fullAddress = businessFullAddress(business);
 
   return (
     <>
@@ -30,14 +33,14 @@ export default async function ContactPage() {
         <div className="grid md:grid-cols-2 gap-5 mt-12">
           <div className="bg-card border border-line rounded-card p-6">
             <p className="font-mono text-[11px] uppercase tracking-wider text-muted mb-1">Email</p>
-            <a href={`mailto:${BUSINESS.email}`} className="font-display font-bold text-xl text-marigold-deep hover:underline">
-              {BUSINESS.email}
+            <a href={`mailto:${business.email}`} className="font-display font-bold text-xl text-marigold-deep hover:underline">
+              {business.email}
             </a>
           </div>
           <div className="bg-card border border-line rounded-card p-6">
             <p className="font-mono text-[11px] uppercase tracking-wider text-muted mb-1">Phone</p>
-            <a href={`tel:${BUSINESS.phone.replace(/\s+/g, "")}`} className="font-display font-bold text-xl text-marigold-deep hover:underline">
-              {BUSINESS.phone}
+            <a href={`tel:${business.phone.replace(/\s+/g, "")}`} className="font-display font-bold text-xl text-marigold-deep hover:underline">
+              {business.phone}
             </a>
           </div>
         </div>
@@ -49,11 +52,11 @@ export default async function ContactPage() {
 
         <div className="mt-10 pt-8 border-t border-line font-mono text-[12px] text-muted leading-relaxed">
           <p>
-            <strong className="text-ink">Legal entity:</strong> {BUSINESS.legalName}, trading as{" "}
-            {BUSINESS.tradeName} ({BUSINESS.constitution})
+            <strong className="text-ink">Legal entity:</strong> {business.legalName}, trading as{" "}
+            {business.tradeName} ({BUSINESS.constitution})
           </p>
           <p className="mt-1">
-            <strong className="text-ink">GSTIN:</strong> {BUSINESS.gstin}
+            <strong className="text-ink">GSTIN:</strong> {business.gstin}
           </p>
         </div>
       </main>
