@@ -48,7 +48,7 @@ interface Quote {
 const FIELDS = [
   { key: "name" as const, label: "Full name", type: "text", placeholder: "e.g. Deepanshu", mode: "text" as const },
   { key: "email" as const, label: "Email", type: "email", placeholder: "e.g. you@example.com", mode: "email" as const },
-  { key: "phone" as const, label: "Phone", type: "tel", placeholder: "e.g. 9870600903", mode: "tel" as const },
+  { key: "phone" as const, label: "Phone", type: "tel", placeholder: "e.g. 98765 43210", mode: "tel" as const },
 ];
 
 export default function CheckoutModal({

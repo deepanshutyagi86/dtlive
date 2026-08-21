@@ -270,7 +270,7 @@ export default function RegisterModal({
                             f.key === "name"
                               ? "e.g. Deepanshu"
                               : f.type === "tel"
-                                ? "e.g. 9870600903"
+                                ? "e.g. 98765 43210"
                                 : f.type === "email"
                                   ? "e.g. you@example.com"
                                   : ""
