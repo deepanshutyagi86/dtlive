@@ -1,8 +1,9 @@
 "use client";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import ItemImage from "./ItemImage";
+import ModalShell from "./ModalShell";
+import ModalHeroHeader from "./ModalHeroHeader";
 import { useModalBehavior } from "@/lib/useModalBehavior";
+import { useModalViewport, HERO_COLLAPSE_HEIGHT, scrollFieldIntoView } from "@/lib/useModalViewport";
 import { isValidEmail, isValidPhone, stripToPhoneChars } from "@/lib/validate";
 import { formatRupees, isValidGstin } from "@/lib/tax";
 import { GST_STATES, type TaxSettings } from "@/lib/settings-types";
@@ -110,6 +111,8 @@ export default function CheckoutModal({
   const uid = useId();
 
   useModalBehavior({ open, onClose: () => setOpen(false), panelRef, triggerRef });
+  const viewport = useModalViewport(open);
+  const showImage = viewport.height >= HERO_COLLAPSE_HEIGHT;
 
   // Meta Pixel drops these cookies itself; forwarding them lets the
   // server-side Conversions API call match the same browser/click as the
@@ -286,48 +289,39 @@ export default function CheckoutModal({
         {triggerLabel}
       </button>
 
-      {/* Portalled to document.body on purpose, and this is load-bearing in
-          two separate ways. (1) Position: both triggers sit inside a fixed
-          bar — the desktop nav uses backdrop-blur, which makes that nav the
-          containing block for any position:fixed descendant, so an inline
-          overlay would center itself on a ~50px-tall bar instead of the
-          viewport and hang off the top of the screen. (2) Color: the mobile
-          bar sets text-bone, and the inputs below inherit their text color,
-          so typed text rendered near-white on a bone panel while the
-          explicitly-colored placeholder stayed dark. Escaping to <body>
-          fixes both; the explicit text-ink on the inputs is belt-and-braces
-          so neither can regress if a future trigger lands somewhere dark. */}
-      {mounted && open && createPortal(
-        <div
-          className="fixed inset-0 bg-ink/55 backdrop-blur-sm flex items-center justify-center z-[200] p-4"
-          onClick={(e) => e.target === e.currentTarget && setOpen(false)}
-        >
-          <div
-            ref={panelRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label={title}
-            className="bg-bone text-ink rounded-card w-full max-w-[420px] max-h-[90dvh] flex flex-col overflow-hidden"
-          >
-            <div className="relative flex-none">
-              <ItemImage
-                thumbnail={thumbnail}
-                title={title}
-                category={category}
-                seed={slug}
-                sizes="(min-width: 480px) 420px, 90vw"
-                imageFocal={imageFocal}
-              />
-              <button
-                onClick={() => setOpen(false)}
-                aria-label="Close"
-                className="absolute top-3 right-3 w-11 h-11 rounded-full bg-ink/60 backdrop-blur-sm text-bone flex items-center justify-center text-2xl leading-none hover:bg-ink transition-colors"
-              >
-                ×
-              </button>
+      <ModalShell
+        open={open}
+        mounted={mounted}
+        onClose={() => setOpen(false)}
+        panelRef={panelRef}
+        ariaLabel={title}
+        header={
+          <ModalHeroHeader
+            thumbnail={thumbnail}
+            title={title}
+            category={category}
+            seed={slug}
+            imageFocal={imageFocal}
+            showImage={showImage}
+            onClose={() => setOpen(false)}
+          />
+        }
+        footer={
+          <>
+            {error && <p className="text-live-ink text-sm mb-3">{error}</p>}
+            <button
+              onClick={pay}
+              disabled={loading}
+              className="w-full py-4 rounded-full bg-marigold text-ink font-semibold text-[16px] hover:bg-ink hover:text-bone transition-colors disabled:opacity-60"
+            >
+              {loading ? "Starting payment…" : `Proceed to pay ${payLabel} →`}
+            </button>
+            <div className="flex items-center justify-center gap-2 font-mono text-[10.5px] text-muted mt-3.5">
+              🔒 Secured by Razorpay · GST-registered seller
             </div>
-
-            <div className="p-6 overflow-y-auto">
+          </>
+        }
+      >
               <h3 className="font-display font-extrabold text-[22px] tracking-tight">{title}</h3>
               <p className="font-mono text-[11px] text-muted mt-1.5 mb-5">
                 {applied ? (
@@ -368,6 +362,7 @@ export default function CheckoutModal({
                         if (err) setFieldErrors({ ...fieldErrors, [field.key]: undefined });
                       }}
                       placeholder={field.placeholder}
+                      onFocus={(e) => scrollFieldIntoView(e.currentTarget)}
                       aria-invalid={err ? true : undefined}
                       aria-describedby={err ? errId : undefined}
                       className={`w-full px-3.5 py-3.5 text-[16px] text-ink bg-card border rounded-[10px] placeholder-ink-soft focus:outline-none focus:ring-2 focus:ring-marigold ${
@@ -437,6 +432,7 @@ export default function CheckoutModal({
                           }
                         }}
                         placeholder="EARLYBIRD"
+                        onFocus={(e) => scrollFieldIntoView(e.currentTarget)}
                         className="flex-1 min-w-0 px-3.5 py-3 text-[16px] text-ink bg-card border border-line rounded-[10px] uppercase placeholder-ink-soft focus:outline-none focus:border-marigold focus:ring-2 focus:ring-marigold"
                       />
                       <button
@@ -502,6 +498,7 @@ export default function CheckoutModal({
                           if (gstError) setGstError(null);
                         }}
                         onBlur={applyGstDetails}
+                        onFocus={(e) => scrollFieldIntoView(e.currentTarget)}
                         placeholder="09ABCDE1234F1Z5"
                         aria-invalid={gstError ? true : undefined}
                         className={`w-full px-3.5 py-3 text-[16px] text-ink bg-bone border rounded-[10px] font-mono tracking-wider placeholder-ink-soft focus:outline-none focus:ring-2 focus:ring-marigold ${
@@ -521,6 +518,7 @@ export default function CheckoutModal({
                         value={gst.legalName}
                         onChange={(e) => setGst({ ...gst, legalName: e.target.value })}
                         onBlur={applyGstDetails}
+                        onFocus={(e) => scrollFieldIntoView(e.currentTarget)}
                         placeholder="As it appears on your GST certificate"
                         className="w-full px-3.5 py-3 text-[16px] text-ink bg-bone border border-line rounded-[10px] placeholder-ink-soft focus:outline-none focus:border-marigold focus:ring-2 focus:ring-marigold"
                       />
@@ -575,24 +573,7 @@ export default function CheckoutModal({
                   </div>
                 </div>
               )}
-
-              {error && <p className="text-live-ink text-sm mb-3">{error}</p>}
-
-              <button
-                onClick={pay}
-                disabled={loading}
-                className="w-full py-4 rounded-full bg-marigold text-ink font-semibold text-[16px] hover:bg-ink hover:text-bone transition-colors disabled:opacity-60"
-              >
-                {loading ? "Starting payment…" : `Proceed to pay ${payLabel} →`}
-              </button>
-              <div className="flex items-center justify-center gap-2 font-mono text-[10.5px] text-muted mt-3.5">
-                🔒 Secured by Razorpay · GST-registered seller
-              </div>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      </ModalShell>
     </>
   );
 }

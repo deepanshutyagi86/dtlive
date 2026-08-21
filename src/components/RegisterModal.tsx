@@ -1,8 +1,9 @@
 "use client";
 import { useEffect, useId, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import ItemImage from "./ItemImage";
+import ModalShell from "./ModalShell";
+import ModalHeroHeader from "./ModalHeroHeader";
 import { useModalBehavior } from "@/lib/useModalBehavior";
+import { useModalViewport, HERO_COLLAPSE_HEIGHT, scrollFieldIntoView } from "@/lib/useModalViewport";
 import { DEFAULT_REGISTRATION_FIELDS, type Category, type ImageFocal, type RegistrationField } from "@/lib/types";
 import { SITE_TZ } from "@/lib/dates";
 import { isValidEmail, isValidPhone, stripToPhoneChars } from "@/lib/validate";
@@ -76,6 +77,8 @@ export default function RegisterModal({
   }
 
   useModalBehavior({ open, onClose: close, panelRef, triggerRef });
+  const viewport = useModalViewport(open);
+  const showImage = viewport.height >= HERO_COLLAPSE_HEIGHT;
 
   async function register() {
     setError(null);
@@ -159,37 +162,47 @@ export default function RegisterModal({
         {triggerLabel}
       </button>
 
-      {mounted && open && createPortal(
-        <div
-          className="fixed inset-0 bg-ink/55 backdrop-blur-sm flex items-center justify-center z-[200] p-4"
-          onClick={(e) => e.target === e.currentTarget && close()}
-        >
-          <div
-            ref={panelRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label={title}
-            className="bg-bone text-ink rounded-card w-full max-w-[420px] max-h-[90dvh] flex flex-col overflow-hidden"
-          >
-            <div className="relative flex-none">
-              <ItemImage
-                thumbnail={thumbnail}
-                title={title}
-                category={category}
-                seed={slug}
-                sizes="(min-width: 480px) 420px, 90vw"
-                imageFocal={imageFocal}
-              />
+      <ModalShell
+        open={open}
+        mounted={mounted}
+        onClose={close}
+        panelRef={panelRef}
+        ariaLabel={title}
+        header={
+          <ModalHeroHeader
+            thumbnail={thumbnail}
+            title={title}
+            category={category}
+            seed={slug}
+            imageFocal={imageFocal}
+            showImage={showImage}
+            onClose={close}
+          />
+        }
+        footer={
+          !registered ? (
+            <>
+              {error && <p className="text-live-ink text-sm mb-3">{error}</p>}
               <button
-                onClick={close}
-                aria-label="Close"
-                className="absolute top-3 right-3 w-11 h-11 rounded-full bg-ink/60 backdrop-blur-sm text-bone flex items-center justify-center text-2xl leading-none hover:bg-ink transition-colors"
+                onClick={register}
+                disabled={loading}
+                className="w-full py-4 rounded-full bg-marigold text-ink font-semibold text-[16px] hover:bg-ink hover:text-bone transition-colors disabled:opacity-60"
               >
-                ×
+                {loading ? (dateObj ? "Reserving…" : "Sending…") : dateObj ? "Reserve my free seat →" : "Send inquiry →"}
               </button>
-            </div>
-
-            <div className="p-6 overflow-y-auto">
+            </>
+          ) : dateObj ? (
+            <a
+              href={calendarUrl!}
+              target="_blank"
+              rel="noopener"
+              className="block text-center w-full py-4 rounded-full bg-marigold text-ink font-semibold text-[16px] hover:bg-ink hover:text-bone transition-colors"
+            >
+              Add to calendar →
+            </a>
+          ) : null
+        }
+      >
               {registered ? (
                 <>
                   <h3 className="font-display font-extrabold text-[22px] tracking-tight">
@@ -208,14 +221,6 @@ export default function RegisterModal({
                         Check your email for confirmation — I&apos;ll follow up directly with the Zoom link
                         before the session starts.
                       </p>
-                      <a
-                        href={calendarUrl!}
-                        target="_blank"
-                        rel="noopener"
-                        className="block text-center w-full mt-5 py-4 rounded-full bg-marigold text-ink font-semibold text-[16px] hover:bg-ink hover:text-bone transition-colors"
-                      >
-                        Add to calendar →
-                      </a>
                     </>
                   ) : (
                     <p className="text-[16px] leading-relaxed text-ink-soft mt-3">
@@ -270,6 +275,7 @@ export default function RegisterModal({
                                   ? "e.g. you@example.com"
                                   : ""
                           }
+                          onFocus={(e) => scrollFieldIntoView(e.currentTarget)}
                           aria-invalid={err ? true : undefined}
                           aria-describedby={err ? errId : undefined}
                           className={`w-full px-3.5 py-3.5 text-[16px] text-ink bg-card border rounded-[10px] placeholder-ink-soft focus:outline-none focus:ring-2 focus:ring-marigold ${
@@ -284,23 +290,9 @@ export default function RegisterModal({
                       </div>
                     );
                   })}
-
-                  {error && <p className="text-live-ink text-sm mb-3">{error}</p>}
-
-                  <button
-                    onClick={register}
-                    disabled={loading}
-                    className="w-full py-4 rounded-full bg-marigold text-ink font-semibold text-[16px] hover:bg-ink hover:text-bone transition-colors disabled:opacity-60"
-                  >
-                    {loading ? (dateObj ? "Reserving…" : "Sending…") : dateObj ? "Reserve my free seat →" : "Send inquiry →"}
-                  </button>
                 </>
               )}
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      </ModalShell>
     </>
   );
 }
