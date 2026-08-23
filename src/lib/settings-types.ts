@@ -133,6 +133,27 @@ export const DEFAULT_STARTER: StarterSettings = {
 };
 
 /* ------------------------------------------------------------------ */
+/* Guide CTA — the closing pitch on every course/workshop detail page  */
+/* ------------------------------------------------------------------ */
+
+export interface GuideCtaSettings {
+  /** Someone who read the whole page and didn't buy is still worth a follow-up. */
+  enabled: boolean;
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  buttonLabel: string;
+}
+
+export const DEFAULT_GUIDE_CTA: GuideCtaSettings = {
+  enabled: true,
+  eyebrow: "Not ready yet?",
+  title: "Grab the free guide instead.",
+  subtitle: "No pitch — just the playbook, free.",
+  buttonLabel: "Browse free guides",
+};
+
+/* ------------------------------------------------------------------ */
 /* Coupons                                                             */
 /* ------------------------------------------------------------------ */
 

@@ -11,6 +11,7 @@ import {
   DEFAULT_BIO,
   DEFAULT_BRANDING,
   DEFAULT_COUPONS,
+  DEFAULT_GUIDE_CTA,
   DEFAULT_INVOICE,
   DEFAULT_NAV,
   DEFAULT_STARTER,
@@ -19,6 +20,7 @@ import {
   type Branding,
   type BusinessSettings,
   type Coupon,
+  type GuideCtaSettings,
   type InvoiceSettings,
   type NavLink,
   type NavSettings,
@@ -103,6 +105,17 @@ export async function getStarter(): Promise<StarterSettings> {
     eyebrow: clean(stored.eyebrow) || DEFAULT_STARTER.eyebrow,
     title: clean(stored.title) || DEFAULT_STARTER.title,
     options,
+  };
+}
+
+export async function getGuideCta(): Promise<GuideCtaSettings> {
+  const stored = await readChromeSetting<Partial<GuideCtaSettings>>("guideCta", {});
+  return {
+    enabled: stored.enabled !== false,
+    eyebrow: clean(stored.eyebrow) || DEFAULT_GUIDE_CTA.eyebrow,
+    title: clean(stored.title) || DEFAULT_GUIDE_CTA.title,
+    subtitle: clean(stored.subtitle) || DEFAULT_GUIDE_CTA.subtitle,
+    buttonLabel: clean(stored.buttonLabel) || DEFAULT_GUIDE_CTA.buttonLabel,
   };
 }
 

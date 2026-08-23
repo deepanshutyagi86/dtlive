@@ -7,9 +7,10 @@ import BioCard from "@/components/BioCard";
 import MobileMenu from "@/components/MobileMenu";
 import JsonLd from "@/components/JsonLd";
 import { Outcomes, WhoFor, Faq } from "@/components/ItemSections";
+import GuideCta from "@/components/GuideCta";
 import { getItemBySlug, getSetting } from "@/lib/items";
 import { hasTaxDetailsColumn } from "@/lib/admin-repo";
-import { getBio, getNav, getTaxSettingsForDisplay, SITE_URL } from "@/lib/site-settings";
+import { getBio, getGuideCta, getNav, getTaxSettingsForDisplay, SITE_URL } from "@/lib/site-settings";
 import { computePricing, priceLabel as taxPriceLabel, priceSubLabel } from "@/lib/tax";
 import type { CourseDetails, WorkshopDetails } from "@/lib/types";
 import type { Metadata } from "next";
@@ -60,7 +61,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 }
 
 export default async function ItemDetailPage({ params }: { params: { slug: string } }) {
-  const [item, footerLinks, bio, nav, taxSettings, b2bReady] = await Promise.all([
+  const [item, footerLinks, bio, nav, taxSettings, b2bReady, guideCta] = await Promise.all([
     getItemBySlug(params.slug),
     getSetting<FooterLinks>("footerLinks", {}),
     getBio(),
@@ -71,6 +72,7 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
     // one, pay, and have it silently dropped at insert time — no invoice
     // credit, and nothing to tell them why.
     hasTaxDetailsColumn().catch(() => false),
+    getGuideCta(),
   ]);
 
   if (!item || !item.live || (item.category !== "course" && item.category !== "workshop")) {
@@ -352,6 +354,8 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
             />
           )}
         </div>
+
+        <GuideCta data={guideCta} />
       </main>
 
       <div className="md:hidden fixed left-0 right-0 bottom-0 z-[100] bg-ink text-bone flex items-center justify-between gap-3 px-4 py-3 pb-[calc(12px+env(safe-area-inset-bottom))]">

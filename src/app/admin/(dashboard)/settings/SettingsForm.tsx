@@ -5,6 +5,7 @@ import {
   NavSection,
   BioSection,
   StarterSection,
+  GuideCtaSection,
   CouponsSection,
   TaxSection,
   BusinessSection,
@@ -13,6 +14,7 @@ import {
 import {
   DEFAULT_BIO,
   DEFAULT_BUSINESS,
+  DEFAULT_GUIDE_CTA,
   DEFAULT_INVOICE,
   DEFAULT_NAV,
   DEFAULT_STARTER,
@@ -21,6 +23,7 @@ import {
   type Branding,
   type BusinessSettings,
   type Coupon,
+  type GuideCtaSettings,
   type InvoiceSettings,
   type NavSettings,
   type StarterSettings,
@@ -129,6 +132,7 @@ export default function SettingsForm() {
   const [nav, setNav] = useState<NavSettings>(DEFAULT_NAV);
   const [bio, setBio] = useState<BioSettings>(DEFAULT_BIO);
   const [starter, setStarter] = useState<StarterSettings>(DEFAULT_STARTER);
+  const [guideCta, setGuideCta] = useState<GuideCtaSettings>(DEFAULT_GUIDE_CTA);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [business, setBusiness] = useState<BusinessSettings>(DEFAULT_BUSINESS);
   const [invoice, setInvoice] = useState<InvoiceSettings>(DEFAULT_INVOICE);
@@ -163,6 +167,7 @@ export default function SettingsForm() {
           ...(d.starter ?? {}),
           options: d.starter?.options?.length ? d.starter.options : DEFAULT_STARTER.options,
         });
+        setGuideCta({ ...DEFAULT_GUIDE_CTA, ...(d.guideCta ?? {}) });
         setCoupons(Array.isArray(d.coupons) ? d.coupons : []);
         setBusiness({
           ...DEFAULT_BUSINESS,
@@ -200,6 +205,7 @@ export default function SettingsForm() {
         nav,
         bio,
         starter,
+        guideCta,
         // Blank rows are dropped on save rather than on every keystroke,
         // so a half-typed code isn't deleted out from under the cursor.
         coupons: coupons.filter((c) => (c.code ?? "").trim()),
@@ -383,6 +389,7 @@ export default function SettingsForm() {
       <BrandingSection value={branding} onChange={setBranding} />
       <NavSection value={nav} onChange={setNav} />
       <StarterSection value={starter} onChange={setStarter} />
+      <GuideCtaSection value={guideCta} onChange={setGuideCta} />
       <BioSection value={bio} onChange={setBio} />
       <CouponsSection value={coupons} onChange={setCoupons} items={items} />
       <TaxSection value={tax} onChange={setTax} b2bReady={b2bReady} />

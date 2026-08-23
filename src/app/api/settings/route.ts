@@ -18,6 +18,7 @@ const ALLOWED_KEYS = [
   "nav",
   "bio",
   "starter",
+  "guideCta",
   "coupons",
   "tax",
   "invoice",

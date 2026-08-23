@@ -13,6 +13,7 @@ import {
   BRANDING_HELP,
   DEFAULT_BIO,
   DEFAULT_BUSINESS,
+  DEFAULT_GUIDE_CTA,
   DEFAULT_INVOICE,
   DEFAULT_NAV,
   DEFAULT_STARTER,
@@ -20,6 +21,7 @@ import {
   type Branding,
   type BusinessSettings,
   type Coupon,
+  type GuideCtaSettings,
   type InvoiceSettings,
   type NavSettings,
   type StarterSettings,
@@ -243,6 +245,51 @@ export function StarterSection({ value, onChange }: { value: StarterSettings; on
           )}
         />
       </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Guide CTA                                                           */
+/* ------------------------------------------------------------------ */
+
+export function GuideCtaSection({ value, onChange }: { value: GuideCtaSettings; onChange: (v: GuideCtaSettings) => void }) {
+  return (
+    <section>
+      <h2 className="font-display font-bold text-lg mb-1">Guide CTA on course/workshop pages</h2>
+      <p className="text-sm text-muted mb-5">
+        Shown at the bottom of every course and workshop page, pointing at the free guides. Someone who read
+        the whole page and didn&apos;t buy is exactly who a free guide converts later.
+      </p>
+
+      <Toggle label="Show this block" checked={value.enabled !== false} onChange={(v) => onChange({ ...value, enabled: v })} />
+
+      <div className="grid sm:grid-cols-2 gap-3 mt-3">
+        <TextField
+          label="Eyebrow"
+          value={value.eyebrow}
+          onChange={(v) => onChange({ ...value, eyebrow: v })}
+          placeholder={DEFAULT_GUIDE_CTA.eyebrow}
+        />
+        <TextField
+          label="Heading"
+          value={value.title}
+          onChange={(v) => onChange({ ...value, title: v })}
+          placeholder={DEFAULT_GUIDE_CTA.title}
+        />
+      </div>
+      <TextField
+        label="Subline"
+        value={value.subtitle}
+        onChange={(v) => onChange({ ...value, subtitle: v })}
+        placeholder={DEFAULT_GUIDE_CTA.subtitle}
+      />
+      <TextField
+        label="Button label"
+        value={value.buttonLabel}
+        onChange={(v) => onChange({ ...value, buttonLabel: v })}
+        placeholder={DEFAULT_GUIDE_CTA.buttonLabel}
+      />
     </section>
   );
 }
