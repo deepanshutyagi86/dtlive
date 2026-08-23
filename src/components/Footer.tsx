@@ -61,12 +61,16 @@ export default function Footer({
           {explore.length > 0 && (
             <div>
               <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-[#8b8a80] mb-4">Explore</p>
-              <div className="flex flex-col gap-2.5">
+              {/* min-h-[44px] on each link rather than gap between them:
+                  these were 23px tall, and the WCAG 2.5.8 / Apple HIG floor
+                  for a touch target is 44. The height replaces the gap so
+                  the column reads at the same rhythm it always did. */}
+              <div className="flex flex-col">
                 {explore.map((l) => (
                   <Link
                     key={l.href}
                     href={l.href}
-                    className="text-[15px] font-medium hover:text-marigold transition-colors w-fit rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marigold focus-visible:ring-offset-4 focus-visible:ring-offset-ink"
+                    className="inline-flex items-center min-h-[44px] text-[15px] font-medium hover:text-marigold transition-colors w-fit rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marigold focus-visible:ring-offset-4 focus-visible:ring-offset-ink"
                   >
                     {l.label}
                   </Link>
@@ -77,8 +81,11 @@ export default function Footer({
 
           <div>
             <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-[#8b8a80] mb-4">More</p>
-            <div className="flex flex-col gap-2.5">
-              <Link href="/contact" className="text-[15px] font-medium hover:text-marigold transition-colors w-fit">
+            <div className="flex flex-col">
+              <Link
+                href="/contact"
+                className="inline-flex items-center min-h-[44px] text-[15px] font-medium hover:text-marigold transition-colors w-fit rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marigold focus-visible:ring-offset-4 focus-visible:ring-offset-ink"
+              >
                 Contact
               </Link>
               {/* Kept understated on purpose — the portfolio is a different
@@ -89,7 +96,7 @@ export default function Footer({
                   href={bio.portfolioUrl}
                   target="_blank"
                   rel="noopener"
-                  className="text-[15px] font-medium text-[#b9b8ae] hover:text-marigold transition-colors w-fit"
+                  className="inline-flex items-center min-h-[44px] text-[15px] font-medium text-[#b9b8ae] hover:text-marigold transition-colors w-fit rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marigold focus-visible:ring-offset-4 focus-visible:ring-offset-ink"
                 >
                   {bio.portfolioLabel || "Portfolio"} ↗
                 </a>
@@ -98,11 +105,23 @@ export default function Footer({
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-x-5 gap-y-2 mt-12 font-mono text-[11px] text-[#8b8a80]">
-          <Link href="/terms" className="hover:text-marigold">Terms</Link>
-          <Link href="/privacy" className="hover:text-marigold">Privacy</Link>
-          <Link href="/refund-policy" className="hover:text-marigold">Refund &amp; Cancellation</Link>
-          <Link href="/shipping-policy" className="hover:text-marigold">Shipping &amp; Delivery</Link>
+        {/* mt-6 rather than mt-12: each link now carries its own 44px of
+            height, so the row supplies the separation the margin used to. */}
+        <div className="flex flex-wrap gap-x-5 mt-6 font-mono text-[11px] text-[#8b8a80]">
+          {[
+            { href: "/terms", label: "Terms" },
+            { href: "/privacy", label: "Privacy" },
+            { href: "/refund-policy", label: "Refund & Cancellation" },
+            { href: "/shipping-policy", label: "Shipping & Delivery" },
+          ].map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              className="inline-flex items-center min-h-[44px] hover:text-marigold transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marigold focus-visible:ring-offset-4 focus-visible:ring-offset-ink"
+            >
+              {l.label}
+            </Link>
+          ))}
         </div>
 
         {/* Deliberately NOT a link to /admin. The route is auth-gated, so

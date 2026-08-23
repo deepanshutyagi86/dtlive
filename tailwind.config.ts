@@ -8,7 +8,12 @@ const config: Config = {
         bone: "#F2F1EC",
         ink: "#191913",
         "ink-soft": "#41403a",
-        muted: "#6E6D63",
+        // Small print — 10-11px mono captions, eyebrows, placeholder text —
+        // on the bone background. #6E6D63 measured 4.59:1, which clears the
+        // 4.5:1 AA floor by 0.09 and no more, at the smallest size on the
+        // site. #5C5B52 is 6.06:1. Only ever used on bone or on a white
+        // card; dark surfaces use their own literal (#8b8a80).
+        muted: "#5C5B52",
         card: "#FFFFFF",
         line: "#DEDCD2",
         marigold: "#F5A300",

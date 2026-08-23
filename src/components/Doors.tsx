@@ -101,7 +101,7 @@ export default function Doors({
                 </span>
                 <Link
                   href={d.href}
-                  className="font-semibold text-sm hover:text-marigold-ink transition-colors whitespace-nowrap"
+                  className="inline-flex items-center min-h-[44px] font-semibold text-sm hover:text-marigold-ink transition-colors whitespace-nowrap rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marigold focus-visible:ring-offset-2 focus-visible:ring-offset-bone"
                 >
                   See all →
                 </Link>
