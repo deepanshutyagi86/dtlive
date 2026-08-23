@@ -109,7 +109,13 @@ export default function Doors({
                 <p className="text-muted mt-1.5 text-[15px]">Check back soon.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-3 sm:gap-5 mt-7">
+              {/* 2-up on phones is deliberate — these cards are compact and
+                  a single column made every section an endless scroll. But
+                  2-up held all the way to 1440px too, which left cards
+                  oversized, orphaned a third item alone on its own row, and
+                  ran the homepage past 7,700px. Three columns from lg: is
+                  where a 1200px container actually wants to sit. */}
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5 mt-7">
                 {list.map((item) => (
                   <ItemCard key={item.slug} item={item} sizes={SECTION_IMAGE_SIZES} compact tax={tax} />
                 ))}
