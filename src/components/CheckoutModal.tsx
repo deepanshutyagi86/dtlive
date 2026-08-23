@@ -60,6 +60,7 @@ export default function CheckoutModal({
   imageFocal,
   priceLabel,
   tax,
+  gstin,
   triggerClassName,
   triggerLabel,
 }: {
@@ -72,6 +73,8 @@ export default function CheckoutModal({
   priceLabel: string;
   /** Drives the breakdown and whether the GSTIN block is offered at all. */
   tax: TaxSettings;
+  /** The seller's own GSTIN, from getBusinessSettings() — never hardcoded. */
+  gstin: string;
   triggerClassName: string;
   triggerLabel: string;
 }) {
@@ -309,6 +312,17 @@ export default function CheckoutModal({
         footer={
           <>
             {error && <p className="text-live-ink text-sm mb-3">{error}</p>}
+            {/* Above the button on purpose — trust signals need to be seen
+                BEFORE the tap that charges a card, not after. */}
+            <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 font-mono text-[10px] text-muted mb-3 text-center">
+              <span>GST-registered · {gstin}</span>
+              <span aria-hidden>·</span>
+              <a href="/refund-policy" target="_blank" rel="noopener noreferrer" className="underline hover:text-ink">
+                Refund policy
+              </a>
+              <span aria-hidden>·</span>
+              <span>🔒 Secured by Razorpay</span>
+            </div>
             <button
               onClick={pay}
               disabled={loading}
@@ -316,9 +330,6 @@ export default function CheckoutModal({
             >
               {loading ? "Starting payment…" : `Proceed to pay ${payLabel} →`}
             </button>
-            <div className="flex items-center justify-center gap-2 font-mono text-[10.5px] text-muted mt-3.5">
-              🔒 Secured by Razorpay · GST-registered seller
-            </div>
           </>
         }
       >

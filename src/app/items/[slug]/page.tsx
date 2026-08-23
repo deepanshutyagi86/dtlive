@@ -10,7 +10,14 @@ import { Outcomes, WhoFor, Faq } from "@/components/ItemSections";
 import GuideCta from "@/components/GuideCta";
 import { getItemBySlug, getSetting } from "@/lib/items";
 import { hasTaxDetailsColumn } from "@/lib/admin-repo";
-import { getBio, getGuideCta, getNav, getTaxSettingsForDisplay, SITE_URL } from "@/lib/site-settings";
+import {
+  getBio,
+  getBusinessSettings,
+  getGuideCta,
+  getNav,
+  getTaxSettingsForDisplay,
+  SITE_URL,
+} from "@/lib/site-settings";
 import { computePricing, priceLabel as taxPriceLabel, priceSubLabel } from "@/lib/tax";
 import type { CourseDetails, WorkshopDetails } from "@/lib/types";
 import type { Metadata } from "next";
@@ -61,7 +68,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 }
 
 export default async function ItemDetailPage({ params }: { params: { slug: string } }) {
-  const [item, footerLinks, bio, nav, taxSettings, b2bReady, guideCta] = await Promise.all([
+  const [item, footerLinks, bio, nav, taxSettings, b2bReady, guideCta, business] = await Promise.all([
     getItemBySlug(params.slug),
     getSetting<FooterLinks>("footerLinks", {}),
     getBio(),
@@ -73,6 +80,7 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
     // credit, and nothing to tell them why.
     hasTaxDetailsColumn().catch(() => false),
     getGuideCta(),
+    getBusinessSettings(),
   ]);
 
   if (!item || !item.live || (item.category !== "course" && item.category !== "workshop")) {
@@ -227,6 +235,7 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
               {...ctaProps}
               priceLabel={priceLabel}
               tax={tax}
+              gstin={business.gstin}
               triggerLabel={triggerLabel}
               triggerClassName="bg-marigold border border-marigold text-ink font-semibold text-sm px-[18px] py-[10px] rounded-full hover:bg-ink hover:text-bone hover:border-ink transition-colors"
             />
@@ -349,6 +358,7 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
               {...ctaProps}
               priceLabel={priceLabel}
               tax={tax}
+              gstin={business.gstin}
               triggerLabel={triggerLabel}
               triggerClassName="bg-marigold border border-marigold text-ink font-semibold text-[16px] px-7 py-3.5 rounded-full hover:bg-bone hover:border-bone transition-colors"
             />
@@ -384,6 +394,7 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
             {...ctaProps}
             priceLabel={priceLabel}
             tax={tax}
+            gstin={business.gstin}
             triggerLabel={triggerLabel}
             triggerClassName="bg-marigold text-ink font-semibold text-sm px-5 py-2.5 rounded-full"
           />
