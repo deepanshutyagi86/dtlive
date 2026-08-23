@@ -29,6 +29,11 @@ const CARD_CLASS =
 // click on a trackpad — low enough that a real click never gets eaten.
 const DRAG_CLICK_THRESHOLD = 6;
 
+// How many leading cards load eagerly. Three covers the widest viewport
+// that shows the carousel before any scrolling; past that they are off
+// screen and lazy is correct again.
+const PRIORITY_CARDS = 3;
+
 // course/workshop have a real detail page; agency has no per-item page (it
 // links to the /agency listing instead — see CategoryGrid for the actual
 // "get a quote" flow on that listing); shop/venture with no externalUrl set
@@ -40,7 +45,7 @@ function hrefFor(item: StreamItem): { href: string; external: boolean } | null {
   return null;
 }
 
-function Card({ item, clone }: { item: StreamItem; clone?: boolean }) {
+function Card({ item, clone, priority }: { item: StreamItem; clone?: boolean; priority?: boolean }) {
   const link = hrefFor(item);
   const inner = (
     <>
@@ -51,6 +56,7 @@ function Card({ item, clone }: { item: StreamItem; clone?: boolean }) {
         seed={item.slug}
         sizes="(min-width: 768px) 290px, 270px"
         imageFocal={item.imageFocal}
+        priority={priority}
       />
       <div className="flex flex-col gap-3 p-[18px] pt-3 pb-4 flex-1">
         <div className="flex items-center justify-between">
@@ -277,8 +283,11 @@ export default function LiveStream({ items }: { items: StreamItem[] }) {
       aria-label="What's live right now"
     >
       <div ref={streamRef} className="flex gap-[22px] w-max px-5 will-change-transform">
-        {items.map((item) => (
-          <Card key={`a-${item.id}`} item={item} />
+        {/* Only the leading few are on screen at first paint, and only in
+            the real set — the clone track is always off to the right, so
+            eager-loading it would fetch images nobody can see. */}
+        {items.map((item, i) => (
+          <Card key={`a-${item.id}`} item={item} priority={i < PRIORITY_CARDS} />
         ))}
         {items.map((item) => (
           <Card key={`b-${item.id}`} item={item} clone />

@@ -253,6 +253,9 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
             sizes="(min-width: 860px) 860px, 100vw"
             imageFocal={item!.details?.imageFocal ?? null}
             aspectClassName={ITEM_DETAIL_HERO_ASPECT_CLASS}
+            // This is the LCP element on every product page — it is the
+            // first thing in the main column and fills the viewport width.
+            priority
           />
         </div>
 
