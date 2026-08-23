@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { listOrders } from "@/lib/admin-repo";
+import { getInvoiceSettings, invoiceAppliesTo } from "@/lib/site-settings";
 import { SITE_TZ } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +12,7 @@ const STATUS_STYLE: Record<string, string> = {
 };
 
 export default async function AdminOrdersPage() {
-  const orders = await listOrders(100);
+  const [orders, invoiceSettings] = await Promise.all([listOrders(100), getInvoiceSettings()]);
 
   return (
     <div>
@@ -35,6 +37,15 @@ export default async function AdminOrdersPage() {
                 <span className={`font-mono text-[10.5px] uppercase tracking-wider px-2.5 py-1 rounded-full ${STATUS_STYLE[o.status]}`}>
                   {o.status}
                 </span>
+                {o.status === "paid" && invoiceAppliesTo(invoiceSettings, o.itemDetails) && (
+                  <Link
+                    href={`/order/${o.id}/invoice`}
+                    target="_blank"
+                    className="font-mono text-[10.5px] uppercase tracking-wider text-marigold-ink hover:underline"
+                  >
+                    Invoice ↗
+                  </Link>
+                )}
               </div>
             </div>
           ))}

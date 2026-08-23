@@ -260,14 +260,14 @@ export async function claimOrderPaid(id: string): Promise<boolean> {
   return rows.length > 0;
 }
 
-export async function listOrders(limit = 100): Promise<(Order & { itemTitle: string })[]> {
+export async function listOrders(limit = 100): Promise<(Order & { itemTitle: string; itemDetails: any })[]> {
   const { rows } = await sql`
-    SELECT o.*, i.title as item_title
+    SELECT o.*, i.title as item_title, i.details as item_details
     FROM orders o JOIN items i ON i.id = o.item_id
     ORDER BY o.created_at DESC
     LIMIT ${limit}
   `;
-  return rows.map((r: any) => ({ ...toOrder(r), itemTitle: r.item_title }));
+  return rows.map((r: any) => ({ ...toOrder(r), itemTitle: r.item_title, itemDetails: r.item_details }));
 }
 
 export async function orderStats(monthStart: Date) {
