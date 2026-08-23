@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import ItemImage from "./ItemImage";
 import { CATEGORY_CTA, CATEGORY_LABELS, CHIP_CLASS, Category, ImageFocal } from "@/lib/types";
@@ -106,10 +106,16 @@ function Card({ item, clone, priority }: { item: StreamItem; clone?: boolean; pr
 export default function LiveStream({ items }: { items: StreamItem[] }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<HTMLDivElement>(null);
+  // Explicit stop, as opposed to `paused` (pointer is over the track).
+  // React state because the button label depends on it; mirrored into the
+  // ref below because the rAF loop must not close over a stale value.
+  const [stopped, setStopped] = useState(false);
   const state = useRef({
     x: 0, vx: -0.55, dragging: false, lastPX: 0, half: 0,
     paused: false, wheeling: false, travel: 0, suppressClick: false,
+    stopped: false,
   });
+  state.current.stopped = stopped;
 
   useEffect(() => {
     const stream = streamRef.current;
@@ -126,11 +132,22 @@ export default function LiveStream({ items }: { items: StreamItem[] }) {
     let raf = 0;
     const frame = () => {
       if (!s.dragging) {
-        // Autoplay decay is suppressed both on hover (s.paused) and while
-        // actively wheeling (s.wheeling) — otherwise the ambient drift
-        // would be constantly fighting the velocity the wheel handler
-        // just injected.
-        if (!s.paused && !s.wheeling && !reduceMotion) s.vx += (-0.55 - s.vx) * 0.02;
+        // The guard used to sit on the decay line alone, which meant none
+        // of these three conditions actually stopped anything: vx starts at
+        // -0.55, and skipping the decay simply left it there while
+        // `s.x += s.vx` kept applying it every frame. Hovering did nothing,
+        // and prefers-reduced-motion did nothing — the carousel ran at full
+        // speed through both. Halting has to zero the velocity, not freeze
+        // it. Wheeling is checked first because it is user-driven: the
+        // pointer is necessarily over the track (so s.paused is true) and
+        // zeroing there would break horizontal scrolling.
+        if (s.wheeling) {
+          // Ride the velocity the wheel handler injected; no ambient decay.
+        } else if (reduceMotion || s.stopped || s.paused) {
+          s.vx = 0;
+        } else {
+          s.vx += (-0.55 - s.vx) * 0.02;
+        }
         s.x += s.vx;
       }
       if (s.half > 0) {
@@ -232,6 +249,10 @@ export default function LiveStream({ items }: { items: StreamItem[] }) {
 
     const onEnter = () => (s.paused = true);
     const onLeave = () => (s.paused = false);
+    // Keyboard equivalent of hover. Tabbing into a card used to leave the
+    // track sliding out from under the thing that just took focus.
+    const onFocusIn = () => (s.paused = true);
+    const onFocusOut = () => (s.paused = false);
 
     wrap.addEventListener("mousedown", down);
     window.addEventListener("mousemove", move);
@@ -242,6 +263,8 @@ export default function LiveStream({ items }: { items: StreamItem[] }) {
     window.addEventListener("touchend", up);
     wrap.addEventListener("mouseenter", onEnter);
     wrap.addEventListener("mouseleave", onLeave);
+    wrap.addEventListener("focusin", onFocusIn);
+    wrap.addEventListener("focusout", onFocusOut);
     wrap.addEventListener("wheel", wheel, { passive: false });
 
     return () => {
@@ -263,6 +286,8 @@ export default function LiveStream({ items }: { items: StreamItem[] }) {
       wrap.removeEventListener("click", clickGuard, true);
       wrap.removeEventListener("mouseenter", onEnter);
       wrap.removeEventListener("mouseleave", onLeave);
+      wrap.removeEventListener("focusin", onFocusIn);
+      wrap.removeEventListener("focusout", onFocusOut);
       wrap.removeEventListener("wheel", wheel);
     };
   }, [items]);
@@ -293,6 +318,22 @@ export default function LiveStream({ items }: { items: StreamItem[] }) {
           <Card key={`b-${item.id}`} item={item} clone />
         ))}
       </div>
+
+      {/* WCAG 2.2.2: anything that moves on its own for more than five
+          seconds needs a mechanism to stop it. Hover and focus cover a
+          mouse and a keyboard, but a touch screen has neither — without
+          this button a phone user has no way to hold a card still long
+          enough to read it. Sits in the wrapper's bottom padding, so it
+          never overlaps a card. */}
+      <button
+        type="button"
+        onClick={() => setStopped((v) => !v)}
+        aria-pressed={stopped}
+        aria-label={stopped ? "Resume the moving carousel" : "Stop the moving carousel"}
+        className="absolute right-5 bottom-2 z-10 cursor-pointer font-mono text-[10px] font-bold tracking-wider uppercase text-muted bg-card border border-line rounded-full px-3 py-1.5 hover:text-ink hover:border-ink transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marigold focus-visible:ring-offset-2 focus-visible:ring-offset-bone"
+      >
+        {stopped ? "Play" : "Pause"}
+      </button>
     </div>
   );
 }
