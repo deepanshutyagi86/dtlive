@@ -314,14 +314,32 @@ export default function CheckoutModal({
             {error && <p className="text-live-ink text-sm mb-3">{error}</p>}
             {/* Above the button on purpose — trust signals need to be seen
                 BEFORE the tap that charges a card, not after. */}
-            <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 font-mono text-[10px] text-muted mb-3 text-center">
-              <span>GST-registered · {gstin}</span>
-              <span aria-hidden>·</span>
-              <a href="/refund-policy" target="_blank" rel="noopener noreferrer" className="underline hover:text-ink">
+            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 font-mono text-[10px] text-muted mb-3 text-center">
+              <span>
+                GST-registered
+                {/* The number itself means nothing to a buyer mid-checkout,
+                    and at 390px it ate most of the first line. It is on the
+                    invoice, which is the surface where it has a job. */}
+                <span className="hidden sm:inline"> · {gstin}</span>
+              </span>
+              <a
+                href="/refund-policy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:text-ink rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marigold"
+              >
                 Refund policy
               </a>
-              <span aria-hidden>·</span>
-              <span>🔒 Secured by Razorpay</span>
+              <span className="inline-flex items-center gap-1">
+                {/* Drawn rather than the 🔒 emoji: emoji render at a
+                    different size, weight and colour on every platform, and
+                    sat visibly wrong beside 10px mono. */}
+                <svg width="9" height="11" viewBox="0 0 10 12" aria-hidden focusable="false">
+                  <path d="M2.6 5.2V3.4a2.4 2.4 0 0 1 4.8 0v1.8" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                  <rect x="1" y="5.2" width="8" height="6" rx="1.4" fill="currentColor" />
+                </svg>
+                Secured by Razorpay
+              </span>
             </div>
             <button
               onClick={pay}
