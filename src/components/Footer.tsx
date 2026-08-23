@@ -105,11 +105,13 @@ export default function Footer({
           <Link href="/shipping-policy" className="hover:text-marigold">Shipping &amp; Delivery</Link>
         </div>
 
+        {/* Deliberately NOT a link to /admin. The route is auth-gated, so
+            linking it was never a vulnerability — but a public storefront
+            that advertises its own back door hands anyone probing the site
+            a free starting point. Bookmark the URL instead. */}
         <div className="flex flex-wrap justify-between gap-2 mt-5 pt-5 border-t border-[#33322b] font-mono text-[11px] text-[#8b8a80]">
           <span>© {new Date().getFullYear()} Deepanshu, trading as Deepanshu Empire · Meerut, UP</span>
-          <Link href="/admin" className="hover:text-marigold">
-            admin · deepanshutyagi.live
-          </Link>
+          <span>deepanshutyagi.live</span>
         </div>
       </div>
       <style>{`
