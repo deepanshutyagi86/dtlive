@@ -9,3 +9,4 @@ APIKey*.csv
 .vercel
 .env*
 tsconfig.tsbuildinfo
+.claude
