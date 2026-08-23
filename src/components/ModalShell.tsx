@@ -43,11 +43,14 @@ export default function ModalShell({
   if (!mounted || !open) return null;
 
   // Portalled to document.body on purpose, and this is load-bearing in two
-  // separate ways. (1) Position: both triggers sit inside a fixed bar — the
-  // desktop nav uses backdrop-blur, which makes that nav the containing
-  // block for any position:fixed descendant, so an inline overlay would
-  // center itself on a ~50px-tall bar instead of the viewport and hang off
-  // the top of the screen. (2) Color: the mobile bar sets text-bone, and
+  // separate ways. (1) Position: both triggers sit inside a fixed bar. Any
+  // filter/backdrop-filter on an ancestor makes IT the containing block for
+  // a position:fixed descendant, so an inline overlay would center itself
+  // on a ~50px-tall bar instead of the viewport and hang off the top of the
+  // screen. The nav no longer blurs, but the mobile purchase bar and any
+  // future ancestor effect would reintroduce this instantly — the portal is
+  // what makes the overlay independent of that. (2) Color: the mobile bar
+  // sets text-bone, and
   // inputs below would inherit that text color, so typed text rendered
   // near-white on a bone panel while the explicitly-colored placeholder
   // stayed dark. Escaping to <body> fixes both.

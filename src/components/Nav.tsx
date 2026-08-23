@@ -11,7 +11,7 @@ export default function Nav({ nav = DEFAULT_NAV }: { nav?: NavSettings }) {
   const links = nav.links.filter((l) => l.show);
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-[100] flex items-center justify-between gap-3 px-5 py-3 border-b border-line bg-bone/85 backdrop-blur-md">
+    <nav className="fixed top-0 left-0 right-0 z-[100] flex items-center justify-between gap-3 px-5 py-3 border-b border-line bg-bone">
       <div className="flex items-center gap-6 min-w-0">
         <Link
           href="/"

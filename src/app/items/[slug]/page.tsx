@@ -208,7 +208,7 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
     <>
       <JsonLd data={faqStructured ? [structured, faqStructured] : structured} />
 
-      <nav className="fixed top-0 left-0 right-0 z-[100] flex items-center justify-between gap-3 px-5 py-3 border-b border-line bg-bone/85 backdrop-blur-md">
+      <nav className="fixed top-0 left-0 right-0 z-[100] flex items-center justify-between gap-3 px-5 py-3 border-b border-line bg-bone">
         <a href="/" className="font-display font-extrabold text-[16px] text-ink">
           DT<span className="text-marigold-ink">.live</span>
         </a>
