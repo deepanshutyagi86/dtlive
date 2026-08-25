@@ -14,6 +14,7 @@ import {
   DEFAULT_BIO,
   DEFAULT_BUSINESS,
   DEFAULT_GUIDE_CTA,
+  DEFAULT_STREAM,
   DEFAULT_SYLLABUS,
   DEFAULT_INVOICE,
   DEFAULT_NAV,
@@ -23,6 +24,7 @@ import {
   type BusinessSettings,
   type Coupon,
   type GuideCtaSettings,
+  type StreamSettings,
   type SyllabusSettings,
   type InvoiceSettings,
   type NavSettings,
@@ -291,6 +293,30 @@ export function GuideCtaSection({ value, onChange }: { value: GuideCtaSettings; 
         value={value.buttonLabel}
         onChange={(v) => onChange({ ...value, buttonLabel: v })}
         placeholder={DEFAULT_GUIDE_CTA.buttonLabel}
+      />
+    </section>
+  );
+}
+
+export function StreamSection({ value, onChange }: { value: StreamSettings; onChange: (v: StreamSettings) => void }) {
+  return (
+    <section>
+      <h2 className="font-display font-bold text-lg mb-1">Live stream carousel</h2>
+      <p className="text-sm text-muted mb-5">
+        The dragging row of cards under the homepage headline. Smaller cards fit more on screen at once;
+        larger ones give the image and the title more room. Save and reload the homepage to see it.
+      </p>
+
+      <SelectField
+        label="Card size"
+        value={value.cardSize}
+        onChange={(v) => onChange({ ...value, cardSize: v as StreamSettings["cardSize"] })}
+        options={[
+          { value: "small", label: "Small — 220px, 240px on desktop" },
+          { value: "medium", label: `Medium — 270px, 290px on desktop (default)` },
+          { value: "large", label: "Large — 320px, 350px on desktop" },
+        ]}
+        help={`Three fixed steps rather than a free number: the widths have to exist in the stylesheet at build time, so a typed-in value would leave the cards with no width at all. Default is ${DEFAULT_STREAM.cardSize}.`}
       />
     </section>
   );

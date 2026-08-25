@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import ItemImage from "./ItemImage";
 import { CATEGORY_CTA, CATEGORY_LABELS, CHIP_CLASS, Category, ImageFocal } from "@/lib/types";
+import { DEFAULT_STREAM, type StreamCardSize } from "@/lib/settings-types";
 
 export interface StreamItem {
   id: string;
@@ -20,8 +21,25 @@ export interface StreamItem {
 // and all are gone deliberately: the alternating tilt (odd:-rotate-[1.6deg] /
 // even:rotate-[1.3deg]), its hover:!rotate-0 straightener, and the
 // even:translate-y-2 that dropped every second card 8px. Keep them aligned.
+// One full class string per size, written out literally so Tailwind's
+// build-time scanner can see all three. A width composed from a runtime
+// value compiles to nothing and the card ends up with no width at all.
+const CARD_WIDTH: Record<StreamCardSize, string> = {
+  small: "w-[220px] md:w-[240px]",
+  medium: "w-[270px] md:w-[290px]",
+  large: "w-[320px] md:w-[350px]",
+};
+
+// Kept next to the widths so the two cannot drift. An image requested at
+// 290px and painted at 350px is a visibly soft card.
+const CARD_SIZES: Record<StreamCardSize, string> = {
+  small: "(min-width: 768px) 240px, 220px",
+  medium: "(min-width: 768px) 290px, 270px",
+  large: "(min-width: 768px) 350px, 320px",
+};
+
 const CARD_CLASS =
-  "flex-none w-[270px] md:w-[290px] bg-card border border-line rounded-card overflow-hidden flex flex-col shadow-[0_14px_34px_-18px_rgba(25,25,19,0.28)] transition-transform duration-300 hover:-translate-y-1.5 hover:scale-[1.02] hover:shadow-[0_26px_50px_-20px_rgba(25,25,19,0.4)] hover:z-10 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marigold focus-visible:ring-offset-2 focus-visible:ring-offset-bone";
+  "flex-none bg-card border border-line rounded-card overflow-hidden flex flex-col shadow-[0_14px_34px_-18px_rgba(25,25,19,0.28)] transition-transform duration-300 hover:-translate-y-1.5 hover:scale-[1.02] hover:shadow-[0_26px_50px_-20px_rgba(25,25,19,0.4)] hover:z-10 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marigold focus-visible:ring-offset-2 focus-visible:ring-offset-bone";
 
 // Past this many pixels of pointer travel, the gesture was a drag and the
 // click that the browser fires on release must be swallowed. Below it, the
@@ -45,7 +63,17 @@ function hrefFor(item: StreamItem): { href: string; external: boolean } | null {
   return null;
 }
 
-function Card({ item, clone, priority }: { item: StreamItem; clone?: boolean; priority?: boolean }) {
+function Card({
+  item,
+  clone,
+  priority,
+  size,
+}: {
+  item: StreamItem;
+  clone?: boolean;
+  priority?: boolean;
+  size: StreamCardSize;
+}) {
   const link = hrefFor(item);
   const inner = (
     <>
@@ -54,7 +82,7 @@ function Card({ item, clone, priority }: { item: StreamItem; clone?: boolean; pr
         title={item.title}
         category={item.category}
         seed={item.slug}
-        sizes="(min-width: 768px) 290px, 270px"
+        sizes={CARD_SIZES[size]}
         imageFocal={item.imageFocal}
         priority={priority}
       />
@@ -82,7 +110,7 @@ function Card({ item, clone, priority }: { item: StreamItem; clone?: boolean; pr
   );
 
   if (!link) {
-    return <div className={CARD_CLASS}>{inner}</div>;
+    return <div className={`${CARD_CLASS} ${CARD_WIDTH[size]}`}>{inner}</div>;
   }
 
   return (
@@ -96,14 +124,21 @@ function Card({ item, clone, priority }: { item: StreamItem; clone?: boolean; pr
       // user has to Tab through it twice to get past the carousel.
       aria-hidden={clone ? true : undefined}
       tabIndex={clone ? -1 : undefined}
-      className={CARD_CLASS}
+      className={`${CARD_CLASS} ${CARD_WIDTH[size]}`}
     >
       {inner}
     </Link>
   );
 }
 
-export default function LiveStream({ items }: { items: StreamItem[] }) {
+export default function LiveStream({
+  items,
+  cardSize = DEFAULT_STREAM.cardSize,
+}: {
+  items: StreamItem[];
+  /** Set in /admin/settings → Live stream. */
+  cardSize?: StreamCardSize;
+}) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<HTMLDivElement>(null);
   // Explicit stop, as opposed to `paused` (pointer is over the track).
@@ -312,10 +347,10 @@ export default function LiveStream({ items }: { items: StreamItem[] }) {
             the real set — the clone track is always off to the right, so
             eager-loading it would fetch images nobody can see. */}
         {items.map((item, i) => (
-          <Card key={`a-${item.id}`} item={item} priority={i < PRIORITY_CARDS} />
+          <Card key={`a-${item.id}`} item={item} priority={i < PRIORITY_CARDS} size={cardSize} />
         ))}
         {items.map((item) => (
-          <Card key={`b-${item.id}`} item={item} clone />
+          <Card key={`b-${item.id}`} item={item} clone size={cardSize} />
         ))}
       </div>
 

@@ -15,6 +15,7 @@ import {
   DEFAULT_INVOICE,
   DEFAULT_NAV,
   DEFAULT_STARTER,
+  DEFAULT_STREAM,
   DEFAULT_SYLLABUS,
   DEFAULT_TAX,
   type BioSettings,
@@ -26,6 +27,7 @@ import {
   type NavLink,
   type NavSettings,
   type StarterSettings,
+  type StreamSettings,
   type SyllabusSettings,
   type TaxSettings,
 } from "./settings-types";
@@ -119,6 +121,16 @@ export async function getGuideCta(): Promise<GuideCtaSettings> {
     title: clean(stored.title) || DEFAULT_GUIDE_CTA.title,
     subtitle: clean(stored.subtitle) || DEFAULT_GUIDE_CTA.subtitle,
     buttonLabel: clean(stored.buttonLabel) || DEFAULT_GUIDE_CTA.buttonLabel,
+  };
+}
+
+export async function getStreamSettings(): Promise<StreamSettings> {
+  const stored = await readChromeSetting<Partial<StreamSettings>>("stream", {});
+  const size = stored.cardSize;
+  return {
+    // Anything unrecognised falls back rather than passing an unknown key
+    // through to a class lookup that would come back undefined.
+    cardSize: size === "small" || size === "large" ? size : DEFAULT_STREAM.cardSize,
   };
 }
 

@@ -20,6 +20,7 @@ const ALLOWED_KEYS = [
   "starter",
   "guideCta",
   "syllabus",
+  "stream",
   "coupons",
   "tax",
   "invoice",
