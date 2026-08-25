@@ -190,7 +190,7 @@ export interface SyllabusSettings {
 
 export const DEFAULT_SYLLABUS: SyllabusSettings = {
   enabled: true,
-  ctaLabel: "Read the full syllabus",
+  ctaLabel: "Read Full Description",
   heading: "The full syllabus",
   blurb: "Everything covered, module by module. Read it here or take it with you.",
   downloadLabel: "Download PDF",

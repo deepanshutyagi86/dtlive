@@ -74,7 +74,7 @@ export default async function CategoryGrid({
                     {syllabus && (
                       <Link
                         href={`/items/${item.slug}/syllabus`}
-                        className="inline-flex items-center gap-1.5 min-h-[44px] w-fit font-mono text-[11px] uppercase tracking-wider text-muted hover:text-ink transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marigold focus-visible:ring-offset-2 focus-visible:ring-offset-bone"
+                        className="inline-flex items-center gap-1.5 min-h-[44px] w-fit mt-1 font-semibold text-[14px] text-ink hover:text-marigold-ink transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marigold focus-visible:ring-offset-2 focus-visible:ring-offset-bone"
                       >
                         {syllabusSettings.ctaLabel} <span aria-hidden>→</span>
                       </Link>

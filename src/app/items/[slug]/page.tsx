@@ -321,6 +321,18 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
         </h1>
         <p className="text-[17px] leading-relaxed text-ink-soft max-w-[620px]">{item!.description}</p>
 
+        {/* The earliest a top-to-bottom reader can reach the syllabus —
+            before they've decided, not after they've read the whole page
+            and are already at the curriculum accordion below. */}
+        {syllabus && (
+          <Link
+            href={syllabusHref}
+            className="inline-flex items-center gap-2 min-h-[44px] mt-5 font-semibold text-[15px] text-ink border border-ink rounded-full px-5 py-2.5 hover:bg-ink hover:text-bone transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marigold focus-visible:ring-offset-2 focus-visible:ring-offset-bone"
+          >
+            {syllabusSettings.ctaLabel} <span aria-hidden>→</span>
+          </Link>
+        )}
+
         {/* lg:hidden — every fact in this row is repeated in the sticky
             panel on a wide screen, and saying the price twice on one screen
             invites the reader to look for the difference. */}
@@ -495,7 +507,7 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
             {syllabus && (
               <Link
                 href={syllabusHref}
-                className="block text-center mt-3 font-mono text-[11px] uppercase tracking-wider text-muted underline hover:text-ink transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marigold"
+                className="block w-full text-center mt-3 font-semibold text-[15px] text-ink border border-ink rounded-full px-6 py-3 hover:bg-ink hover:text-bone transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marigold"
               >
                 {syllabusSettings.ctaLabel}
               </Link>
