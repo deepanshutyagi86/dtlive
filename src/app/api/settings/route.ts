@@ -19,6 +19,7 @@ const ALLOWED_KEYS = [
   "bio",
   "starter",
   "guideCta",
+  "syllabus",
   "coupons",
   "tax",
   "invoice",

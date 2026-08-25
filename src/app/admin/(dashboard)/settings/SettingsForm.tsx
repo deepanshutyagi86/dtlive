@@ -6,6 +6,7 @@ import {
   BioSection,
   StarterSection,
   GuideCtaSection,
+  SyllabusSection,
   CouponsSection,
   TaxSection,
   BusinessSection,
@@ -15,6 +16,7 @@ import {
   DEFAULT_BIO,
   DEFAULT_BUSINESS,
   DEFAULT_GUIDE_CTA,
+  DEFAULT_SYLLABUS,
   DEFAULT_INVOICE,
   DEFAULT_NAV,
   DEFAULT_STARTER,
@@ -24,6 +26,7 @@ import {
   type BusinessSettings,
   type Coupon,
   type GuideCtaSettings,
+  type SyllabusSettings,
   type InvoiceSettings,
   type NavSettings,
   type StarterSettings,
@@ -133,6 +136,7 @@ export default function SettingsForm() {
   const [bio, setBio] = useState<BioSettings>(DEFAULT_BIO);
   const [starter, setStarter] = useState<StarterSettings>(DEFAULT_STARTER);
   const [guideCta, setGuideCta] = useState<GuideCtaSettings>(DEFAULT_GUIDE_CTA);
+  const [syllabus, setSyllabus] = useState<SyllabusSettings>(DEFAULT_SYLLABUS);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [business, setBusiness] = useState<BusinessSettings>(DEFAULT_BUSINESS);
   const [invoice, setInvoice] = useState<InvoiceSettings>(DEFAULT_INVOICE);
@@ -168,6 +172,7 @@ export default function SettingsForm() {
           options: d.starter?.options?.length ? d.starter.options : DEFAULT_STARTER.options,
         });
         setGuideCta({ ...DEFAULT_GUIDE_CTA, ...(d.guideCta ?? {}) });
+        setSyllabus({ ...DEFAULT_SYLLABUS, ...(d.syllabus ?? {}) });
         setCoupons(Array.isArray(d.coupons) ? d.coupons : []);
         setBusiness({
           ...DEFAULT_BUSINESS,
@@ -206,6 +211,7 @@ export default function SettingsForm() {
         bio,
         starter,
         guideCta,
+        syllabus,
         // Blank rows are dropped on save rather than on every keystroke,
         // so a half-typed code isn't deleted out from under the cursor.
         coupons: coupons.filter((c) => (c.code ?? "").trim()),
@@ -390,6 +396,7 @@ export default function SettingsForm() {
       <NavSection value={nav} onChange={setNav} />
       <StarterSection value={starter} onChange={setStarter} />
       <GuideCtaSection value={guideCta} onChange={setGuideCta} />
+      <SyllabusSection value={syllabus} onChange={setSyllabus} />
       <BioSection value={bio} onChange={setBio} />
       <CouponsSection value={coupons} onChange={setCoupons} items={items} />
       <TaxSection value={tax} onChange={setTax} b2bReady={b2bReady} />

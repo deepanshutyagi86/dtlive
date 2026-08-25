@@ -154,6 +154,29 @@ export const DEFAULT_GUIDE_CTA: GuideCtaSettings = {
 };
 
 /* ------------------------------------------------------------------ */
+/* Syllabus PDF                                                        */
+/* ------------------------------------------------------------------ */
+
+export interface SyllabusSettings {
+  /** Master switch. Off hides every syllabus link and 404s the pages,
+   *  without touching a single uploaded file. */
+  enabled: boolean;
+  /** Wording on the buttons and the page itself. */
+  ctaLabel: string;
+  heading: string;
+  blurb: string;
+  downloadLabel: string;
+}
+
+export const DEFAULT_SYLLABUS: SyllabusSettings = {
+  enabled: true,
+  ctaLabel: "Read the full syllabus",
+  heading: "The full syllabus",
+  blurb: "Everything covered, module by module. Read it here or take it with you.",
+  downloadLabel: "Download PDF",
+};
+
+/* ------------------------------------------------------------------ */
 /* Coupons                                                             */
 /* ------------------------------------------------------------------ */
 

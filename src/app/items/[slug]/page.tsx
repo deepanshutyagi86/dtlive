@@ -16,7 +16,9 @@ import {
   getBusinessSettings,
   getGuideCta,
   getNav,
+  getSyllabusSettings,
   getTaxSettingsForDisplay,
+  syllabusFor,
   SITE_URL,
 } from "@/lib/site-settings";
 import { computePricing, priceLabel as taxPriceLabel, priceSubLabel } from "@/lib/tax";
@@ -69,7 +71,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 }
 
 export default async function ItemDetailPage({ params }: { params: { slug: string } }) {
-  const [item, footerLinks, bio, nav, taxSettings, b2bReady, guideCta, business] = await Promise.all([
+  const [item, footerLinks, bio, nav, taxSettings, b2bReady, guideCta, business, syllabusSettings] = await Promise.all([
     getItemBySlug(params.slug),
     getSetting<FooterLinks>("footerLinks", {}),
     getBio(),
@@ -82,6 +84,7 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
     hasTaxDetailsColumn().catch(() => false),
     getGuideCta(),
     getBusinessSettings(),
+    getSyllabusSettings(),
   ]);
 
   if (!item || !item.live || (item.category !== "course" && item.category !== "workshop")) {
@@ -89,6 +92,12 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
   }
 
   const tax = { ...taxSettings, b2bEnabled: taxSettings.b2bEnabled && b2bReady };
+
+  // null unless BOTH the global switch and this item's own switch agree and
+  // a file actually exists. Every link below is gated on this one value, so
+  // none of them can point at a page that would 404.
+  const syllabus = syllabusFor(item!.details, syllabusSettings);
+  const syllabusHref = `/items/${item!.slug}/syllabus`;
 
   const isWorkshop = item!.category === "workshop";
   const d = item!.details as any;
@@ -360,6 +369,14 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
                 </details>
               ))}
             </div>
+            {syllabus && (
+              <Link
+                href={syllabusHref}
+                className="inline-flex items-center gap-2 min-h-[44px] mt-5 font-semibold text-[15px] text-ink hover:text-marigold-ink transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marigold focus-visible:ring-offset-2 focus-visible:ring-offset-bone"
+              >
+                {syllabusSettings.ctaLabel} <span aria-hidden>→</span>
+              </Link>
+            )}
           </section>
         )}
 
@@ -472,6 +489,15 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
                 )
               )}
             </div>
+
+            {syllabus && (
+              <Link
+                href={syllabusHref}
+                className="block text-center mt-3 font-mono text-[11px] uppercase tracking-wider text-muted underline hover:text-ink transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marigold"
+              >
+                {syllabusSettings.ctaLabel}
+              </Link>
+            )}
 
             {!closed && (
               <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 font-mono text-[10px] text-muted mt-4">

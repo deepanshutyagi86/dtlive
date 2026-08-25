@@ -15,6 +15,10 @@ const MAX_PDF_BYTES = 25 * 1024 * 1024;
 // the original image-only rules, so widening this route for guides can't
 // turn the item thumbnail uploader into an arbitrary-file uploader.
 const GUIDE_PREFIX = "guides/";
+// The per-item syllabus PDF. A second prefix rather than widening the
+// guides one, so the blob store still says which surface a file belongs to
+// and either can be locked down later without touching the other.
+const SYLLABUS_PREFIX = "syllabus/";
 // Branding assets (favicon, touch icon, link-preview card, signature) are
 // images and keep the image rules — the prefix exists so the pathname is
 // self-documenting in the blob store, not to unlock anything.
@@ -40,13 +44,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         // (BRANDING_PREFIX) are images and deliberately fall through to
         // the image rules below - the prefix exists so the blob store is
         // self-documenting, not to widen what is accepted.
-        const isGuidePdf = pathname.startsWith(GUIDE_PREFIX);
+        const isPdf = pathname.startsWith(GUIDE_PREFIX) || pathname.startsWith(SYLLABUS_PREFIX);
 
         return {
-          allowedContentTypes: isGuidePdf
+          allowedContentTypes: isPdf
             ? ["application/pdf"]
             : ["image/jpeg", "image/png", "image/webp"],
-          maximumSizeInBytes: isGuidePdf ? MAX_PDF_BYTES : MAX_IMAGE_BYTES,
+          maximumSizeInBytes: isPdf ? MAX_PDF_BYTES : MAX_IMAGE_BYTES,
           addRandomSuffix: true,
         };
       },

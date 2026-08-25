@@ -1,5 +1,5 @@
 "use client";
-import { LinesField, Repeater, SelectField, TextField, NumberField } from "@/components/admin/AdminFields";
+import { LinesField, PdfUploadField, Repeater, SelectField, TextField, NumberField, Toggle } from "@/components/admin/AdminFields";
 
 // Everything on this panel renders on the item's own detail page only —
 // never on a card. A card has one job, getting the click, and an outcome
@@ -18,9 +18,37 @@ export default function SalesFields({
   const joining = details.joining ?? {};
   const setJoining = (patch: any) => set({ joining: { ...joining, ...patch } });
 
+  const syllabus = details.syllabus ?? null;
+
   return (
     <div className="mt-8">
       <hr className="border-line mb-6" />
+      <p className="font-mono text-[11px] uppercase tracking-wider text-muted mb-1">Full syllabus PDF</p>
+      <p className="text-[13px] text-muted mb-5 leading-relaxed">
+        Optional. Upload the long-form PDF and this item gets its own readable page at
+        /items/&lt;slug&gt;/syllabus, linked from the card and the buy panel, with a download beside it.
+        The master switch lives in Settings → Syllabus PDF.
+      </p>
+
+      <PdfUploadField
+        label="Syllabus PDF"
+        value={syllabus?.url ?? ""}
+        fileName={syllabus?.fileName}
+        pathPrefix="syllabus/"
+        onChange={(v) => set({ syllabus: v ? { ...syllabus, url: v.url, fileName: v.fileName } : undefined })}
+        help="Up to 25MB. Replacing swaps the file; the page URL never changes."
+      />
+
+      {syllabus?.url && (
+        <Toggle
+          label="Show the syllabus link for this item"
+          checked={syllabus.enabled !== false}
+          onChange={(v) => set({ syllabus: { ...syllabus, enabled: v } })}
+          help="Off hides the link and the page without deleting the file."
+        />
+      )}
+
+      <hr className="border-line my-6" />
       <p className="font-mono text-[11px] uppercase tracking-wider text-muted mb-1">Sales page content</p>
       <p className="text-[13px] text-muted mb-5 leading-relaxed">
         Shown on this item&apos;s own page, under the description. Every block hides itself when empty.
