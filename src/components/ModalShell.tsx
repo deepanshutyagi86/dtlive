@@ -62,7 +62,12 @@ export default function ModalShell({
         role="dialog"
         aria-modal="true"
         aria-label={ariaLabel}
-        className="bg-bone text-ink w-full sm:max-w-[420px] rounded-t-card sm:rounded-card flex flex-col overflow-hidden max-h-full"
+        // Capped short of the full overlay height on mobile — at 100% the
+        // sheet filled the entire screen edge-to-edge, which reads as a
+        // page navigation rather than a sheet over the page. Leaving ~14%
+        // of dimmed overlay visible above it, and the rounded top corners
+        // now actually show, is what makes it read as a sheet at all.
+        className="bg-bone text-ink w-full sm:max-w-[420px] rounded-t-card sm:rounded-card flex flex-col overflow-hidden max-h-[86%] sm:max-h-full"
       >
         {header}
         {/* min-h-0 overrides the flex default of min-height:auto — without
