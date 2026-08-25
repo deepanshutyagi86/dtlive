@@ -6,6 +6,7 @@ import RegisterModal from "@/components/RegisterModal";
 import ItemImage, { ITEM_DETAIL_HERO_ASPECT_CLASS } from "@/components/ItemImage";
 import BioCard from "@/components/BioCard";
 import MobileMenu from "@/components/MobileMenu";
+import NavDarkWatcher from "@/components/NavDarkWatcher";
 import JsonLd from "@/components/JsonLd";
 import { Outcomes, WhoFor, Faq } from "@/components/ItemSections";
 import GuideCta from "@/components/GuideCta";
@@ -250,16 +251,17 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
     <>
       <JsonLd data={faqStructured ? [structured, faqStructured] : structured} />
 
-      <nav className="fixed top-0 left-0 right-0 z-[100] flex items-center justify-between gap-3 px-5 py-3 border-b border-line bg-bone/85 backdrop-blur-md">
-        <a href="/" className="font-display font-extrabold text-[16px] text-ink">
-          DT<span className="text-marigold-ink">.live</span>
+      <nav className="site-nav fixed top-0 left-0 right-0 z-[100] flex items-center justify-between gap-3 px-5 py-3 border-b border-line backdrop-blur-md">
+        <NavDarkWatcher />
+        <a href="/" className="font-display font-extrabold text-[16px] text-[var(--nav-fg)]">
+          DT<span className="text-[var(--nav-accent)]">.live</span>
         </a>
         <div className="md:hidden">
           <MobileMenu links={nav.links.filter((l) => l.show)} />
         </div>
         <div className="hidden md:flex items-center gap-3.5 min-w-0">
-          <span className="font-semibold text-sm truncate max-w-[34vw]">{item!.title}</span>
-          <span className="font-mono text-[13px] text-marigold-ink font-bold whitespace-nowrap">{priceLabel}</span>
+          <span className="font-semibold text-sm truncate max-w-[34vw] text-[var(--nav-fg)]">{item!.title}</span>
+          <span className="font-mono text-[13px] text-[var(--nav-accent)] font-bold whitespace-nowrap">{priceLabel}</span>
           {closed ? (
             <span className="font-mono text-[11px] uppercase tracking-wider text-muted border border-line px-[18px] py-[10px] rounded-full">
               {soldOut ? "Sold out" : "Closed"}
@@ -389,7 +391,7 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
             only CTA a reader who got this far would have. From lg: up the
             panel has been in view the whole way down and this becomes a
             third ask on one screen. */}
-        <div className="hidden md:flex lg:hidden items-center justify-between gap-6 mt-14 bg-ink text-bone rounded-card p-8">
+        <div data-nav-dark className="hidden md:flex lg:hidden items-center justify-between gap-6 mt-14 bg-ink text-bone rounded-card p-8">
           <div>
             <p className="font-mono text-[11px] uppercase tracking-wider text-[#8b8a80]">
               {closed ? (soldOut ? "Sold out" : "This one has run") : isWorkshop && dateLabel ? dateLabel : "Ready when you are"}

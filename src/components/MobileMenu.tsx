@@ -29,8 +29,8 @@ export default function MobileMenu({ links }: { links: NavLink[] }) {
         aria-expanded={open}
         className="lg:hidden w-11 h-11 -mr-1.5 flex flex-col items-center justify-center gap-[5px] rounded-full hover:bg-ink/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marigold"
       >
-        <span className="block w-[18px] h-[1.5px] bg-ink rounded-full" />
-        <span className="block w-[18px] h-[1.5px] bg-ink rounded-full" />
+        <span className="block w-[18px] h-[1.5px] bg-[var(--nav-fg)] rounded-full" />
+        <span className="block w-[18px] h-[1.5px] bg-[var(--nav-fg)] rounded-full" />
       </button>
 
       {mounted && open && createPortal(

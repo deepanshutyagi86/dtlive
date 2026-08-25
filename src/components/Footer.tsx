@@ -33,7 +33,7 @@ export default function Footer({
   const explore = nav.links.filter((l) => l.show);
 
   return (
-    <footer className="mt-[90px] bg-ink text-bone px-5 pt-20 pb-8">
+    <footer data-nav-dark className="mt-[90px] bg-ink text-bone px-5 pt-20 pb-8">
       <div className="max-w-[1200px] mx-auto">
         <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-[#8b8a80]">One conversation away</p>
         <h2 className="font-display font-extrabold text-[40px] md:text-[96px] tracking-tight leading-none mt-2">

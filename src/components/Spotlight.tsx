@@ -50,7 +50,10 @@ export default function Spotlight({ data }: { data: SpotlightData }) {
 
   return (
     <section className="max-w-[1200px] mx-auto px-5 mt-10 md:mt-14">
-      <div className="relative overflow-hidden bg-ink text-bone rounded-card p-7 md:p-[54px] grid md:grid-cols-[1.4fr_1fr] gap-8 items-center">
+      <div
+        data-nav-dark
+        className="relative overflow-hidden bg-ink text-bone rounded-card p-7 md:p-[54px] grid md:grid-cols-[1.4fr_1fr] gap-8 items-center"
+      >
         <div>
           <div className="flex items-center justify-between mb-3.5">
             <span className="font-mono text-[10px] font-bold tracking-wider uppercase px-[9px] py-1 rounded-full border border-marigold text-marigold">
