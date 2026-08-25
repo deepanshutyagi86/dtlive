@@ -107,3 +107,24 @@ body {
     transition: none;
   }
 }
+
+/* Route-level loading skeletons — see loading.tsx under each route. */
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+.skel {
+  background: var(--line);
+  border-radius: 8px;
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skel {
+    animation: none;
+  }
+}

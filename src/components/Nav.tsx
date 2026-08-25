@@ -2,6 +2,7 @@ import Link from "next/link";
 import LiveClock from "./LiveClock";
 import MobileMenu from "./MobileMenu";
 import NavDarkWatcher from "./NavDarkWatcher";
+import NavLogo from "./NavLogo";
 import type { NavSettings } from "@/lib/settings-types";
 import { DEFAULT_NAV } from "@/lib/settings-types";
 
@@ -15,12 +16,7 @@ export default function Nav({ nav = DEFAULT_NAV }: { nav?: NavSettings }) {
     <nav className="site-nav fixed top-0 left-0 right-0 z-[100] flex items-center justify-between gap-3 px-5 py-3 border-b border-line backdrop-blur-md">
       <NavDarkWatcher />
       <div className="flex items-center gap-6 min-w-0">
-        <Link
-          href="/"
-          className="font-display font-extrabold text-[17px] tracking-tight text-[var(--nav-fg)] shrink-0 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marigold focus-visible:ring-offset-2 focus-visible:ring-offset-bone"
-        >
-          DT<span className="text-[var(--nav-accent)]">.live</span>
-        </Link>
+        <NavLogo />
 
         {/* lg:, not md: — at 768px the links and the clock and the CTA all
             fit only by crushing each other. The clock is the thing that
