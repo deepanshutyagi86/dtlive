@@ -6,10 +6,9 @@ import { useModalBehavior } from "@/lib/useModalBehavior";
 import type { NavLink } from "@/lib/settings-types";
 
 // Portalled to <body> for the same load-bearing reason the checkout modal
-// is: any ancestor filter/backdrop-filter becomes the containing block for
-// a position:fixed descendant, so an inline panel would size itself to the
-// ~50px bar instead of the viewport. The nav no longer blurs, but the
-// portal is what keeps that true regardless. See CheckoutModal.tsx.
+// is: the nav sets backdrop-blur, which makes it the containing block for
+// any position:fixed descendant, so an inline panel would size itself to
+// the ~50px bar instead of the viewport. See CheckoutModal.tsx.
 export default function MobileMenu({ links }: { links: NavLink[] }) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
