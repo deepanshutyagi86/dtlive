@@ -15,6 +15,8 @@ import {
   DEFAULT_INVOICE,
   DEFAULT_NAV,
   DEFAULT_STARTER,
+  DEFAULT_STREAM,
+  DEFAULT_SYLLABUS,
   DEFAULT_TAX,
   type BioSettings,
   type Branding,
@@ -25,8 +27,11 @@ import {
   type NavLink,
   type NavSettings,
   type StarterSettings,
+  type StreamSettings,
+  type SyllabusSettings,
   type TaxSettings,
 } from "./settings-types";
+import type { ItemSyllabus } from "./types";
 
 export const SITE_URL = "https://www.deepanshutyagi.live";
 
@@ -117,6 +122,45 @@ export async function getGuideCta(): Promise<GuideCtaSettings> {
     subtitle: clean(stored.subtitle) || DEFAULT_GUIDE_CTA.subtitle,
     buttonLabel: clean(stored.buttonLabel) || DEFAULT_GUIDE_CTA.buttonLabel,
   };
+}
+
+export async function getStreamSettings(): Promise<StreamSettings> {
+  const stored = await readChromeSetting<Partial<StreamSettings>>("stream", {});
+  const size = stored.cardSize;
+  return {
+    // Anything unrecognised falls back rather than passing an unknown key
+    // through to a class lookup that would come back undefined.
+    cardSize: size === "small" || size === "large" ? size : DEFAULT_STREAM.cardSize,
+  };
+}
+
+export async function getSyllabusSettings(): Promise<SyllabusSettings> {
+  const stored = await readChromeSetting<Partial<SyllabusSettings>>("syllabus", {});
+  return {
+    enabled: stored.enabled !== false,
+    ctaLabel: clean(stored.ctaLabel) || DEFAULT_SYLLABUS.ctaLabel,
+    heading: clean(stored.heading) || DEFAULT_SYLLABUS.heading,
+    blurb: clean(stored.blurb) || DEFAULT_SYLLABUS.blurb,
+    downloadLabel: clean(stored.downloadLabel) || DEFAULT_SYLLABUS.downloadLabel,
+  };
+}
+
+/**
+ * The one place that decides whether an item has a readable syllabus.
+ *
+ * Both switches have to agree: the global setting, and the item's own.
+ * Every surface — the card link, the detail-page button, the syllabus
+ * route itself — asks this, so a link can never point at a page that is
+ * going to 404, and turning the feature off in settings cannot leave a
+ * live link stranded on some page nobody remembered to check.
+ */
+export function syllabusFor(itemDetails: any, settings: SyllabusSettings): ItemSyllabus | null {
+  if (!settings.enabled) return null;
+  const s = itemDetails?.syllabus as ItemSyllabus | undefined;
+  if (!s || typeof s.url !== "string" || !s.url.trim()) return null;
+  // undefined means "on, because a file is here"; only an explicit false hides it.
+  if (s.enabled === false) return null;
+  return { url: s.url.trim(), fileName: s.fileName, enabled: true };
 }
 
 export async function getCoupons(): Promise<Coupon[]> {

@@ -9,7 +9,7 @@ import Footer, { FooterLinks } from "@/components/Footer";
 import StarterRouter from "@/components/StarterRouter";
 import JsonLd from "@/components/JsonLd";
 import { getDoorCounts, getFeaturedItem, getLiveStreamItems, getSetting } from "@/lib/items";
-import { getBio, getNav, getStarter, getTaxSettingsForDisplay, SITE_URL } from "@/lib/site-settings";
+import { getBio, getNav, getStarter, getStreamSettings, getTaxSettingsForDisplay, SITE_URL } from "@/lib/site-settings";
 import { priceLabel } from "@/lib/tax";
 import { metaFor, externalFor } from "@/lib/homepage";
 import type { CourseDetails, WorkshopDetails } from "@/lib/types";
@@ -20,7 +20,7 @@ import { SITE_TZ } from "@/lib/dates";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const [items, featured, counts, ticker, testimonials, footerLinks, heroCopySetting, nav, bio, starter, tax] =
+  const [items, featured, counts, ticker, testimonials, footerLinks, heroCopySetting, nav, bio, starter, tax, streamSettings] =
     await Promise.all([
       getLiveStreamItems(),
       getFeaturedItem(),
@@ -33,6 +33,7 @@ export default async function HomePage() {
       getBio(),
       getStarter(),
       getTaxSettingsForDisplay(),
+      getStreamSettings(),
     ]);
 
   // Blank/missing fields fall back to the default individually, never
@@ -159,7 +160,7 @@ export default async function HomePage() {
         </div>
         <div className="font-mono text-[11px] tracking-[0.14em] uppercase text-muted">drag to scroll →</div>
       </div>
-      <LiveStream items={streamItems} />
+      <LiveStream items={streamItems} cardSize={streamSettings.cardSize} />
 
       {spotlight && <Spotlight data={spotlight} />}
 

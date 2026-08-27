@@ -84,6 +84,25 @@ interface RegistrationDisplayOptions extends ItemDetailsBase, SalesContent {
   showCountdown?: boolean;
   showPriceBadge?: boolean;
   unlimitedSeats?: boolean;
+  syllabus?: ItemSyllabus;
+}
+
+/**
+ * The long-form PDF for one item — the full curriculum or run-sheet, shown
+ * on its own page at /items/[slug]/syllabus with a download beside it.
+ *
+ * Lives inside the item's `details` JSON rather than a column: adding a
+ * column would need a migration against the production database, and this
+ * is exactly the kind of optional per-item extra the JSON blob is for.
+ *
+ * `enabled` is tri-state on purpose. undefined means "on, because a file
+ * was uploaded" — the common case, so uploading is one action rather than
+ * two. false is an explicit hide that keeps the file for later.
+ */
+export interface ItemSyllabus {
+  url: string;
+  fileName?: string;
+  enabled?: boolean;
 }
 
 export interface CourseDetails extends RegistrationDisplayOptions {

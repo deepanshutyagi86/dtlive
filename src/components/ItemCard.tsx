@@ -2,7 +2,7 @@ import Link from "next/link";
 import RegisterModal from "./RegisterModal";
 import ItemImage from "./ItemImage";
 import { CATEGORY_CTA, CATEGORY_LABELS, CHIP_CLASS } from "@/lib/types";
-import { priceLabel } from "@/lib/tax";
+import { formatRupees, priceLabel } from "@/lib/tax";
 import { DEFAULT_TAX, type TaxSettings } from "@/lib/settings-types";
 import { SITE_TZ } from "@/lib/dates";
 import type {
@@ -70,7 +70,15 @@ export function metaLine(item: CardItem, tax: TaxSettings = DEFAULT_TAX): string
   }
   if (item.category === "agency") {
     const a = d as AgencyDetails;
-    return a.priceType === "quote" ? "Custom quote" : `from ₹${a.priceValue}`;
+    // Two bugs in one line before this. formatRupees, not raw
+    // interpolation: every other card runs its price through priceLabel()
+    // and reads "₹6,999", so a bare number here printed "from ₹15000"
+    // directly beside them — two conventions in one viewport. And
+    // priceValue is optional, so an item set to "from" with the amount
+    // left blank rendered the literal string "from ₹undefined" on a public
+    // card. A missing amount is a quote, which is what it always meant.
+    if (a.priceType === "quote" || typeof a.priceValue !== "number") return "Custom quote";
+    return `from ₹${formatRupees(a.priceValue)}`;
   }
   return "";
 }

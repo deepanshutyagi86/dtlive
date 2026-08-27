@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import Footer, { FooterLinks } from "@/components/Footer";
 import CheckoutModal from "@/components/CheckoutModal";
@@ -5,6 +6,7 @@ import RegisterModal from "@/components/RegisterModal";
 import ItemImage, { ITEM_DETAIL_HERO_ASPECT_CLASS } from "@/components/ItemImage";
 import BioCard from "@/components/BioCard";
 import MobileMenu from "@/components/MobileMenu";
+import NavDarkWatcher from "@/components/NavDarkWatcher";
 import JsonLd from "@/components/JsonLd";
 import { Outcomes, WhoFor, Faq } from "@/components/ItemSections";
 import GuideCta from "@/components/GuideCta";
@@ -15,7 +17,9 @@ import {
   getBusinessSettings,
   getGuideCta,
   getNav,
+  getSyllabusSettings,
   getTaxSettingsForDisplay,
+  syllabusFor,
   SITE_URL,
 } from "@/lib/site-settings";
 import { computePricing, priceLabel as taxPriceLabel, priceSubLabel } from "@/lib/tax";
@@ -68,7 +72,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 }
 
 export default async function ItemDetailPage({ params }: { params: { slug: string } }) {
-  const [item, footerLinks, bio, nav, taxSettings, b2bReady, guideCta, business] = await Promise.all([
+  const [item, footerLinks, bio, nav, taxSettings, b2bReady, guideCta, business, syllabusSettings] = await Promise.all([
     getItemBySlug(params.slug),
     getSetting<FooterLinks>("footerLinks", {}),
     getBio(),
@@ -81,6 +85,7 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
     hasTaxDetailsColumn().catch(() => false),
     getGuideCta(),
     getBusinessSettings(),
+    getSyllabusSettings(),
   ]);
 
   if (!item || !item.live || (item.category !== "course" && item.category !== "workshop")) {
@@ -88,6 +93,12 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
   }
 
   const tax = { ...taxSettings, b2bEnabled: taxSettings.b2bEnabled && b2bReady };
+
+  // null unless BOTH the global switch and this item's own switch agree and
+  // a file actually exists. Every link below is gated on this one value, so
+  // none of them can point at a page that would 404.
+  const syllabus = syllabusFor(item!.details, syllabusSettings);
+  const syllabusHref = `/items/${item!.slug}/syllabus`;
 
   const isWorkshop = item!.category === "workshop";
   const d = item!.details as any;
@@ -131,6 +142,13 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
     ? "This one has already run. Nothing to book — but the next one goes up here first."
     : "Every seat is taken. The next date goes up here first.";
 
+  // Where "back" goes. This page renders its own stripped-down nav with no
+  // section links, so without a breadcrumb the only way out of a product
+  // page was the browser's back button.
+  const listing = isWorkshop
+    ? { href: "/workshops", label: "Workshops" }
+    : { href: "/courses", label: "Courses" };
+
   const ctaProps = {
     itemId: item!.id,
     title: item!.title,
@@ -139,6 +157,31 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
     thumbnail: item!.thumbnail,
     imageFocal: item!.details?.imageFocal ?? null,
   };
+
+  // One definition, four placements: the top bar, the sticky desktop panel,
+  // the end-of-page repeat and the mobile bar. They differ only in button
+  // styling, and four hand-copied ternaries is four chances for one surface
+  // to start offering a different flow than the rest. The `closed` case
+  // stays at each call site — each one says no in its own shape.
+  const renderCta = (triggerClassName: string) =>
+    isFreeWorkshop ? (
+      <RegisterModal
+        {...ctaProps}
+        workshopDate={(d as WorkshopDetails).date}
+        registrationFields={(d as WorkshopDetails).registrationFields}
+        triggerLabel={triggerLabel}
+        triggerClassName={triggerClassName}
+      />
+    ) : (
+      <CheckoutModal
+        {...ctaProps}
+        priceLabel={priceLabel}
+        tax={tax}
+        gstin={business.gstin}
+        triggerLabel={triggerLabel}
+        triggerClassName={triggerClassName}
+      />
+    );
 
   // Course and Event are the two schema types Google renders as a rich
   // result rather than a plain blue link, so they're worth the bytes.
@@ -208,43 +251,46 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
     <>
       <JsonLd data={faqStructured ? [structured, faqStructured] : structured} />
 
-      <nav className="fixed top-0 left-0 right-0 z-[100] flex items-center justify-between gap-3 px-5 py-3 border-b border-line bg-bone/85 backdrop-blur-md">
-        <a href="/" className="font-display font-extrabold text-[16px] text-ink">
-          DT<span className="text-marigold-ink">.live</span>
+      <nav className="site-nav fixed top-0 left-0 right-0 z-[100] flex items-center justify-between gap-3 px-5 py-3 border-b border-line backdrop-blur-md">
+        <NavDarkWatcher />
+        <a href="/" className="font-display font-extrabold text-[16px] text-[var(--nav-fg)]">
+          DT<span className="text-[var(--nav-accent)]">.live</span>
         </a>
         <div className="md:hidden">
           <MobileMenu links={nav.links.filter((l) => l.show)} />
         </div>
         <div className="hidden md:flex items-center gap-3.5 min-w-0">
-          <span className="font-semibold text-sm truncate max-w-[34vw]">{item!.title}</span>
-          <span className="font-mono text-[13px] text-marigold-ink font-bold whitespace-nowrap">{priceLabel}</span>
+          <span className="font-semibold text-sm truncate max-w-[34vw] text-[var(--nav-fg)]">{item!.title}</span>
+          <span className="font-mono text-[13px] text-[var(--nav-accent)] font-bold whitespace-nowrap">{priceLabel}</span>
           {closed ? (
             <span className="font-mono text-[11px] uppercase tracking-wider text-muted border border-line px-[18px] py-[10px] rounded-full">
               {soldOut ? "Sold out" : "Closed"}
             </span>
-          ) : isFreeWorkshop ? (
-            <RegisterModal
-              {...ctaProps}
-              workshopDate={(d as WorkshopDetails).date}
-              registrationFields={(d as WorkshopDetails).registrationFields}
-              triggerLabel={triggerLabel}
-              triggerClassName="bg-marigold border border-marigold text-ink font-semibold text-sm px-[18px] py-[10px] rounded-full hover:bg-ink hover:text-bone hover:border-ink transition-colors"
-            />
           ) : (
-            <CheckoutModal
-              {...ctaProps}
-              priceLabel={priceLabel}
-              tax={tax}
-              gstin={business.gstin}
-              triggerLabel={triggerLabel}
-              triggerClassName="bg-marigold border border-marigold text-ink font-semibold text-sm px-[18px] py-[10px] rounded-full hover:bg-ink hover:text-bone hover:border-ink transition-colors"
-            />
+            renderCta(
+              "bg-marigold border border-marigold text-ink font-semibold text-sm px-[18px] py-[10px] rounded-full hover:bg-ink hover:text-bone hover:border-ink transition-colors"
+            )
           )}
         </div>
       </nav>
 
-      <main className="max-w-[860px] mx-auto px-5 pt-[120px] pb-[140px] md:pb-[80px]">
-        <div className="rounded-card overflow-hidden mb-6">
+      {/* Two columns from lg: up. Below that the content column keeps its
+          own 860px cap and stays centred, so phones and tablets render
+          exactly what they rendered before — the panel is additive, not a
+          re-layout. minmax(0,1fr) rather than 1fr because a grid track
+          defaults to min-content and a long unbroken string in the prose
+          would otherwise widen the column instead of wrapping. */}
+      <main className="max-w-[1200px] mx-auto px-5 pt-[120px] pb-[140px] md:pb-[80px]">
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-10 xl:gap-14 lg:items-start">
+        <div className="min-w-0 max-w-[860px] mx-auto lg:mx-0">
+        <Link
+          href={listing.href}
+          className="inline-flex items-center gap-2 min-h-[44px] font-mono text-[11px] uppercase tracking-wider text-muted hover:text-ink transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marigold focus-visible:ring-offset-2 focus-visible:ring-offset-bone"
+        >
+          <span aria-hidden>←</span> All {listing.label.toLowerCase()}
+        </Link>
+
+        <div className="rounded-card overflow-hidden mb-6 mt-2">
           <ItemImage
             thumbnail={item!.thumbnail}
             title={item!.title}
@@ -253,6 +299,9 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
             sizes="(min-width: 860px) 860px, 100vw"
             imageFocal={item!.details?.imageFocal ?? null}
             aspectClassName={ITEM_DETAIL_HERO_ASPECT_CLASS}
+            // This is the LCP element on every product page — it is the
+            // first thing in the main column and fills the viewport width.
+            priority
           />
         </div>
 
@@ -272,7 +321,22 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
         </h1>
         <p className="text-[17px] leading-relaxed text-ink-soft max-w-[620px]">{item!.description}</p>
 
-        <div className="flex flex-wrap gap-2 mt-6">
+        {/* The earliest a top-to-bottom reader can reach the syllabus —
+            before they've decided, not after they've read the whole page
+            and are already at the curriculum accordion below. */}
+        {syllabus && (
+          <Link
+            href={syllabusHref}
+            className="inline-flex items-center gap-2 min-h-[44px] mt-5 font-semibold text-[15px] text-ink border border-ink rounded-full px-5 py-2.5 hover:bg-ink hover:text-bone transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marigold focus-visible:ring-offset-2 focus-visible:ring-offset-bone"
+          >
+            {syllabusSettings.ctaLabel} <span aria-hidden>→</span>
+          </Link>
+        )}
+
+        {/* lg:hidden — every fact in this row is repeated in the sticky
+            panel on a wide screen, and saying the price twice on one screen
+            invites the reader to look for the difference. */}
+        <div className="flex flex-wrap gap-2 mt-6 lg:hidden">
           {isWorkshop && (
             <>
               {dateLabel && (
@@ -319,6 +383,14 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
                 </details>
               ))}
             </div>
+            {syllabus && (
+              <Link
+                href={syllabusHref}
+                className="inline-flex items-center gap-2 min-h-[44px] mt-5 font-semibold text-[15px] text-ink hover:text-marigold-ink transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marigold focus-visible:ring-offset-2 focus-visible:ring-offset-bone"
+              >
+                {syllabusSettings.ctaLabel} <span aria-hidden>→</span>
+              </Link>
+            )}
           </section>
         )}
 
@@ -326,10 +398,12 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
         <Faq items={d.faq} />
         <BioCard bio={bio} />
 
-        {/* Desktop repeat of the CTA. The nav button scrolls out of reach on
-            a long page and mobile already has a sticky bar; without this,
-            a desktop reader who got to the bottom had nothing to click. */}
-        <div className="hidden md:flex items-center justify-between gap-6 mt-14 bg-ink text-bone rounded-card p-8">
+        {/* The in-between case: md is too wide for the mobile sticky bar and
+            too narrow for the side panel, so this end-of-page repeat is the
+            only CTA a reader who got this far would have. From lg: up the
+            panel has been in view the whole way down and this becomes a
+            third ask on one screen. */}
+        <div data-nav-dark className="hidden md:flex lg:hidden items-center justify-between gap-6 mt-14 bg-ink text-bone rounded-card p-8">
           <div>
             <p className="font-mono text-[11px] uppercase tracking-wider text-[#8b8a80]">
               {closed ? (soldOut ? "Sold out" : "This one has run") : isWorkshop && dateLabel ? dateLabel : "Ready when you are"}
@@ -345,27 +419,111 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
           </div>
           {closed ? (
             <p className="text-[15px] leading-relaxed text-[#b9b8ae] max-w-[300px]">{closedReason}</p>
-          ) : isFreeWorkshop ? (
-            <RegisterModal
-              {...ctaProps}
-              workshopDate={(d as WorkshopDetails).date}
-              registrationFields={(d as WorkshopDetails).registrationFields}
-              triggerLabel={triggerLabel}
-              triggerClassName="bg-marigold border border-marigold text-ink font-semibold text-[16px] px-7 py-3.5 rounded-full hover:bg-bone hover:border-bone transition-colors"
-            />
           ) : (
-            <CheckoutModal
-              {...ctaProps}
-              priceLabel={priceLabel}
-              tax={tax}
-              gstin={business.gstin}
-              triggerLabel={triggerLabel}
-              triggerClassName="bg-marigold border border-marigold text-ink font-semibold text-[16px] px-7 py-3.5 rounded-full hover:bg-bone hover:border-bone transition-colors"
-            />
+            renderCta(
+              "bg-marigold border border-marigold text-ink font-semibold text-[16px] px-7 py-3.5 rounded-full hover:bg-bone hover:border-bone transition-colors"
+            )
           )}
         </div>
 
         <GuideCta data={guideCta} />
+        </div>
+
+        {/* The purchase panel. Everything a buyer needs to decide, held in
+            view for the whole scroll: status, price, the facts that differ
+            per item, the button, and the two reassurances that were
+            previously only visible once the checkout modal was already
+            open. Before this, a 1440px reader saw the hero image and
+            nothing else above the fold — no title, no price, no CTA. */}
+        <aside className="hidden lg:block lg:sticky lg:top-[76px]">
+          <div className="border border-line bg-card rounded-card p-6">
+            {closed ? (
+              <span className="inline-flex items-center gap-2 font-mono text-[10px] font-bold tracking-wider uppercase text-muted">
+                <span className="w-1.5 h-1.5 rounded-full bg-muted" />
+                {soldOut ? "Sold out" : "This one has run"}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-2 font-mono text-[10px] font-bold tracking-wider uppercase text-live-ink">
+                <span className="w-1.5 h-1.5 rounded-full bg-live live-dot" />
+                {isWorkshop ? "Enrollment open" : "Available now"}
+              </span>
+            )}
+
+            <p className="font-display font-extrabold text-[34px] tracking-tight leading-none mt-3">{priceLabel}</p>
+            {priceNote && <p className="font-mono text-[11px] text-muted mt-2">{priceNote}</p>}
+
+            <dl className="flex flex-col gap-3 mt-5 pt-5 border-t border-line font-mono text-[11px]">
+              {isWorkshop ? (
+                <>
+                  {dateLabel && (
+                    <div className="flex justify-between gap-4">
+                      <dt className="text-muted shrink-0">When</dt>
+                      <dd className="text-right">{dateLabel}</dd>
+                    </div>
+                  )}
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-muted shrink-0">Where</dt>
+                    <dd className="text-right">Live on Zoom</dd>
+                  </div>
+                  {showSeats && (
+                    <div className="flex justify-between gap-4">
+                      <dt className="text-muted shrink-0">Seats left</dt>
+                      <dd className="text-right font-bold">{(d as WorkshopDetails).seatsLeft}</dd>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  {(d as CourseDetails).duration && (
+                    <div className="flex justify-between gap-4">
+                      <dt className="text-muted shrink-0">Length</dt>
+                      <dd className="text-right">{(d as CourseDetails).duration}</dd>
+                    </div>
+                  )}
+                  {agenda.length > 0 && (
+                    <div className="flex justify-between gap-4">
+                      <dt className="text-muted shrink-0">Modules</dt>
+                      <dd className="text-right">{agenda.length}</dd>
+                    </div>
+                  )}
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-muted shrink-0">Access</dt>
+                    <dd className="text-right">Yours to keep</dd>
+                  </div>
+                </>
+              )}
+            </dl>
+
+            <div className="mt-6">
+              {closed ? (
+                <p className="text-[15px] leading-relaxed text-ink-soft">{closedReason}</p>
+              ) : (
+                renderCta(
+                  "block w-full text-center bg-marigold border border-marigold text-ink font-semibold text-[16px] px-6 py-3.5 rounded-full hover:bg-ink hover:text-bone hover:border-ink transition-colors"
+                )
+              )}
+            </div>
+
+            {syllabus && (
+              <Link
+                href={syllabusHref}
+                className="block w-full text-center mt-3 font-semibold text-[15px] text-ink border border-ink rounded-full px-6 py-3 hover:bg-ink hover:text-bone transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marigold"
+              >
+                {syllabusSettings.ctaLabel}
+              </Link>
+            )}
+
+            {!closed && (
+              <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 font-mono text-[10px] text-muted mt-4">
+                <span>Secured by Razorpay</span>
+                <Link href="/refund-policy" className="underline hover:text-ink transition-colors">
+                  Refund policy
+                </Link>
+              </p>
+            )}
+          </div>
+        </aside>
+        </div>
       </main>
 
       <div className="md:hidden fixed left-0 right-0 bottom-0 z-[100] bg-ink text-bone flex items-center justify-between gap-3 px-4 py-3 pb-[calc(12px+env(safe-area-inset-bottom))]">
@@ -381,23 +539,8 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
           <span className="font-mono text-[11px] uppercase tracking-wider text-[#8b8a80] border border-[#3c3b33] px-4 py-2.5 rounded-full">
             {soldOut ? "Sold out" : "Closed"}
           </span>
-        ) : isFreeWorkshop ? (
-          <RegisterModal
-            {...ctaProps}
-            workshopDate={(d as WorkshopDetails).date}
-            registrationFields={(d as WorkshopDetails).registrationFields}
-            triggerLabel={triggerLabel}
-            triggerClassName="bg-marigold text-ink font-semibold text-sm px-5 py-2.5 rounded-full"
-          />
         ) : (
-          <CheckoutModal
-            {...ctaProps}
-            priceLabel={priceLabel}
-            tax={tax}
-            gstin={business.gstin}
-            triggerLabel={triggerLabel}
-            triggerClassName="bg-marigold text-ink font-semibold text-sm px-5 py-2.5 rounded-full"
-          />
+          renderCta("bg-marigold text-ink font-semibold text-sm px-5 py-2.5 rounded-full")
         )}
       </div>
 

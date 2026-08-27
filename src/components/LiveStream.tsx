@@ -1,8 +1,9 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import ItemImage from "./ItemImage";
 import { CATEGORY_CTA, CATEGORY_LABELS, CHIP_CLASS, Category, ImageFocal } from "@/lib/types";
+import { DEFAULT_STREAM, type StreamCardSize } from "@/lib/settings-types";
 
 export interface StreamItem {
   id: string;
@@ -20,14 +21,36 @@ export interface StreamItem {
 // and all are gone deliberately: the alternating tilt (odd:-rotate-[1.6deg] /
 // even:rotate-[1.3deg]), its hover:!rotate-0 straightener, and the
 // even:translate-y-2 that dropped every second card 8px. Keep them aligned.
+// One full class string per size, written out literally so Tailwind's
+// build-time scanner can see all three. A width composed from a runtime
+// value compiles to nothing and the card ends up with no width at all.
+const CARD_WIDTH: Record<StreamCardSize, string> = {
+  small: "w-[220px] md:w-[240px]",
+  medium: "w-[270px] md:w-[290px]",
+  large: "w-[320px] md:w-[350px]",
+};
+
+// Kept next to the widths so the two cannot drift. An image requested at
+// 290px and painted at 350px is a visibly soft card.
+const CARD_SIZES: Record<StreamCardSize, string> = {
+  small: "(min-width: 768px) 240px, 220px",
+  medium: "(min-width: 768px) 290px, 270px",
+  large: "(min-width: 768px) 350px, 320px",
+};
+
 const CARD_CLASS =
-  "flex-none w-[270px] md:w-[290px] bg-card border border-line rounded-card overflow-hidden flex flex-col shadow-[0_14px_34px_-18px_rgba(25,25,19,0.28)] transition-transform duration-300 hover:-translate-y-1.5 hover:scale-[1.02] hover:shadow-[0_26px_50px_-20px_rgba(25,25,19,0.4)] hover:z-10 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marigold focus-visible:ring-offset-2 focus-visible:ring-offset-bone";
+  "flex-none bg-card border border-line rounded-card overflow-hidden flex flex-col shadow-[0_14px_34px_-18px_rgba(25,25,19,0.28)] transition-transform duration-300 hover:-translate-y-1.5 hover:scale-[1.02] hover:shadow-[0_26px_50px_-20px_rgba(25,25,19,0.4)] hover:z-10 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marigold focus-visible:ring-offset-2 focus-visible:ring-offset-bone";
 
 // Past this many pixels of pointer travel, the gesture was a drag and the
 // click that the browser fires on release must be swallowed. Below it, the
 // user meant to tap the card. 6px is roughly the wobble of a deliberate
 // click on a trackpad — low enough that a real click never gets eaten.
 const DRAG_CLICK_THRESHOLD = 6;
+
+// How many leading cards load eagerly. Three covers the widest viewport
+// that shows the carousel before any scrolling; past that they are off
+// screen and lazy is correct again.
+const PRIORITY_CARDS = 3;
 
 // course/workshop have a real detail page; agency has no per-item page (it
 // links to the /agency listing instead — see CategoryGrid for the actual
@@ -40,7 +63,17 @@ function hrefFor(item: StreamItem): { href: string; external: boolean } | null {
   return null;
 }
 
-function Card({ item, clone }: { item: StreamItem; clone?: boolean }) {
+function Card({
+  item,
+  clone,
+  priority,
+  size,
+}: {
+  item: StreamItem;
+  clone?: boolean;
+  priority?: boolean;
+  size: StreamCardSize;
+}) {
   const link = hrefFor(item);
   const inner = (
     <>
@@ -49,8 +82,9 @@ function Card({ item, clone }: { item: StreamItem; clone?: boolean }) {
         title={item.title}
         category={item.category}
         seed={item.slug}
-        sizes="(min-width: 768px) 290px, 270px"
+        sizes={CARD_SIZES[size]}
         imageFocal={item.imageFocal}
+        priority={priority}
       />
       <div className="flex flex-col gap-3 p-[18px] pt-3 pb-4 flex-1">
         <div className="flex items-center justify-between">
@@ -76,7 +110,7 @@ function Card({ item, clone }: { item: StreamItem; clone?: boolean }) {
   );
 
   if (!link) {
-    return <div className={CARD_CLASS}>{inner}</div>;
+    return <div className={`${CARD_CLASS} ${CARD_WIDTH[size]}`}>{inner}</div>;
   }
 
   return (
@@ -90,20 +124,33 @@ function Card({ item, clone }: { item: StreamItem; clone?: boolean }) {
       // user has to Tab through it twice to get past the carousel.
       aria-hidden={clone ? true : undefined}
       tabIndex={clone ? -1 : undefined}
-      className={CARD_CLASS}
+      className={`${CARD_CLASS} ${CARD_WIDTH[size]}`}
     >
       {inner}
     </Link>
   );
 }
 
-export default function LiveStream({ items }: { items: StreamItem[] }) {
+export default function LiveStream({
+  items,
+  cardSize = DEFAULT_STREAM.cardSize,
+}: {
+  items: StreamItem[];
+  /** Set in /admin/settings → Live stream. */
+  cardSize?: StreamCardSize;
+}) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<HTMLDivElement>(null);
+  // Explicit stop, as opposed to `paused` (pointer is over the track).
+  // React state because the button label depends on it; mirrored into the
+  // ref below because the rAF loop must not close over a stale value.
+  const [stopped, setStopped] = useState(false);
   const state = useRef({
     x: 0, vx: -0.55, dragging: false, lastPX: 0, half: 0,
     paused: false, wheeling: false, travel: 0, suppressClick: false,
+    stopped: false,
   });
+  state.current.stopped = stopped;
 
   useEffect(() => {
     const stream = streamRef.current;
@@ -120,11 +167,22 @@ export default function LiveStream({ items }: { items: StreamItem[] }) {
     let raf = 0;
     const frame = () => {
       if (!s.dragging) {
-        // Autoplay decay is suppressed both on hover (s.paused) and while
-        // actively wheeling (s.wheeling) — otherwise the ambient drift
-        // would be constantly fighting the velocity the wheel handler
-        // just injected.
-        if (!s.paused && !s.wheeling && !reduceMotion) s.vx += (-0.55 - s.vx) * 0.02;
+        // The guard used to sit on the decay line alone, which meant none
+        // of these three conditions actually stopped anything: vx starts at
+        // -0.55, and skipping the decay simply left it there while
+        // `s.x += s.vx` kept applying it every frame. Hovering did nothing,
+        // and prefers-reduced-motion did nothing — the carousel ran at full
+        // speed through both. Halting has to zero the velocity, not freeze
+        // it. Wheeling is checked first because it is user-driven: the
+        // pointer is necessarily over the track (so s.paused is true) and
+        // zeroing there would break horizontal scrolling.
+        if (s.wheeling) {
+          // Ride the velocity the wheel handler injected; no ambient decay.
+        } else if (reduceMotion || s.stopped || s.paused) {
+          s.vx = 0;
+        } else {
+          s.vx += (-0.55 - s.vx) * 0.02;
+        }
         s.x += s.vx;
       }
       if (s.half > 0) {
@@ -226,6 +284,10 @@ export default function LiveStream({ items }: { items: StreamItem[] }) {
 
     const onEnter = () => (s.paused = true);
     const onLeave = () => (s.paused = false);
+    // Keyboard equivalent of hover. Tabbing into a card used to leave the
+    // track sliding out from under the thing that just took focus.
+    const onFocusIn = () => (s.paused = true);
+    const onFocusOut = () => (s.paused = false);
 
     wrap.addEventListener("mousedown", down);
     window.addEventListener("mousemove", move);
@@ -236,6 +298,8 @@ export default function LiveStream({ items }: { items: StreamItem[] }) {
     window.addEventListener("touchend", up);
     wrap.addEventListener("mouseenter", onEnter);
     wrap.addEventListener("mouseleave", onLeave);
+    wrap.addEventListener("focusin", onFocusIn);
+    wrap.addEventListener("focusout", onFocusOut);
     wrap.addEventListener("wheel", wheel, { passive: false });
 
     return () => {
@@ -257,6 +321,8 @@ export default function LiveStream({ items }: { items: StreamItem[] }) {
       wrap.removeEventListener("click", clickGuard, true);
       wrap.removeEventListener("mouseenter", onEnter);
       wrap.removeEventListener("mouseleave", onLeave);
+      wrap.removeEventListener("focusin", onFocusIn);
+      wrap.removeEventListener("focusout", onFocusOut);
       wrap.removeEventListener("wheel", wheel);
     };
   }, [items]);
@@ -277,13 +343,32 @@ export default function LiveStream({ items }: { items: StreamItem[] }) {
       aria-label="What's live right now"
     >
       <div ref={streamRef} className="flex gap-[22px] w-max px-5 will-change-transform">
-        {items.map((item) => (
-          <Card key={`a-${item.id}`} item={item} />
+        {/* Only the leading few are on screen at first paint, and only in
+            the real set — the clone track is always off to the right, so
+            eager-loading it would fetch images nobody can see. */}
+        {items.map((item, i) => (
+          <Card key={`a-${item.id}`} item={item} priority={i < PRIORITY_CARDS} size={cardSize} />
         ))}
         {items.map((item) => (
-          <Card key={`b-${item.id}`} item={item} clone />
+          <Card key={`b-${item.id}`} item={item} clone size={cardSize} />
         ))}
       </div>
+
+      {/* WCAG 2.2.2: anything that moves on its own for more than five
+          seconds needs a mechanism to stop it. Hover and focus cover a
+          mouse and a keyboard, but a touch screen has neither — without
+          this button a phone user has no way to hold a card still long
+          enough to read it. Sits in the wrapper's bottom padding, so it
+          never overlaps a card. */}
+      <button
+        type="button"
+        onClick={() => setStopped((v) => !v)}
+        aria-pressed={stopped}
+        aria-label={stopped ? "Resume the moving carousel" : "Stop the moving carousel"}
+        className="absolute right-5 bottom-2 z-10 cursor-pointer font-mono text-[10px] font-bold tracking-wider uppercase text-muted bg-card border border-line rounded-full px-3 py-1.5 hover:text-ink hover:border-ink transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marigold focus-visible:ring-offset-2 focus-visible:ring-offset-bone"
+      >
+        {stopped ? "Play" : "Pause"}
+      </button>
     </div>
   );
 }

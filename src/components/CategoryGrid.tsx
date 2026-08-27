@@ -1,9 +1,10 @@
+import Link from "next/link";
 import Nav from "./Nav";
 import Footer, { FooterLinks } from "./Footer";
 import ItemCard, { type CardItem } from "./ItemCard";
 import CourseCompare from "./CourseCompare";
 import { CATEGORY_LABELS } from "@/lib/types";
-import { getBio, getNav, getTaxSettingsForDisplay } from "@/lib/site-settings";
+import { getBio, getNav, getSyllabusSettings, getTaxSettingsForDisplay, syllabusFor } from "@/lib/site-settings";
 
 // The card shape is shared with the directories and the homepage sections.
 // Re-exported under the old name so the three category pages keep importing
@@ -33,7 +34,12 @@ export default async function CategoryGrid({
   items: GridItem[];
   footerLinks: FooterLinks;
 }) {
-  const [nav, bio, tax] = await Promise.all([getNav(), getBio(), getTaxSettingsForDisplay()]);
+  const [nav, bio, tax, syllabusSettings] = await Promise.all([
+    getNav(),
+    getBio(),
+    getTaxSettingsForDisplay(),
+    getSyllabusSettings(),
+  ]);
   const copy = COPY[category];
 
   return (
@@ -54,9 +60,28 @@ export default async function CategoryGrid({
         ) : (
           <>
             <div className="grid md:grid-cols-3 gap-5 mt-12">
-              {items.map((item) => (
-                <ItemCard key={item.slug} item={item} sizes={GRID_IMAGE_SIZES} tax={tax} />
-              ))}
+              {items.map((item) => {
+                const syllabus = syllabusFor(item.details, syllabusSettings);
+                // The card itself is a single big link, so the syllabus
+                // link cannot live inside it — an <a> inside an <a> is
+                // invalid and browsers resolve it by dropping one of them.
+                // It sits underneath instead, and the arbitrary variant
+                // makes the card take the leftover height so cards in a row
+                // still line up whether or not they have a syllabus.
+                return (
+                  <div key={item.slug} className="flex flex-col h-full [&>*:first-child]:flex-1">
+                    <ItemCard item={item} sizes={GRID_IMAGE_SIZES} tax={tax} />
+                    {syllabus && (
+                      <Link
+                        href={`/items/${item.slug}/syllabus`}
+                        className="inline-flex items-center gap-1.5 min-h-[44px] w-fit mt-1 font-semibold text-[14px] text-ink hover:text-marigold-ink transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marigold focus-visible:ring-offset-2 focus-visible:ring-offset-bone"
+                      >
+                        {syllabusSettings.ctaLabel} <span aria-hidden>→</span>
+                      </Link>
+                    )}
+                  </div>
+                );
+              })}
             </div>
             {category === "course" && <CourseCompare items={items} tax={tax} />}
           </>

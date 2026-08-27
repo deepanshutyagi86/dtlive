@@ -2,6 +2,13 @@ import Link from "next/link";
 import ItemCard, { type CardItem } from "./ItemCard";
 import { DEFAULT_TAX, type TaxSettings } from "@/lib/settings-types";
 
+// 2-up on phones is deliberate — these cards are compact and one column
+// turned every section into an endless scroll. But 2-up also held all the
+// way out to 1440px, which left the cards oversized, stranded a third item
+// alone beside empty space, and ran the homepage past 7,700px. Three
+// columns from lg: is where a 1200px container actually wants to sit.
+const SECTION_GRID_CLASS = "grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5 mt-7";
+
 // Each door now says what it actually is before showing what's in it. The
 // old version was five names and a hover-revealed line — a visitor had to
 // click through to find out whether "Ventures" was something they could buy.
@@ -94,7 +101,7 @@ export default function Doors({
                 </span>
                 <Link
                   href={d.href}
-                  className="font-semibold text-sm hover:text-marigold-ink transition-colors whitespace-nowrap"
+                  className="inline-flex items-center min-h-[44px] font-semibold text-sm hover:text-marigold-ink transition-colors whitespace-nowrap rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marigold focus-visible:ring-offset-2 focus-visible:ring-offset-bone"
                 >
                   See all →
                 </Link>
@@ -109,7 +116,7 @@ export default function Doors({
                 <p className="text-muted mt-1.5 text-[15px]">Check back soon.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-3 sm:gap-5 mt-7">
+              <div className={SECTION_GRID_CLASS}>
                 {list.map((item) => (
                   <ItemCard key={item.slug} item={item} sizes={SECTION_IMAGE_SIZES} compact tax={tax} />
                 ))}

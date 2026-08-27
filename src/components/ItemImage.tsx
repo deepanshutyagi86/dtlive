@@ -28,6 +28,7 @@ export default function ItemImage({
   imageFocal,
   aspectClassName = ITEM_IMAGE_ASPECT_CLASS,
   className = "",
+  priority = false,
 }: {
   thumbnail: string | null;
   title: string;
@@ -45,6 +46,12 @@ export default function ItemImage({
   // ordering, not string position, decides which wins.
   aspectClassName?: string;
   className?: string;
+  // Opt-in eager load for the handful of images that are actually on
+  // screen at first paint. next/image lazy-loads by default, which is
+  // right for the twenty below the fold and wrong for the LCP element —
+  // lazy-loading the largest visible image costs a whole round trip
+  // before it can even start fetching.
+  priority?: boolean;
 }) {
   return (
     <div className={`relative w-full ${aspectClassName} ${className}`}>
@@ -57,6 +64,7 @@ export default function ItemImage({
           // A thumbnail on a host outside images.remotePatterns would
           // otherwise throw and blank the entire page, not just this card.
           unoptimized={!isOptimisableImage(thumbnail)}
+          priority={priority}
           className={`object-cover ${ITEM_IMAGE_OBJECT_POSITION_CLASS}`}
           style={imageFocal ? { objectPosition: `${imageFocal.x}% ${imageFocal.y}%` } : undefined}
           draggable={false}

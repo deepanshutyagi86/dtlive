@@ -361,3 +361,108 @@ export function LinesField({
     </div>
   );
 }
+
+/**
+ * PDF picker for a single file, used by the per-item syllabus.
+ *
+ * Deliberately NOT a generalised file input: the pathname prefix is what
+ * unlocks application/pdf on /api/admin/upload, so the prefix is a required
+ * prop and the accept/contentType are fixed. Anything else keeps the
+ * route's image-only rules, which is the point.
+ */
+export function PdfUploadField({
+  label,
+  value,
+  fileName,
+  onChange,
+  pathPrefix,
+  help,
+}: {
+  label: string;
+  value: string;
+  fileName?: string;
+  onChange: (v: { url: string; fileName: string } | null) => void;
+  pathPrefix: string;
+  help?: string;
+}) {
+  const id = useId();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleFile(file: File) {
+    setError(null);
+    setUploading(true);
+    setProgress(0);
+    try {
+      // Random name, original kept only for display: two items with a
+      // "syllabus.pdf" would otherwise collide in the blob store, and the
+      // uploader's own filename is not something to put in a public URL.
+      const result = await upload(`${pathPrefix}${crypto.randomUUID()}.pdf`, file, {
+        access: "public",
+        handleUploadUrl: "/api/admin/upload",
+        contentType: "application/pdf",
+        onUploadProgress: (p) => setProgress(Math.round(p.percentage)),
+      });
+      onChange({ url: result.url, fileName: file.name });
+    } catch (err: any) {
+      setError(err?.message || "Upload failed. Try again.");
+    } finally {
+      setUploading(false);
+      setProgress(0);
+    }
+  }
+
+  return (
+    <div className="mb-5">
+      <label htmlFor={id} className="block font-mono text-[10.5px] uppercase tracking-wider text-muted mb-1.5">
+        {label}
+      </label>
+      <div className="flex flex-wrap gap-2 items-center">
+        <button
+          id={id}
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+          className="bg-ink text-bone px-4 py-2.5 rounded-[10px] text-sm font-semibold hover:bg-marigold hover:text-ink transition-colors disabled:opacity-50"
+        >
+          {uploading ? `Uploading… ${progress}%` : value ? "Replace PDF" : "Upload PDF"}
+        </button>
+        {value && (
+          <>
+            <a
+              href={value}
+              target="_blank"
+              rel="noopener"
+              className="font-mono text-[11px] text-muted hover:text-ink transition-colors truncate max-w-[220px]"
+            >
+              {fileName || "syllabus.pdf"}
+            </a>
+            <button
+              type="button"
+              onClick={() => onChange(null)}
+              className="font-mono text-[11px] text-muted hover:text-live-ink transition-colors"
+            >
+              Remove
+            </button>
+          </>
+        )}
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="application/pdf,.pdf"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          // Reset so picking the same file twice still fires onChange.
+          e.target.value = "";
+          if (file) handleFile(file);
+        }}
+      />
+      {error && <p className="text-[12px] text-live-ink mt-1.5">{error}</p>}
+      {help && <p className="text-[12px] text-muted mt-1.5 leading-relaxed">{help}</p>}
+    </div>
+  );
+}

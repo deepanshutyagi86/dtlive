@@ -154,6 +154,49 @@ export const DEFAULT_GUIDE_CTA: GuideCtaSettings = {
 };
 
 /* ------------------------------------------------------------------ */
+/* Live stream carousel                                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Named sizes rather than a free pixel value on purpose. Tailwind compiles
+ * the classes it can see in the source at build time, so a width typed into
+ * the admin panel would produce a class that does not exist and a card with
+ * no width at all. Three vetted steps, each a real pair of classes.
+ */
+export type StreamCardSize = "small" | "medium" | "large";
+
+export interface StreamSettings {
+  cardSize: StreamCardSize;
+}
+
+export const DEFAULT_STREAM: StreamSettings = {
+  cardSize: "medium",
+};
+
+/* ------------------------------------------------------------------ */
+/* Syllabus PDF                                                        */
+/* ------------------------------------------------------------------ */
+
+export interface SyllabusSettings {
+  /** Master switch. Off hides every syllabus link and 404s the pages,
+   *  without touching a single uploaded file. */
+  enabled: boolean;
+  /** Wording on the buttons and the page itself. */
+  ctaLabel: string;
+  heading: string;
+  blurb: string;
+  downloadLabel: string;
+}
+
+export const DEFAULT_SYLLABUS: SyllabusSettings = {
+  enabled: true,
+  ctaLabel: "Read Full Description",
+  heading: "The full syllabus",
+  blurb: "Everything covered, module by module. Read it here or take it with you.",
+  downloadLabel: "Download PDF",
+};
+
+/* ------------------------------------------------------------------ */
 /* Coupons                                                             */
 /* ------------------------------------------------------------------ */
 
