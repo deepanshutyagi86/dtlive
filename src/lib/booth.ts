@@ -54,6 +54,27 @@ export function currentTrack(tracks: BoothTrack[], positionSec: number): BoothTr
   return current;
 }
 
+/**
+ * The standard Mixcloud widget iframe src, built from a mix's public page
+ * URL. Not the JS Widget API — that adds a `seek()` but Mixcloud's own docs
+ * hedge it ("resolves true if the seek was allowed and false if it
+ * wasn't") with no documented rule for when, and there is no live mix in
+ * this database yet to verify it end-to-end. A plain embed the visitor
+ * presses play on themselves is the reliable choice for v1; our own UI
+ * above it is what makes the clock sync visible instead.
+ */
+export function mixcloudEmbedSrc(mixcloudUrl: string): string | null {
+  try {
+    const u = new URL(mixcloudUrl);
+    if (!/(^|\.)mixcloud\.com$/i.test(u.hostname)) return null;
+    if (!u.pathname || u.pathname === "/") return null;
+    const params = new URLSearchParams({ hide_cover: "1", light: "1", feed: u.pathname });
+    return `https://www.mixcloud.com/widget/iframe/?${params.toString()}`;
+  } catch {
+    return null;
+  }
+}
+
 export function formatTimecode(sec: number): string {
   const s = Math.max(0, Math.floor(sec));
   const h = Math.floor(s / 3600);
