@@ -69,6 +69,11 @@ export interface NavSettings {
   ctaHref: string;
 }
 
+// NOTE: getNav() in site-settings.ts replaces `links` WHOLESALE with the
+// stored row when one exists with a non-empty array — it does not merge
+// new entries in. A site that has ever saved Settings → Navigation already
+// has a stored `links` array, so adding a line here will NOT surface it on
+// the live site; it has to be added in /admin as well.
 export const DEFAULT_NAV: NavSettings = {
   links: [
     { label: "Courses", href: "/courses", show: true },
@@ -77,6 +82,7 @@ export const DEFAULT_NAV: NavSettings = {
     { label: "Agency", href: "/agency", show: true },
     { label: "Shop", href: "/shop", show: false },
     { label: "Ventures", href: "/ventures", show: false },
+    { label: "Booth", href: "/booth", show: false },
   ],
   ctaLabel: "Let's talk",
   ctaHref: "/agency",
@@ -396,4 +402,49 @@ export const DEFAULT_INVOICE: InvoiceSettings = {
   declaration:
     "We declare that this invoice shows the actual price of the service described and that all particulars are true and correct.",
   notes: "",
+};
+
+/* ------------------------------------------------------------------ */
+/* Booth — the DJ / music room. A mix runs on a server clock; everyone  */
+/* who lands on /booth hears the same second, because "now" is derived  */
+/* from startedAtIso rather than restarted per visitor.                 */
+/* ------------------------------------------------------------------ */
+
+export interface BoothMix {
+  /** crypto.randomUUID() at creation — stable key, never derived from title. */
+  id: string;
+  title: string;
+  /** Full public Mixcloud URL, e.g. https://www.mixcloud.com/user/slug/ */
+  mixcloudUrl: string;
+  /** Total length in seconds, so the clock knows where to wrap. */
+  durationSec: number;
+  /** Typed by hand for now — no audio analysis exists to derive this. Drives the visuals only. */
+  bpm: number;
+  /** ISO datetime — the moment this mix is treated as having begun.
+   *  position = (now - startedAt) % duration. Editing this re-anchors the room. */
+  startedAtIso: string;
+  /** Raw lines, e.g. "12:34 Artist - Track". Parsed at read time; a line
+   *  that doesn't start with a timecode is dropped, not thrown on. */
+  tracklist: string[];
+  /** The one mix currently playing in the room. First live===true mix with
+   *  a real URL wins — see activeMix() in site-settings.ts. */
+  live: boolean;
+}
+
+export interface BoothSettings {
+  /** Master switch. Off = /booth 404s and the nav link hides. Defaults off
+   *  so nothing appears on the live site until deliberately switched on. */
+  enabled: boolean;
+  heading: string;
+  blurb: string;
+  gearImageUrl?: string;
+  gearCaption?: string;
+  mixes: BoothMix[];
+}
+
+export const DEFAULT_BOOTH: BoothSettings = {
+  enabled: false,
+  heading: "The Booth",
+  blurb: "A mix, always running. Drop in wherever it's got to.",
+  mixes: [],
 };

@@ -25,6 +25,7 @@ const ALLOWED_KEYS = [
   "tax",
   "invoice",
   "business",
+  "booth",
 ];
 
 export async function GET() {

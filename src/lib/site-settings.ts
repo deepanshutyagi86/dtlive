@@ -9,6 +9,7 @@ import { getSetting } from "./items";
 import { BUSINESS, BUSINESS_ADDRESS_LINES } from "./legal";
 import {
   DEFAULT_BIO,
+  DEFAULT_BOOTH,
   DEFAULT_BRANDING,
   DEFAULT_COUPONS,
   DEFAULT_GUIDE_CTA,
@@ -19,6 +20,8 @@ import {
   DEFAULT_SYLLABUS,
   DEFAULT_TAX,
   type BioSettings,
+  type BoothMix,
+  type BoothSettings,
   type Branding,
   type BusinessSettings,
   type Coupon,
@@ -73,16 +76,31 @@ export async function getBranding(): Promise<Branding> {
   };
 }
 
+// Path booth.enabled/activeMix gate the nav link (and the page itself) on.
+// A literal, not a derived string, so it can't drift from the route folder.
+const BOOTH_PATH = "/booth";
+
 export async function getNav(): Promise<NavSettings> {
-  const stored = await readChromeSetting<Partial<NavSettings>>("nav", {});
+  const [stored, booth] = await Promise.all([
+    readChromeSetting<Partial<NavSettings>>("nav", {}),
+    getBoothSettings(),
+  ]);
   const links: NavLink[] = Array.isArray(stored.links) && stored.links.length > 0
     ? stored.links
         .filter((l) => l && typeof l.href === "string" && typeof l.label === "string")
         .map((l) => ({ label: l.label.trim(), href: l.href.trim(), show: l.show !== false }))
         .filter((l) => l.label && l.href)
     : DEFAULT_NAV.links;
+
+  // The one place every page's nav is assembled, so this is the one place
+  // that has to ask activeMix() rather than every render call site — a
+  // link to /booth must never survive here when the room would 404. Both
+  // switches have to agree, same rule /booth itself applies below.
+  const boothLive = booth.enabled && Boolean(activeMix(booth));
+  const filteredLinks = boothLive ? links : links.filter((l) => l.href !== BOOTH_PATH);
+
   return {
-    links,
+    links: filteredLinks,
     ctaLabel: clean(stored.ctaLabel) || DEFAULT_NAV.ctaLabel,
     ctaHref: clean(stored.ctaHref) || DEFAULT_NAV.ctaHref,
   };
@@ -161,6 +179,31 @@ export function syllabusFor(itemDetails: any, settings: SyllabusSettings): ItemS
   // undefined means "on, because a file is here"; only an explicit false hides it.
   if (s.enabled === false) return null;
   return { url: s.url.trim(), fileName: s.fileName, enabled: true };
+}
+
+export async function getBoothSettings(): Promise<BoothSettings> {
+  const stored = await readChromeSetting<Partial<BoothSettings>>("booth", {});
+  const mixes = Array.isArray(stored.mixes)
+    ? stored.mixes.filter((m) => m && typeof m.id === "string" && typeof m.mixcloudUrl === "string")
+    : DEFAULT_BOOTH.mixes;
+  return {
+    enabled: stored.enabled === true,
+    heading: clean(stored.heading) || DEFAULT_BOOTH.heading,
+    blurb: clean(stored.blurb) || DEFAULT_BOOTH.blurb,
+    gearImageUrl: clean(stored.gearImageUrl),
+    gearCaption: clean(stored.gearCaption),
+    mixes,
+  };
+}
+
+/**
+ * The one place that decides which mix is playing right now. The page, the
+ * nav link (via getNav() above) and the route guard all ask this instead
+ * of reading settings.mixes directly, so a link can never point at a room
+ * that isn't there: first mix with live === true and a real URL wins.
+ */
+export function activeMix(settings: BoothSettings): BoothMix | null {
+  return settings.mixes.find((m) => m.live && typeof m.mixcloudUrl === "string" && m.mixcloudUrl.trim()) ?? null;
 }
 
 export async function getCoupons(): Promise<Coupon[]> {
