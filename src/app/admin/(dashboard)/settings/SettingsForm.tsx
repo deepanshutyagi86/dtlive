@@ -8,6 +8,7 @@ import {
   GuideCtaSection,
   StreamSection,
   SyllabusSection,
+  BoothSection,
   CouponsSection,
   TaxSection,
   BusinessSection,
@@ -15,6 +16,7 @@ import {
 } from "./SettingsSections";
 import {
   DEFAULT_BIO,
+  DEFAULT_BOOTH,
   DEFAULT_BUSINESS,
   DEFAULT_GUIDE_CTA,
   DEFAULT_STREAM,
@@ -24,6 +26,7 @@ import {
   DEFAULT_STARTER,
   DEFAULT_TAX,
   type BioSettings,
+  type BoothSettings,
   type Branding,
   type BusinessSettings,
   type Coupon,
@@ -141,6 +144,7 @@ export default function SettingsForm() {
   const [guideCta, setGuideCta] = useState<GuideCtaSettings>(DEFAULT_GUIDE_CTA);
   const [syllabus, setSyllabus] = useState<SyllabusSettings>(DEFAULT_SYLLABUS);
   const [stream, setStream] = useState<StreamSettings>(DEFAULT_STREAM);
+  const [booth, setBooth] = useState<BoothSettings>(DEFAULT_BOOTH);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [business, setBusiness] = useState<BusinessSettings>(DEFAULT_BUSINESS);
   const [invoice, setInvoice] = useState<InvoiceSettings>(DEFAULT_INVOICE);
@@ -178,6 +182,7 @@ export default function SettingsForm() {
         setGuideCta({ ...DEFAULT_GUIDE_CTA, ...(d.guideCta ?? {}) });
         setSyllabus({ ...DEFAULT_SYLLABUS, ...(d.syllabus ?? {}) });
         setStream({ ...DEFAULT_STREAM, ...(d.stream ?? {}) });
+        setBooth({ ...DEFAULT_BOOTH, ...(d.booth ?? {}), mixes: Array.isArray(d.booth?.mixes) ? d.booth.mixes : DEFAULT_BOOTH.mixes });
         setCoupons(Array.isArray(d.coupons) ? d.coupons : []);
         setBusiness({
           ...DEFAULT_BUSINESS,
@@ -218,6 +223,7 @@ export default function SettingsForm() {
         guideCta,
         syllabus,
         stream,
+        booth,
         // Blank rows are dropped on save rather than on every keystroke,
         // so a half-typed code isn't deleted out from under the cursor.
         coupons: coupons.filter((c) => (c.code ?? "").trim()),
@@ -404,6 +410,7 @@ export default function SettingsForm() {
       <GuideCtaSection value={guideCta} onChange={setGuideCta} />
       <StreamSection value={stream} onChange={setStream} />
       <SyllabusSection value={syllabus} onChange={setSyllabus} />
+      <BoothSection value={booth} onChange={setBooth} />
       <BioSection value={bio} onChange={setBio} />
       <CouponsSection value={coupons} onChange={setCoupons} items={items} />
       <TaxSection value={tax} onChange={setTax} b2bReady={b2bReady} />

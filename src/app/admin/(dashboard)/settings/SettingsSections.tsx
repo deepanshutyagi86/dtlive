@@ -1,4 +1,5 @@
 "use client";
+import { useId } from "react";
 import {
   ImageUploadField,
   LinesField,
@@ -8,10 +9,13 @@ import {
   TextField,
   Toggle,
 } from "@/components/admin/AdminFields";
+import { INPUT_CLASS } from "@/components/admin/AdminFields";
+import { formatTimecode } from "@/lib/booth";
 import { computePricing, formatRupees } from "@/lib/tax";
 import {
   BRANDING_HELP,
   DEFAULT_BIO,
+  DEFAULT_BOOTH,
   DEFAULT_BUSINESS,
   DEFAULT_GUIDE_CTA,
   DEFAULT_STREAM,
@@ -20,6 +24,8 @@ import {
   DEFAULT_NAV,
   DEFAULT_STARTER,
   type BioSettings,
+  type BoothMix,
+  type BoothSettings,
   type Branding,
   type BusinessSettings,
   type Coupon,
@@ -751,6 +757,193 @@ export function InvoiceSection({ value, onChange }: { value: InvoiceSettings; on
         onChange={(v) => set({ signatureUrl: v })}
         pathPrefix="branding/signature-"
         previewClassName="w-40 h-16"
+      />
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Booth — the DJ / music room                                         */
+/* ------------------------------------------------------------------ */
+
+// mm:ss (or h:mm:ss past an hour), typed by hand — nobody knows their mix
+// runs 4,412 seconds. Parsed leniently: anything that doesn't come out to
+// a real number of seconds falls back to 0 rather than throwing mid-type.
+function parseDurationInput(raw: string): number {
+  const parts = raw.trim().split(":").map((p) => Number(p));
+  if (parts.length === 0 || parts.some((n) => !Number.isFinite(n))) return 0;
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  return Math.max(0, parts[0]);
+}
+
+function DurationField({ value, onChange }: { value: number; onChange: (sec: number) => void }) {
+  const id = useId();
+  return (
+    <div className="mb-3">
+      <label htmlFor={id} className="block font-mono text-[10.5px] uppercase tracking-wider text-muted mb-1.5">
+        Duration (mm:ss)
+      </label>
+      {/* Uncontrolled-ish: reparsed on blur, not every keystroke, so typing
+          "1" then "2" then ":" doesn't get stomped by a half-parsed value.
+          key={value} resyncs the displayed text if durationSec changes from
+          outside this field (e.g. a fresh blank row). */}
+      <input
+        key={value}
+        id={id}
+        className={INPUT_CLASS}
+        placeholder="58:30"
+        defaultValue={value > 0 ? formatTimecode(value) : ""}
+        onBlur={(e) => onChange(parseDurationInput(e.target.value))}
+      />
+      <p className="text-[12px] text-muted mt-1.5 leading-relaxed">
+        Total length of the mix. Converted to seconds when you click away — this is what lets the clock know
+        where to wrap back to the start.
+      </p>
+    </div>
+  );
+}
+
+function isoToLocalInput(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function localInputToIso(local: string): string {
+  const d = new Date(local);
+  return Number.isNaN(d.getTime()) ? "" : d.toISOString();
+}
+
+function StartedAtField({ value, onChange }: { value: string; onChange: (iso: string) => void }) {
+  const id = useId();
+  return (
+    <div className="mb-3">
+      <label htmlFor={id} className="block font-mono text-[10.5px] uppercase tracking-wider text-muted mb-1.5">
+        Started at
+      </label>
+      <div className="flex flex-wrap gap-2">
+        <input
+          id={id}
+          type="datetime-local"
+          className={`${INPUT_CLASS} flex-1 min-w-[220px]`}
+          value={isoToLocalInput(value)}
+          onChange={(e) => {
+            const iso = localInputToIso(e.target.value);
+            if (iso) onChange(iso);
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => onChange(new Date().toISOString())}
+          className="border border-line px-4 py-2.5 rounded-[10px] text-sm font-semibold whitespace-nowrap hover:border-ink transition-colors"
+        >
+          Set to now
+        </button>
+      </div>
+      <p className="text-[12px] text-muted mt-1.5 leading-relaxed">
+        The least obvious field here: this is the moment the mix is treated as having begun. Nobody who lands
+        on /booth restarts it from the top — they join wherever it&apos;s got to since this moment, on a loop.
+        Hit &ldquo;Set to now&rdquo; to restart the room from the beginning right now.
+      </p>
+    </div>
+  );
+}
+
+export function BoothSection({ value, onChange }: { value: BoothSettings; onChange: (v: BoothSettings) => void }) {
+  const set = (patch: Partial<BoothSettings>) => onChange({ ...value, ...patch });
+
+  return (
+    <section>
+      <h2 className="font-display font-bold text-lg mb-1">The Booth</h2>
+      <p className="text-sm text-muted mb-5">
+        A DJ room at /booth — a mix that&apos;s already playing on a server clock when someone walks in, not a
+        player anyone presses start on. Off by default: the page 404s and the nav link stays hidden until this
+        is switched on <em>and</em> one mix below is marked live.
+      </p>
+
+      <Toggle
+        label="Enable the Booth"
+        checked={value.enabled === true}
+        onChange={(v) => set({ enabled: v })}
+        help="Off means /booth 404s and the nav link hides, even if a mix below is marked live."
+      />
+
+      <TextField label="Page heading" value={value.heading} onChange={(v) => set({ heading: v })} placeholder={DEFAULT_BOOTH.heading} />
+      <TextField label="Blurb" rows={2} value={value.blurb} onChange={(v) => set({ blurb: v })} placeholder={DEFAULT_BOOTH.blurb} />
+
+      <ImageUploadField
+        label="Gear photo (optional)"
+        sizeHint="landscape reads best on the page"
+        value={value.gearImageUrl ?? ""}
+        onChange={(v) => set({ gearImageUrl: v })}
+        pathPrefix="booth/gear-"
+        previewClassName="w-40 h-28"
+      />
+      <TextField
+        label="Gear caption (optional)"
+        value={value.gearCaption ?? ""}
+        onChange={(v) => set({ gearCaption: v })}
+        placeholder="The setup."
+      />
+
+      <hr className="border-line my-6" />
+      <p className="font-mono text-[10.5px] uppercase tracking-wider text-muted mb-3">Mixes</p>
+      <p className="text-[13px] text-ink-soft mb-3 leading-relaxed">
+        Only the first one with &ldquo;Live&rdquo; checked plays on the page. To switch what&apos;s playing,
+        untick the old one and tick the new one — don&apos;t leave two ticked, the earlier row silently wins.
+      </p>
+
+      <Repeater<BoothMix>
+        items={value.mixes}
+        onChange={(next) => onChange({ ...value, mixes: next })}
+        addLabel="Add mix"
+        emptyHint="No mixes yet. Add one, paste its Mixcloud URL, mark it live, and it's playing on /booth — no deploy."
+        blank={() => ({
+          id: crypto.randomUUID(),
+          title: "",
+          mixcloudUrl: "",
+          durationSec: 0,
+          bpm: 120,
+          startedAtIso: new Date().toISOString(),
+          tracklist: [],
+          live: false,
+        })}
+        render={(mix, update) => (
+          <>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <TextField label="Title" value={mix.title} onChange={(v) => update({ title: v })} placeholder="Late Night, Vol. 3" />
+              <TextField
+                label="Mixcloud URL"
+                value={mix.mixcloudUrl}
+                onChange={(v) => update({ mixcloudUrl: v })}
+                placeholder="https://www.mixcloud.com/you/late-night-vol-3/"
+              />
+            </div>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <DurationField value={mix.durationSec} onChange={(v) => update({ durationSec: v })} />
+              <NumberField
+                label="BPM"
+                value={mix.bpm}
+                onChange={(v) => update({ bpm: v })}
+                min={1}
+                max={220}
+                help="Typed by hand — drives the light show's tempo only. Nothing reads the audio."
+              />
+            </div>
+            <StartedAtField value={mix.startedAtIso} onChange={(v) => update({ startedAtIso: v })} />
+            <LinesField
+              label="Tracklist (one per line — 12:34 Artist - Track)"
+              value={mix.tracklist}
+              onChange={(v) => update({ tracklist: v })}
+              rows={6}
+              placeholder={"0:00 Opening track\n12:34 Artist - Track"}
+              help="A line that doesn't start with a timecode is skipped, not fatal — it just won't show up, the rest of the list is unaffected."
+            />
+            <Toggle label="Live — this is the mix playing right now" checked={mix.live === true} onChange={(v) => update({ live: v })} />
+          </>
+        )}
       />
     </section>
   );
