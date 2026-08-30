@@ -3,12 +3,12 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Nav from "@/components/Nav";
 import Footer, { FooterLinks } from "@/components/Footer";
-import BoothScene from "@/components/booth/BoothScene";
 import BoothRoom from "@/components/booth/BoothRoom";
 import { isOptimisableImage } from "@/lib/image-hosts";
-import { mixcloudEmbedSrc, parseTracklist } from "@/lib/booth";
+import { parsePlaylistId } from "@/lib/booth";
 import { getSetting } from "@/lib/items";
-import { activeMix, getBio, getBoothSettings, getNav, SITE_URL } from "@/lib/site-settings";
+import { activeSet, getBio, getBoothSettings, getNav, SITE_URL } from "@/lib/site-settings";
+import { getPlaylistTimeline } from "@/lib/youtube";
 
 // Never static: the whole point is that "now" is read fresh on every
 // request so a visitor's position is computed against the real clock, not
@@ -17,8 +17,8 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
   const booth = await getBoothSettings();
-  const mix = activeMix(booth);
-  if (!booth.enabled || !mix) return {};
+  const set = activeSet(booth);
+  if (!booth.enabled || !set) return {};
   return {
     title: booth.heading,
     description: booth.blurb,
@@ -41,50 +41,47 @@ export default async function BoothPage() {
   ]);
 
   // Same question the nav link and generateMetadata already asked: a
-  // reachable /booth must never disagree with activeMix() about whether
+  // reachable /booth must never disagree with activeSet() about whether
   // there's a room here.
-  const mix = activeMix(booth);
-  if (!booth.enabled || !mix) notFound();
+  const set = activeSet(booth);
+  if (!booth.enabled || !set) notFound();
+
+  // activeSet() already guarantees this parses — re-parsing here just gets
+  // the actual ID string rather than re-deriving "is it live" logic.
+  const playlistId = parsePlaylistId(set.youtubePlaylistUrl)!;
 
   // Captured once, here, and handed to the client as a prop — the client
   // corrects for the gap to its own clock rather than trusting its own
   // Date.now() outright. See BoothRoom.tsx.
   const serverNowMs = Date.now();
-  const tracks = parseTracklist(mix.tracklist);
-  const embedSrc = mixcloudEmbedSrc(mix.mixcloudUrl);
+
+  // PATH B, if a key is configured: real per-track durations + titles,
+  // cached in lib/youtube.ts so this never hits the API on every render.
+  // A null here is a normal state (no key, or a failed fetch) — the client
+  // falls back to PATH A's deterministic approximation entirely on its own.
+  const timeline = await getPlaylistTimeline(playlistId);
+  const durations = timeline ? timeline.tracks.map((t) => t.durationSec) : null;
+  const titles = timeline ? timeline.tracks.map((t) => t.title) : set.tracklist.length > 0 ? set.tracklist : null;
 
   return (
     <>
       <Nav nav={nav} />
 
-      {/* The one place on the site that goes near-black — deliberate
-          rupture, marigold stays the accent. data-nav-dark flips the sticky
-          bar dark the same way Footer and the item page's closed CTA
-          already do; no second mechanism needed. */}
-      <section data-nav-dark className="relative min-h-[560px] bg-[#08080B] text-white overflow-hidden">
-        <BoothScene bpm={mix.bpm} />
-        <div className="relative z-[1] max-w-[900px] mx-auto px-5 pt-[150px] pb-24 text-center">
-          <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-white/60 mb-3">
-            Deepanshu Tyagi Live
-          </p>
-          <h1 className="font-display font-extrabold text-[42px] md:text-[72px] tracking-tight leading-[1.02]">
-            {booth.heading}
-          </h1>
-          <p className="mt-4 max-w-[520px] mx-auto text-[17px] leading-relaxed text-white/70">{booth.blurb}</p>
-        </div>
-      </section>
-
       <BoothRoom
+        heading={booth.heading}
+        blurb={booth.blurb}
         serverNowMs={serverNowMs}
-        startedAtIso={mix.startedAtIso}
-        durationSec={mix.durationSec}
-        tracks={tracks}
-        mixTitle={mix.title}
-        embedSrc={embedSrc}
+        startedAtIso={set.startedAtIso}
+        avgTrackSec={set.avgTrackSec}
+        bpm={set.bpm}
+        playlistId={playlistId}
+        setTitle={set.title}
+        durations={durations}
+        titles={titles}
       />
 
       {booth.gearImageUrl && (
-        <section className="max-w-[1100px] mx-auto px-5 pb-24">
+        <section className="max-w-[1100px] mx-auto px-5 py-24">
           <div className="relative w-full aspect-[16/9] rounded-card overflow-hidden border border-line bg-card">
             <Image
               src={booth.gearImageUrl}
