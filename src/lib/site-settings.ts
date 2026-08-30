@@ -5,9 +5,11 @@
 // field existed still renders — the missing field falls back instead of
 // coming through as undefined. Same rule the hero copy already followed.
 
+import { firstLiveSet, parsePlaylistId } from "./booth";
 import { getSetting } from "./items";
 import { BUSINESS, BUSINESS_ADDRESS_LINES } from "./legal";
 import {
+  DEFAULT_AVG_TRACK_SEC,
   DEFAULT_BIO,
   DEFAULT_BOOTH,
   DEFAULT_BRANDING,
@@ -20,7 +22,7 @@ import {
   DEFAULT_SYLLABUS,
   DEFAULT_TAX,
   type BioSettings,
-  type BoothMix,
+  type BoothSet,
   type BoothSettings,
   type Branding,
   type BusinessSettings,
@@ -76,7 +78,7 @@ export async function getBranding(): Promise<Branding> {
   };
 }
 
-// Path booth.enabled/activeMix gate the nav link (and the page itself) on.
+// Path booth.enabled/activeSet gate the nav link (and the page itself) on.
 // A literal, not a derived string, so it can't drift from the route folder.
 const BOOTH_PATH = "/booth";
 
@@ -93,10 +95,10 @@ export async function getNav(): Promise<NavSettings> {
     : DEFAULT_NAV.links;
 
   // The one place every page's nav is assembled, so this is the one place
-  // that has to ask activeMix() rather than every render call site — a
+  // that has to ask activeSet() rather than every render call site — a
   // link to /booth must never survive here when the room would 404. Both
   // switches have to agree, same rule /booth itself applies below.
-  const boothLive = booth.enabled && Boolean(activeMix(booth));
+  const boothLive = booth.enabled && Boolean(activeSet(booth));
   const filteredLinks = boothLive ? links : links.filter((l) => l.href !== BOOTH_PATH);
 
   return {
@@ -181,29 +183,54 @@ export function syllabusFor(itemDetails: any, settings: SyllabusSettings): ItemS
   return { url: s.url.trim(), fileName: s.fileName, enabled: true };
 }
 
+/**
+ * Reads the "booth" row and normalises each set field-by-field, same
+ * pattern as every other getter here — a field a stored row doesn't have
+ * yet (never saved) falls back rather than coming through as undefined.
+ *
+ * Also tolerates the pre-YouTube shape (a `mixes` array of Mixcloud
+ * entries) by reading it as the source array when `sets` isn't present:
+ * those old entries have no `youtubePlaylistUrl`, so they normalise to an
+ * unparseable URL and simply read as "not live" rather than crashing —
+ * exactly the "extra/old fields ignored gracefully" behaviour every other
+ * field-by-field merge in this file already has.
+ */
 export async function getBoothSettings(): Promise<BoothSettings> {
-  const stored = await readChromeSetting<Partial<BoothSettings>>("booth", {});
-  const mixes = Array.isArray(stored.mixes)
-    ? stored.mixes.filter((m) => m && typeof m.id === "string" && typeof m.mixcloudUrl === "string")
-    : DEFAULT_BOOTH.mixes;
+  const stored = await readChromeSetting<Record<string, unknown>>("booth", {});
+  const rawSets = Array.isArray(stored.sets) ? stored.sets : Array.isArray(stored.mixes) ? stored.mixes : [];
+  const sets: BoothSet[] = rawSets
+    .filter((s: any) => s && typeof s.id === "string")
+    .map((s: any) => ({
+      id: s.id,
+      title: clean(s.title) || "",
+      youtubePlaylistUrl: clean(s.youtubePlaylistUrl) || "",
+      avgTrackSec: Number.isFinite(s.avgTrackSec) && s.avgTrackSec > 0 ? s.avgTrackSec : DEFAULT_AVG_TRACK_SEC,
+      bpm: Number.isFinite(s.bpm) && s.bpm > 0 ? s.bpm : 120,
+      startedAtIso: typeof s.startedAtIso === "string" ? s.startedAtIso : new Date().toISOString(),
+      tracklist: Array.isArray(s.tracklist) ? s.tracklist.filter((t: unknown) => typeof t === "string") : [],
+      live: s.live === true,
+    }));
   return {
     enabled: stored.enabled === true,
-    heading: clean(stored.heading) || DEFAULT_BOOTH.heading,
-    blurb: clean(stored.blurb) || DEFAULT_BOOTH.blurb,
-    gearImageUrl: clean(stored.gearImageUrl),
-    gearCaption: clean(stored.gearCaption),
-    mixes,
+    heading: clean(stored.heading as string) || DEFAULT_BOOTH.heading,
+    blurb: clean(stored.blurb as string) || DEFAULT_BOOTH.blurb,
+    gearImageUrl: clean(stored.gearImageUrl as string),
+    gearCaption: clean(stored.gearCaption as string),
+    sets,
   };
 }
 
 /**
- * The one place that decides which mix is playing right now. The page, the
+ * The one place that decides which set is playing right now. The page, the
  * nav link (via getNav() above) and the route guard all ask this instead
- * of reading settings.mixes directly, so a link can never point at a room
- * that isn't there: first mix with live === true and a real URL wins.
+ * of reading settings.sets directly, so a link can never point at a room
+ * that isn't there: first set with live === true and a parseable playlist
+ * URL wins.
  */
-export function activeMix(settings: BoothSettings): BoothMix | null {
-  return settings.mixes.find((m) => m.live && typeof m.mixcloudUrl === "string" && m.mixcloudUrl.trim()) ?? null;
+export function activeSet(settings: BoothSettings): BoothSet | null {
+  const live = firstLiveSet(settings.sets);
+  if (!live) return null;
+  return parsePlaylistId(live.youtubePlaylistUrl) ? live : null;
 }
 
 export async function getCoupons(): Promise<Coupon[]> {

@@ -405,29 +405,40 @@ export const DEFAULT_INVOICE: InvoiceSettings = {
 };
 
 /* ------------------------------------------------------------------ */
-/* Booth — the DJ / music room. A mix runs on a server clock; everyone  */
-/* who lands on /booth hears the same second, because "now" is derived  */
-/* from startedAtIso rather than restarted per visitor.                 */
+/* Booth — the DJ / music room. A YouTube playlist runs on a server     */
+/* clock; everyone who lands on /booth lands on the same video at the   */
+/* same second, because "now" is derived from startedAtIso rather than  */
+/* restarted per visitor. See lib/booth.ts for the two ways "same       */
+/* second" gets computed (deterministic guess vs. real durations).      */
 /* ------------------------------------------------------------------ */
 
-export interface BoothMix {
+/** Used only when there's no YOUTUBE_API_KEY to fetch real per-track
+ *  durations — see computeDeterministicSlot() in lib/booth.ts. */
+export const DEFAULT_AVG_TRACK_SEC = 210;
+
+export interface BoothSet {
   /** crypto.randomUUID() at creation — stable key, never derived from title. */
   id: string;
   title: string;
-  /** Full public Mixcloud URL, e.g. https://www.mixcloud.com/user/slug/ */
-  mixcloudUrl: string;
-  /** Total length in seconds, so the clock knows where to wrap. */
-  durationSec: number;
+  /** Full playlist URL (youtube.com/playlist?list=..., or a watch URL
+   *  carrying &list=...) or a bare playlist ID. Parsed by
+   *  parsePlaylistId() in lib/booth.ts, which accepts both. */
+  youtubePlaylistUrl: string;
+  /** Fallback average track length in seconds, used only when there's no
+   *  YOUTUBE_API_KEY — see computeDeterministicSlot() in lib/booth.ts.
+   *  Ignored entirely once real durations are available. */
+  avgTrackSec: number;
   /** Typed by hand for now — no audio analysis exists to derive this. Drives the visuals only. */
   bpm: number;
-  /** ISO datetime — the moment this mix is treated as having begun.
-   *  position = (now - startedAt) % duration. Editing this re-anchors the room. */
+  /** ISO datetime — the moment this playlist is treated as having begun
+   *  looping from its first track. Editing this re-anchors the room. */
   startedAtIso: string;
-  /** Raw lines, e.g. "12:34 Artist - Track". Parsed at read time; a line
-   *  that doesn't start with a timecode is dropped, not thrown on. */
+  /** Track titles, one per line, in playlist order. Optional: with
+   *  YOUTUBE_API_KEY set, real titles fetched from the API are shown
+   *  instead and nothing here needs to be typed by hand. */
   tracklist: string[];
-  /** The one mix currently playing in the room. First live===true mix with
-   *  a real URL wins — see activeMix() in site-settings.ts. */
+  /** The one set currently playing in the room. First live===true set with
+   *  a parseable playlist URL wins — see activeSet() in site-settings.ts. */
   live: boolean;
 }
 
@@ -439,12 +450,12 @@ export interface BoothSettings {
   blurb: string;
   gearImageUrl?: string;
   gearCaption?: string;
-  mixes: BoothMix[];
+  sets: BoothSet[];
 }
 
 export const DEFAULT_BOOTH: BoothSettings = {
   enabled: false,
   heading: "The Booth",
-  blurb: "A mix, always running. Drop in wherever it's got to.",
-  mixes: [],
+  blurb: "A playlist, always running. Drop in wherever it's got to.",
+  sets: [],
 };
