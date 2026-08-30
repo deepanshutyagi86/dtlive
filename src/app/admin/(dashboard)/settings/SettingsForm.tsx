@@ -182,7 +182,7 @@ export default function SettingsForm() {
         setGuideCta({ ...DEFAULT_GUIDE_CTA, ...(d.guideCta ?? {}) });
         setSyllabus({ ...DEFAULT_SYLLABUS, ...(d.syllabus ?? {}) });
         setStream({ ...DEFAULT_STREAM, ...(d.stream ?? {}) });
-        setBooth({ ...DEFAULT_BOOTH, ...(d.booth ?? {}), mixes: Array.isArray(d.booth?.mixes) ? d.booth.mixes : DEFAULT_BOOTH.mixes });
+        setBooth({ ...DEFAULT_BOOTH, ...(d.booth ?? {}), sets: Array.isArray(d.booth?.sets) ? d.booth.sets : DEFAULT_BOOTH.sets });
         setCoupons(Array.isArray(d.coupons) ? d.coupons : []);
         setBusiness({
           ...DEFAULT_BUSINESS,

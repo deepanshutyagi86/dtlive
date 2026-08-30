@@ -10,10 +10,11 @@ import {
   Toggle,
 } from "@/components/admin/AdminFields";
 import { INPUT_CLASS } from "@/components/admin/AdminFields";
-import { formatTimecode } from "@/lib/booth";
+import { boothStatusLine, parsePlaylistId } from "@/lib/booth";
 import { computePricing, formatRupees } from "@/lib/tax";
 import {
   BRANDING_HELP,
+  DEFAULT_AVG_TRACK_SEC,
   DEFAULT_BIO,
   DEFAULT_BOOTH,
   DEFAULT_BUSINESS,
@@ -24,7 +25,7 @@ import {
   DEFAULT_NAV,
   DEFAULT_STARTER,
   type BioSettings,
-  type BoothMix,
+  type BoothSet,
   type BoothSettings,
   type Branding,
   type BusinessSettings,
@@ -766,44 +767,6 @@ export function InvoiceSection({ value, onChange }: { value: InvoiceSettings; on
 /* Booth — the DJ / music room                                         */
 /* ------------------------------------------------------------------ */
 
-// mm:ss (or h:mm:ss past an hour), typed by hand — nobody knows their mix
-// runs 4,412 seconds. Parsed leniently: anything that doesn't come out to
-// a real number of seconds falls back to 0 rather than throwing mid-type.
-function parseDurationInput(raw: string): number {
-  const parts = raw.trim().split(":").map((p) => Number(p));
-  if (parts.length === 0 || parts.some((n) => !Number.isFinite(n))) return 0;
-  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-  if (parts.length === 2) return parts[0] * 60 + parts[1];
-  return Math.max(0, parts[0]);
-}
-
-function DurationField({ value, onChange }: { value: number; onChange: (sec: number) => void }) {
-  const id = useId();
-  return (
-    <div className="mb-3">
-      <label htmlFor={id} className="block font-mono text-[10.5px] uppercase tracking-wider text-muted mb-1.5">
-        Duration (mm:ss)
-      </label>
-      {/* Uncontrolled-ish: reparsed on blur, not every keystroke, so typing
-          "1" then "2" then ":" doesn't get stomped by a half-parsed value.
-          key={value} resyncs the displayed text if durationSec changes from
-          outside this field (e.g. a fresh blank row). */}
-      <input
-        key={value}
-        id={id}
-        className={INPUT_CLASS}
-        placeholder="58:30"
-        defaultValue={value > 0 ? formatTimecode(value) : ""}
-        onBlur={(e) => onChange(parseDurationInput(e.target.value))}
-      />
-      <p className="text-[12px] text-muted mt-1.5 leading-relaxed">
-        Total length of the mix. Converted to seconds when you click away — this is what lets the clock know
-        where to wrap back to the start.
-      </p>
-    </div>
-  );
-}
-
 function isoToLocalInput(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
@@ -843,31 +806,76 @@ function StartedAtField({ value, onChange }: { value: string; onChange: (iso: st
         </button>
       </div>
       <p className="text-[12px] text-muted mt-1.5 leading-relaxed">
-        The least obvious field here: this is the moment the mix is treated as having begun. Nobody who lands
-        on /booth restarts it from the top — they join wherever it&apos;s got to since this moment, on a loop.
-        Hit &ldquo;Set to now&rdquo; to restart the room from the beginning right now.
+        The least obvious field here: this is the moment the playlist is treated as having begun, at its first
+        track. Nobody who lands on /booth restarts it from the top — they join wherever it&apos;s got to since
+        this moment, on a loop. Hit &ldquo;Set to now&rdquo; to restart the room from the beginning right now.
       </p>
+    </div>
+  );
+}
+
+function PlaylistUrlField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const id = useId();
+  const trimmed = value.trim();
+  const invalid = trimmed.length > 0 && !parsePlaylistId(trimmed);
+  return (
+    <div className="mb-3">
+      <label htmlFor={id} className="block font-mono text-[10.5px] uppercase tracking-wider text-muted mb-1.5">
+        YouTube playlist URL
+      </label>
+      <input
+        id={id}
+        className={`${INPUT_CLASS} ${invalid ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}`}
+        placeholder="https://www.youtube.com/playlist?list=PLxxxxxxxx"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      {invalid ? (
+        <p className="text-[12px] text-red-600 mt-1.5 leading-relaxed">
+          Couldn&apos;t find a playlist ID in that. Paste the playlist page URL, a watch URL with &amp;list=... in
+          it, or a bare playlist ID.
+        </p>
+      ) : (
+        <p className="text-[12px] text-muted mt-1.5 leading-relaxed">
+          Paste the playlist&apos;s URL (youtube.com/playlist?list=... or a watch URL carrying &amp;list=...), or
+          just the bare playlist ID.
+        </p>
+      )}
     </div>
   );
 }
 
 export function BoothSection({ value, onChange }: { value: BoothSettings; onChange: (v: BoothSettings) => void }) {
   const set = (patch: Partial<BoothSettings>) => onChange({ ...value, ...patch });
+  const status = boothStatusLine(value);
+  const statusIsLive = status.startsWith("Live");
 
   return (
     <section>
       <h2 className="font-display font-bold text-lg mb-1">The Booth</h2>
-      <p className="text-sm text-muted mb-5">
-        A DJ room at /booth — a mix that&apos;s already playing on a server clock when someone walks in, not a
-        player anyone presses start on. Off by default: the page 404s and the nav link stays hidden until this
-        is switched on <em>and</em> one mix below is marked live.
+      <p className="text-sm text-muted mb-3">
+        A DJ room at /booth, built around a YouTube playlist that&apos;s already playing on a server clock when
+        someone walks in — not a player anyone presses start on. Off by default: the page 404s and the nav link
+        stays hidden until this is switched on <em>and</em> one set below is marked live.
+      </p>
+
+      {/* Computed live from the form state below, not from the last save —
+          this is what tells you WHY the room is hidden instead of leaving
+          you to guess which of the two switches disagrees. */}
+      <p
+        className={`text-[13px] font-semibold px-3 py-2 rounded-[8px] mb-5 inline-flex items-center gap-2 ${
+          statusIsLive ? "bg-live/10 text-live" : "bg-card text-ink-soft border border-line"
+        }`}
+      >
+        <span aria-hidden>{statusIsLive ? "●" : "○"}</span>
+        {status}
       </p>
 
       <Toggle
         label="Enable the Booth"
         checked={value.enabled === true}
         onChange={(v) => set({ enabled: v })}
-        help="Off means /booth 404s and the nav link hides, even if a mix below is marked live."
+        help="Off means /booth 404s and the nav link hides, even if a set below is marked live."
       />
 
       <TextField label="Page heading" value={value.heading} onChange={(v) => set({ heading: v })} placeholder={DEFAULT_BOOTH.heading} />
@@ -889,59 +897,60 @@ export function BoothSection({ value, onChange }: { value: BoothSettings; onChan
       />
 
       <hr className="border-line my-6" />
-      <p className="font-mono text-[10.5px] uppercase tracking-wider text-muted mb-3">Mixes</p>
+      <p className="font-mono text-[10.5px] uppercase tracking-wider text-muted mb-3">Playlists</p>
       <p className="text-[13px] text-ink-soft mb-3 leading-relaxed">
         Only the first one with &ldquo;Live&rdquo; checked plays on the page. To switch what&apos;s playing,
         untick the old one and tick the new one — don&apos;t leave two ticked, the earlier row silently wins.
       </p>
 
-      <Repeater<BoothMix>
-        items={value.mixes}
-        onChange={(next) => onChange({ ...value, mixes: next })}
-        addLabel="Add mix"
-        emptyHint="No mixes yet. Add one, paste its Mixcloud URL, mark it live, and it's playing on /booth — no deploy."
+      <Repeater<BoothSet>
+        items={value.sets}
+        onChange={(next) => onChange({ ...value, sets: next })}
+        addLabel="Add playlist"
+        emptyHint="No playlists yet. Add one, paste its YouTube playlist URL, mark it live, and it's playing on /booth — no deploy."
         blank={() => ({
           id: crypto.randomUUID(),
           title: "",
-          mixcloudUrl: "",
-          durationSec: 0,
+          youtubePlaylistUrl: "",
+          avgTrackSec: DEFAULT_AVG_TRACK_SEC,
           bpm: 120,
           startedAtIso: new Date().toISOString(),
           tracklist: [],
           live: false,
         })}
-        render={(mix, update) => (
+        render={(item, update) => (
           <>
             <div className="grid sm:grid-cols-2 gap-3">
-              <TextField label="Title" value={mix.title} onChange={(v) => update({ title: v })} placeholder="Late Night, Vol. 3" />
-              <TextField
-                label="Mixcloud URL"
-                value={mix.mixcloudUrl}
-                onChange={(v) => update({ mixcloudUrl: v })}
-                placeholder="https://www.mixcloud.com/you/late-night-vol-3/"
-              />
+              <TextField label="Title" value={item.title} onChange={(v) => update({ title: v })} placeholder="Late Night, Vol. 3" />
+              <PlaylistUrlField value={item.youtubePlaylistUrl} onChange={(v) => update({ youtubePlaylistUrl: v })} />
             </div>
             <div className="grid sm:grid-cols-2 gap-3">
-              <DurationField value={mix.durationSec} onChange={(v) => update({ durationSec: v })} />
+              <NumberField
+                label="Fallback avg. track length (sec)"
+                value={item.avgTrackSec}
+                onChange={(v) => update({ avgTrackSec: v })}
+                min={1}
+                help="Only used without a YOUTUBE_API_KEY — everyone's clock guesses which track using this average, so it's deterministic even though it's approximate. Ignored once real durations are available."
+              />
               <NumberField
                 label="BPM"
-                value={mix.bpm}
+                value={item.bpm}
                 onChange={(v) => update({ bpm: v })}
                 min={1}
                 max={220}
                 help="Typed by hand — drives the light show's tempo only. Nothing reads the audio."
               />
             </div>
-            <StartedAtField value={mix.startedAtIso} onChange={(v) => update({ startedAtIso: v })} />
+            <StartedAtField value={item.startedAtIso} onChange={(v) => update({ startedAtIso: v })} />
             <LinesField
-              label="Tracklist (one per line — 12:34 Artist - Track)"
-              value={mix.tracklist}
+              label="Tracklist (one title per line, in playlist order — optional)"
+              value={item.tracklist}
               onChange={(v) => update({ tracklist: v })}
               rows={6}
-              placeholder={"0:00 Opening track\n12:34 Artist - Track"}
-              help="A line that doesn't start with a timecode is skipped, not fatal — it just won't show up, the rest of the list is unaffected."
+              placeholder={"Opening track\nSecond track"}
+              help="Only used without a YOUTUBE_API_KEY. With a key set, real titles fetched from YouTube are shown instead — nothing needs to be typed here."
             />
-            <Toggle label="Live — this is the mix playing right now" checked={mix.live === true} onChange={(v) => update({ live: v })} />
+            <Toggle label="Live — this is the set playing right now" checked={item.live === true} onChange={(v) => update({ live: v })} />
           </>
         )}
       />
