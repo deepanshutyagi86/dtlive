@@ -459,3 +459,187 @@ export const DEFAULT_BOOTH: BoothSettings = {
   blurb: "A playlist, always running. Drop in wherever it's got to.",
   sets: [],
 };
+
+/* ------------------------------------------------------------------ */
+/* Live — the webinar page at /live                                    */
+/*                                                                     */
+/* A page built to be changed WHILE it is being looked at. During a    */
+/* webinar the pitch happens at a particular minute, and the offer     */
+/* should appear at that minute — not be sitting there being           */
+/* price-shopped for the previous forty. So every block carries its    */
+/* own `visible` flag, the public page re-reads this row on a timer,   */
+/* and flipping a switch in /admin/live changes what every open        */
+/* browser shows without anyone being asked to refresh.                */
+/*                                                                     */
+/* One row, key "live", like every other setting. No migration.        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * What a block DOES when it's clicked.
+ *
+ * "paid"     — opens the normal Razorpay checkout for `itemId`, at the
+ *              webinar price if one is set. Money now.
+ * "register" — opens the normal registration form and writes a lead.
+ *              A name and a WhatsApp number now, money later.
+ * "link"     — goes to `externalUrl`. For the things that aren't sold
+ *              here: a WhatsApp group, a Calendly, another site.
+ *
+ * The same item can appear twice in one session as two blocks — a free
+ * "register for the recording" and a paid "get it now" — which is the
+ * point of the kind living on the block rather than on the item.
+ */
+export type LiveBlockKind = "paid" | "register" | "link";
+
+export interface LiveBlock {
+  /** crypto.randomUUID() at creation. Never derived from the item or title:
+   *  it is what the checkout route quotes a price against, so it has to
+   *  survive renaming and reordering. */
+  id: string;
+  kind: LiveBlockKind;
+  /** The item this block sells. Required for paid/register, ignored for link. */
+  itemId: string;
+  /**
+   * The reveal switch. False = the block is not rendered and, just as
+   * importantly, its price is not quotable — see resolveLiveOffer() in
+   * site-settings.ts. Hiding a block in the UI while leaving the API
+   * willing to sell at its price would be a discount anyone could find
+   * by reading the page source.
+   */
+  visible: boolean;
+  /** Overrides the item's own title/description on this page only. */
+  headline?: string;
+  blurb?: string;
+  /**
+   * The webinar price in rupees. Absent = the item's normal price.
+   * 0 is a real value and means free — distinct from absent.
+   *
+   * NEVER read this in the browser and send it to the checkout. The
+   * server re-reads it from this row; the client only ever names a block.
+   */
+  overridePrice?: number;
+  /** Shown struck through beside the price. Usually the normal price. */
+  strikePrice?: number;
+  /** Small chip on the card, e.g. "TODAY ONLY". */
+  badge?: string;
+  /** One line of honest scarcity, e.g. "20 seats at this price". */
+  scarcity?: string;
+  /**
+   * ISO datetime. A countdown on this block alone, so the offer can
+   * expire without the whole page expiring. Set it when you flip the
+   * block visible, not when you build the page — a deadline written the
+   * night before has usually already passed by the time you pitch.
+   */
+  deadlineIso?: string;
+  /** Button wording. Blank falls back to the item's category CTA. */
+  ctaLabel?: string;
+  /** kind === "link" only. */
+  externalUrl?: string;
+}
+
+export interface LiveSession {
+  id: string;
+  /** URL segment: /live/<slug>. Also the value written to leads.source and
+   *  orders.source as `live:<slug>`, which is what makes per-webinar
+   *  numbers possible at all. Changing it orphans that history. */
+  slug: string;
+  title: string;
+  subtitle: string;
+  heroImageUrl?: string;
+  /** Same 0–100 percentages as every other image on the site; edited with
+   *  the existing FocalPointPicker rather than a second cropper. */
+  imageFocal?: { x: number; y: number };
+  /**
+   * The one session /live itself resolves to. First active session wins —
+   * see activeLiveSession(). Past sessions stay reachable at their own
+   * /live/<slug> as replay pages, which is why this is a flag and not a
+   * "current session" pointer that would have to be cleared.
+   */
+  active: boolean;
+  /** ISO datetime — drives the page countdown before the webinar starts. */
+  startsAtIso?: string;
+  /** Zoom/YouTube link shown to someone who has registered. */
+  joinUrl?: string;
+  blocks: LiveBlock[];
+}
+
+export interface LiveSettings {
+  /** Master switch. Off = /live and every /live/<slug> 404s, without
+   *  deleting a single session. Defaults off so nothing appears on the
+   *  live site until it is deliberately switched on. */
+  enabled: boolean;
+  /** Shown on a session that has no blocks visible yet — the state the
+   *  page is in for the first forty minutes of a webinar. */
+  holdingLine: string;
+  sessions: LiveSession[];
+}
+
+export const DEFAULT_LIVE: LiveSettings = {
+  enabled: false,
+  holdingLine: "Stay on the call — everything drops here in a minute.",
+  sessions: [],
+};
+
+/** The value written to leads.source / orders.source for a session. One
+ *  function so the writer and the admin filter can never disagree about
+ *  the format. */
+export function liveSourceTag(slug: string): string {
+  return `live:${slug}`;
+}
+
+/**
+ * What /live itself resolves to: the first session marked active. The
+ * page, the route guard and the nav all ask this rather than reading
+ * settings.sessions, so /live can never render a session the admin has
+ * switched off.
+ */
+export function activeLiveSession(settings: LiveSettings): LiveSession | null {
+  if (!settings.enabled) return null;
+  return settings.sessions.find((s) => s.active) ?? null;
+}
+
+/** /live/<slug>. Reachable whether or not the session is the active one —
+ *  that is what makes a finished webinar keep working as a replay page. */
+export function liveSessionBySlug(settings: LiveSettings, slug: string): LiveSession | null {
+  if (!settings.enabled) return null;
+  return settings.sessions.find((s) => s.slug === slug) ?? null;
+}
+
+/**
+ * THE price gate. The checkout and the registration route call this with
+ * nothing but ids from the browser, and it answers with a price read from
+ * the database — the browser never gets to name an amount.
+ *
+ * Returns null, meaning "no webinar price, use the item's own", when
+ * anything at all is off: live switched off, unknown session, unknown
+ * block, a block that is not visible, a block that is not for this item,
+ * or a block whose deadline has passed. Every one of those is a case
+ * where honouring a webinar price would be a discount someone found by
+ * reading the page source rather than by being on the call.
+ */
+export function resolveLiveOffer(
+  settings: LiveSettings,
+  sessionSlug: string | null | undefined,
+  blockId: string | null | undefined,
+  itemId: string
+): { session: LiveSession; block: LiveBlock; price: number } | null {
+  if (!sessionSlug || !blockId) return null;
+  const session = liveSessionBySlug(settings, sessionSlug);
+  if (!session) return null;
+
+  const block = session.blocks.find((b) => b.id === blockId);
+  if (!block || !block.visible || block.itemId !== itemId) return null;
+  if (isLiveDeadlinePassed(block)) return null;
+  if (block.overridePrice === undefined) return null;
+
+  return { session, block, price: block.overridePrice };
+}
+
+/** Shared by the resolver above and the countdown on the page, so an
+ *  expired block stops being sellable at exactly the second it stops
+ *  looking sellable. */
+export function isLiveDeadlinePassed(block: LiveBlock, now: number = Date.now()): boolean {
+  if (!block.deadlineIso) return false;
+  const t = new Date(block.deadlineIso).getTime();
+  if (Number.isNaN(t)) return false;
+  return t < now;
+}

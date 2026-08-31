@@ -72,3 +72,53 @@ WHERE table_name = 'orders' AND column_name = 'tax_details';
 ```
 
 One row back means you're done.
+
+---
+
+## 002 — `leads.source` and `orders.source` (where a registration came from)
+
+**Run this when you want the /live webinar page to report per-session
+numbers.** Until you run it, /live works completely — people register, people
+pay, everything is saved — but every registration looks the same as one from
+an ordinary product page, and the Registrations tab in /admin/live says so
+rather than showing an empty table and letting you think nobody signed up.
+
+```sql
+ALTER TABLE leads  ADD COLUMN IF NOT EXISTS source TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS source TEXT;
+```
+
+Additive, nullable, instant, and it cannot affect a single existing row.
+
+**What it stores.** A short tag naming the surface a person came through.
+Today the only writer is the webinar page, which writes `live:<session-slug>`
+— e.g. `live:aug-31-ai-webinar`. Existing rows stay NULL, which reads as
+"came in the ordinary way", and that is the correct answer for all of them.
+
+**Why a column and not the `answers` JSON blob.** `orders` has no equivalent
+blob, so leads and orders would have had to record the same fact two
+different ways, and the one query that matters — *everyone who registered
+OR bought from this webinar* — would have had to be written twice and kept
+in agreement forever.
+
+**How the code behaves before and after:**
+
+| | Before the migration | After |
+|---|---|---|
+| /live page | Works. | Works. |
+| Registering from /live | Saved. Source dropped. | Saved with the session tag. |
+| Buying from /live | Saved, charged correctly. | Saved with the session tag. |
+| Admin → Live → Registrations | Explains the migration hasn't run. | Lists that session's people. |
+
+The check is cached per serverless instance, so the tab starts working within
+a few minutes of you running the SQL. **No deploy needed.**
+
+**To confirm it worked:**
+
+```sql
+SELECT table_name, column_name
+FROM information_schema.columns
+WHERE column_name = 'source' AND table_name IN ('leads', 'orders');
+```
+
+Two rows back means you're done.

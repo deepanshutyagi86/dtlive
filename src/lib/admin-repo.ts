@@ -186,6 +186,64 @@ export async function hasTaxDetailsColumn(): Promise<boolean> {
   return taxDetailsColumnExists;
 }
 
+// Same cached-probe pattern as hasTaxDetailsColumn above, for the
+// `source` column that migration 002 adds to BOTH orders and leads.
+// Probed on leads and assumed to speak for both, because the migration
+// adds them together in one statement pair — checking each separately
+// would double the round trips to learn the same fact.
+let sourceColumnExists: boolean | null = null;
+
+export async function hasSourceColumn(): Promise<boolean> {
+  if (sourceColumnExists !== null) return sourceColumnExists;
+  try {
+    const { rows } = await sql`
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name = 'leads' AND column_name = 'source'
+      LIMIT 1
+    `;
+    sourceColumnExists = rows.length > 0;
+  } catch (err) {
+    console.error("Could not check for leads.source, assuming absent:", err);
+    sourceColumnExists = false;
+  }
+  return sourceColumnExists;
+}
+
+/**
+ * Records WHERE a lead or an order came from — `live:<slug>` for the
+ * webinar page. This is what makes the Registrations tab in /admin/live
+ * possible: without it every registration looks the same and a webinar
+ * cannot be told apart from an ordinary Tuesday.
+ *
+ * Written as a follow-up UPDATE rather than as a column on the INSERT,
+ * deliberately. The INSERTs above already fork on whether tax_details
+ * exists; forking each of them again on `source` would give four nearly
+ * identical INSERT statements per table, which is exactly how a column
+ * ends up missing from one branch and nobody notices for a month.
+ *
+ * Attribution is not the money path. If this fails, the sale and the
+ * registration have already happened and are already saved — the loss is
+ * one row's worth of reporting, so it is logged and swallowed rather than
+ * thrown, which would take a successful payment down with it.
+ */
+export async function tagSource(
+  table: "leads" | "orders",
+  id: string,
+  source: string | null | undefined
+): Promise<void> {
+  if (!source) return;
+  if (!(await hasSourceColumn())) return;
+  try {
+    if (table === "leads") {
+      await sql`UPDATE leads SET source = ${source} WHERE id = ${id}`;
+    } else {
+      await sql`UPDATE orders SET source = ${source} WHERE id = ${id}`;
+    }
+  } catch (err) {
+    console.error(`Could not tag ${table}.${id} with source "${source}":`, err);
+  }
+}
+
 export async function setOrderCashfreeId(orderId: string, cashfreeOrderId: string): Promise<void> {
   await sql`UPDATE orders SET cashfree_order_id = ${cashfreeOrderId} WHERE id = ${orderId}`;
 }

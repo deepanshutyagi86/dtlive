@@ -16,6 +16,7 @@ import {
   DEFAULT_COUPONS,
   DEFAULT_GUIDE_CTA,
   DEFAULT_INVOICE,
+  DEFAULT_LIVE,
   DEFAULT_NAV,
   DEFAULT_STARTER,
   DEFAULT_STREAM,
@@ -29,6 +30,9 @@ import {
   type Coupon,
   type GuideCtaSettings,
   type InvoiceSettings,
+  type LiveBlock,
+  type LiveSession,
+  type LiveSettings,
   type NavLink,
   type NavSettings,
   type StarterSettings,
@@ -357,3 +361,82 @@ export async function getTaxSettingsForDisplay(): Promise<TaxSettings> {
     return DEFAULT_TAX;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Live — the webinar page                                             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Field-by-field merge like every getter above. Deliberately NOT
+ * readChromeSetting: a block carries a price, and a swallowed database
+ * error that fell back to DEFAULT_LIVE would quietly turn a revealed
+ * ₹999 offer back into the item's ₹6,999 list price mid-webinar. Same
+ * reasoning that keeps coupons and tax off the chrome path.
+ */
+export async function getLiveSettings(): Promise<LiveSettings> {
+  const stored = await getSetting<Record<string, unknown>>("live", {});
+  const rawSessions = Array.isArray(stored.sessions) ? stored.sessions : [];
+
+  const sessions: LiveSession[] = rawSessions
+    // A session with no slug has no URL and nothing to tag its
+    // registrations with, so it cannot be rendered or reported on.
+    .filter((x: any) => x && typeof x.id === "string" && typeof x.slug === "string" && x.slug.trim())
+    .map((x: any) => ({
+      id: x.id,
+      slug: String(x.slug).trim(),
+      title: clean(x.title) || "",
+      subtitle: clean(x.subtitle) || "",
+      heroImageUrl: clean(x.heroImageUrl),
+      imageFocal: isFocal(x.imageFocal) ? { x: x.imageFocal.x, y: x.imageFocal.y } : undefined,
+      active: x.active === true,
+      startsAtIso: clean(x.startsAtIso),
+      joinUrl: clean(x.joinUrl),
+      blocks: Array.isArray(x.blocks) ? x.blocks.filter(isBlockish).map(normaliseBlock) : [],
+    }));
+
+  return {
+    enabled: stored.enabled === true,
+    holdingLine: clean(stored.holdingLine as string) || DEFAULT_LIVE.holdingLine,
+    sessions,
+  };
+}
+
+function isFocal(f: any): boolean {
+  return f && Number.isFinite(f.x) && Number.isFinite(f.y);
+}
+
+function isBlockish(b: any): boolean {
+  return b && typeof b.id === "string";
+}
+
+function normaliseBlock(b: any): LiveBlock {
+  return {
+    id: b.id,
+    kind: b.kind === "paid" || b.kind === "link" ? b.kind : "register",
+    itemId: typeof b.itemId === "string" ? b.itemId : "",
+    // Defaults to HIDDEN. A block that arrives in some shape this code
+    // doesn't recognise must not appear on a live page mid-webinar —
+    // and must not be sellable. Visible is opt-in, always.
+    visible: b.visible === true,
+    headline: clean(b.headline),
+    blurb: clean(b.blurb),
+    // 0 is a real price (free) and must survive. Number.isFinite, not a
+    // truthiness check, which would silently drop it.
+    overridePrice: Number.isFinite(b.overridePrice) && b.overridePrice >= 0 ? b.overridePrice : undefined,
+    strikePrice: Number.isFinite(b.strikePrice) && b.strikePrice > 0 ? b.strikePrice : undefined,
+    badge: clean(b.badge),
+    scarcity: clean(b.scarcity),
+    deadlineIso: clean(b.deadlineIso),
+    ctaLabel: clean(b.ctaLabel),
+    externalUrl: clean(b.externalUrl),
+  };
+}
+
+// activeLiveSession / liveSessionBySlug / resolveLiveOffer / isLiveDeadlinePassed
+// deliberately live in settings-types.ts, not here. Two reasons, both
+// load-bearing: this module imports the Neon client at module scope, so
+// anything defined here cannot be unit-tested without a database URL and
+// cannot be imported by the client components that render the /live page —
+// and resolveLiveOffer is the price gate, which is precisely the code that
+// most needs tests. It takes a LiveSettings and returns an answer; it has
+// no business touching the database.
