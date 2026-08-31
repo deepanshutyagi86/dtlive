@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getItemById } from "@/lib/items";
-import { createOrder, setOrderCashfreeId, upsertSetting } from "@/lib/admin-repo";
+import { createOrder, setOrderCashfreeId, tagSource, upsertSetting } from "@/lib/admin-repo";
 import { createRazorpayOrder } from "@/lib/razorpay";
 import type { CourseDetails, WorkshopDetails } from "@/lib/types";
 import { rateLimit, clientIpFrom } from "@/lib/rate-limit";
 import { isValidEmail, isValidPhone, normalisePhone } from "@/lib/validate";
-import { getBusinessSettings, getCoupons, getTaxSettings } from "@/lib/site-settings";
+import { getBusinessSettings, getCoupons, getTaxSettings, livePriceFor } from "@/lib/site-settings";
 import { markCouponUsed } from "@/lib/coupons";
 import { quoteOrder } from "@/lib/checkout-pricing";
 
@@ -29,7 +29,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { itemId, name, email, phone, couponCode, buyerGst, fbc, fbp, eventSourceUrl } = await req.json();
+    const { itemId, name, email, phone, couponCode, buyerGst, fbc, fbp, eventSourceUrl, liveSession, liveBlockId } =
+      await req.json();
 
     if (!itemId || !name || !email || !phone) {
       return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
@@ -54,7 +55,14 @@ export async function POST(req: NextRequest) {
     }
 
     const details = item.details as CourseDetails | WorkshopDetails;
-    const listPrice = details.price;
+
+    // The webinar price, when this checkout was opened from /live. The
+    // browser named a session and a block; livePriceFor() reads the actual
+    // amount out of the settings row and refuses if that block is hidden,
+    // expired, or belongs to a different item. Nothing the browser sent
+    // becomes money — see resolveLiveOffer() in settings-types.ts.
+    const live = await livePriceFor(item.id, liveSession, liveBlockId);
+    const listPrice = live ? live.price : details.price;
 
     if (!Number.isFinite(listPrice) || listPrice <= 0) {
       return NextResponse.json(
@@ -138,6 +146,12 @@ export async function POST(req: NextRequest) {
       // tax_details column exists — see docs/MIGRATIONS.md.
       taxDetails: quote.snapshot,
     });
+
+    // Attribution, after the order exists. Deliberately not awaited into
+    // the money path's success condition — tagSource swallows its own
+    // errors, because losing a reporting tag must never cost a sale that
+    // has already been paid for.
+    if (live) await tagSource("orders", order.id, live.sourceTag);
 
     const rzpOrder = await createRazorpayOrder({
       orderId: order.id,

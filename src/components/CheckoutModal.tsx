@@ -63,6 +63,8 @@ export default function CheckoutModal({
   gstin,
   triggerClassName,
   triggerLabel,
+  liveSession,
+  liveBlockId,
 }: {
   itemId: string;
   title: string;
@@ -77,6 +79,13 @@ export default function CheckoutModal({
   gstin: string;
   triggerClassName: string;
   triggerLabel: string;
+  // Set only when this modal was opened from the /live webinar page.
+  // They are IDS, never a price: the server re-reads what this block
+  // costs and refuses if it is hidden, expired, or for another item.
+  // Forwarded to the API so the same purchase can also be attributed to
+  // the session it came from.
+  liveSession?: string;
+  liveBlockId?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", phone: "" });
@@ -137,7 +146,7 @@ export default function CheckoutModal({
         const res = await fetch("/api/checkout/apply-coupon", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ itemId, code: code ?? "", buyerGst: gstDetails }),
+          body: JSON.stringify({ itemId, code: code ?? "", buyerGst: gstDetails, liveSession, liveBlockId }),
         });
         const data = (await res.json()) as Quote & { ok: boolean; reason?: string };
         if (!data.ok && code) return null;
@@ -147,7 +156,11 @@ export default function CheckoutModal({
         return null;
       }
     },
-    [itemId]
+    // liveSession/liveBlockId are in here because this callback is what
+    // fetches the PREVIEW price. A stale closure would show the buyer the
+    // list price while create-order charged the webinar price — the two
+    // must be quoted from the same pair of ids.
+    [itemId, liveSession, liveBlockId]
   );
 
   // Open with a fresh quote so the GST line is correct from the first
@@ -178,7 +191,7 @@ export default function CheckoutModal({
       const res = await fetch("/api/checkout/apply-coupon", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ itemId, code, buyerGst: gstOpen ? gst : null }),
+        body: JSON.stringify({ itemId, code, buyerGst: gstOpen ? gst : null, liveSession, liveBlockId }),
       });
       const data = await res.json();
       if (data.ok && data.code) {
@@ -228,6 +241,8 @@ export default function CheckoutModal({
           itemId,
           ...form,
           couponCode: applied?.code ?? null,
+          liveSession: liveSession ?? null,
+          liveBlockId: liveBlockId ?? null,
           buyerGst: tax.b2bEnabled && gst.gstin.trim() ? gst : null,
           fbc: readCookie("_fbc"),
           fbp: readCookie("_fbp"),

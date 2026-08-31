@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getItemById } from "@/lib/items";
-import { getBusinessSettings, getCoupons, getTaxSettings } from "@/lib/site-settings";
+import { getBusinessSettings, getCoupons, getTaxSettings, livePriceFor } from "@/lib/site-settings";
 import { quoteOrder } from "@/lib/checkout-pricing";
 import { rateLimit, clientIpFrom } from "@/lib/rate-limit";
 import type { CourseDetails, WorkshopDetails } from "@/lib/types";
@@ -14,7 +14,7 @@ import type { CourseDetails, WorkshopDetails } from "@/lib/types";
 // way to brute-force a coupon list.
 export async function POST(req: NextRequest) {
   try {
-    const { itemId, code, buyerGst } = await req.json();
+    const { itemId, code, buyerGst, liveSession, liveBlockId } = await req.json();
 
     // The limit exists to stop someone guessing coupon codes, so only a
     // real attempt counts. Opening the checkout calls this with an empty
@@ -34,7 +34,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, reason: "This item is not available." }, { status: 404 });
     }
 
-    const listPrice = (item.details as CourseDetails | WorkshopDetails).price;
+    // A checkout opened from the /live page previews the webinar price,
+    // not the item's list price. Resolved server-side from the ids the
+    // browser named — livePriceFor() is the same call create-order makes,
+    // so the number previewed here is the number charged there.
+    const live = await livePriceFor(item.id, liveSession, liveBlockId);
+    const listPrice = live ? live.price : (item.details as CourseDetails | WorkshopDetails).price;
     if (!Number.isFinite(listPrice) || listPrice <= 0) {
       return NextResponse.json({ ok: false, reason: "No discount applies here." }, { status: 400 });
     }

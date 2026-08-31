@@ -407,6 +407,64 @@ export async function listLeads(): Promise<(Lead & { itemTitle: string | null })
   return rows.map((r: any) => ({ ...toLead(r), itemTitle: r.item_title }));
 }
 
+/**
+ * Everyone who came through one webinar — registrations and purchases in
+ * one list, newest first, because during a webinar the question is never
+ * "who registered" or "who bought" separately, it is "who is in this room
+ * and what did they do".
+ *
+ * A UNION of two tables rather than two queries the page interleaves
+ * itself: sorting has to happen across both, and doing that in the page
+ * means paging is impossible the moment either list is longer than the
+ * other.
+ *
+ * Returns an empty array when the `source` column does not exist yet
+ * (migration 002 unrun). The caller must tell those two cases apart —
+ * see hasSourceColumn() — because "nobody registered" and "the column
+ * that records this isn't there" look identical otherwise, and the second
+ * one silently reads as a dead webinar.
+ */
+export async function listBySource(source: string): Promise<
+  {
+    kind: "lead" | "order";
+    id: string;
+    name: string;
+    email: string | null;
+    phone: string | null;
+    itemTitle: string | null;
+    amountPaise: number | null;
+    status: string;
+    createdAt: string;
+  }[]
+> {
+  if (!(await hasSourceColumn())) return [];
+
+  const { rows } = await sql`
+    SELECT 'lead' as kind, l.id, l.name, l.email, l.phone,
+           i.title as item_title, NULL::int as amount, l.status, l.created_at
+    FROM leads l LEFT JOIN items i ON i.id = l.item_id
+    WHERE l.source = ${source}
+    UNION ALL
+    SELECT 'order' as kind, o.id, o.buyer_name as name, o.buyer_email as email, o.buyer_phone as phone,
+           i.title as item_title, o.amount, o.status, o.created_at
+    FROM orders o LEFT JOIN items i ON i.id = o.item_id
+    WHERE o.source = ${source}
+    ORDER BY created_at DESC
+  `;
+
+  return rows.map((r: any) => ({
+    kind: r.kind,
+    id: r.id,
+    name: r.name,
+    email: r.email,
+    phone: r.phone,
+    itemTitle: r.item_title,
+    amountPaise: r.amount === null ? null : Number(r.amount),
+    status: r.status,
+    createdAt: r.created_at,
+  }));
+}
+
 export async function setLeadStatus(id: string, status: Lead["status"]): Promise<void> {
   await sql`UPDATE leads SET status = ${status} WHERE id = ${id}`;
 }

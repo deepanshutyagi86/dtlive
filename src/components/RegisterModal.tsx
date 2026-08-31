@@ -25,6 +25,8 @@ export default function RegisterModal({
   registrationFields,
   triggerClassName,
   triggerLabel,
+  liveSession,
+  liveBlockId,
 }: {
   itemId: string;
   title: string;
@@ -38,6 +40,13 @@ export default function RegisterModal({
   registrationFields?: RegistrationField[];
   triggerClassName: string;
   triggerLabel: string;
+  // Set only when this modal was opened from the /live webinar page.
+  // They are IDS, never a price: the server re-reads what this block
+  // costs and refuses if it is hidden, expired, or for another item.
+  // Forwarded to the API so the same purchase can also be attributed to
+  // the session it came from.
+  liveSession?: string;
+  liveBlockId?: string;
 }) {
   const fields =
     registrationFields && registrationFields.length > 0 ? registrationFields : DEFAULT_REGISTRATION_FIELDS;
@@ -113,6 +122,8 @@ export default function RegisterModal({
         body: JSON.stringify({
           itemId,
           answers: form,
+          liveSession: liveSession ?? null,
+          liveBlockId: liveBlockId ?? null,
           fbc: readCookie("_fbc"),
           fbp: readCookie("_fbp"),
           eventSourceUrl: window.location.href,

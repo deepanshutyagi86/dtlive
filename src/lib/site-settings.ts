@@ -18,6 +18,10 @@ import {
   DEFAULT_INVOICE,
   DEFAULT_LIVE,
   DEFAULT_NAV,
+  isLiveDeadlinePassed,
+  liveSessionBySlug,
+  liveSourceTag,
+  resolveLiveOffer,
   DEFAULT_STARTER,
   DEFAULT_STREAM,
   DEFAULT_SYLLABUS,
@@ -440,3 +444,48 @@ function normaliseBlock(b: any): LiveBlock {
 // and resolveLiveOffer is the price gate, which is precisely the code that
 // most needs tests. It takes a LiveSettings and returns an answer; it has
 // no business touching the database.
+
+/**
+ * The one call both money routes make to ask "is this purchase happening
+ * at a webinar price?". apply-coupon uses it so the modal PREVIEWS the
+ * webinar price, and create-order uses it so the buyer is CHARGED it —
+ * the two must agree, and they agree by asking the same function rather
+ * than by each reading the settings row their own way.
+ *
+ * Costs one extra settings read, and only when the browser actually named
+ * a session and a block. An ordinary product-page checkout never gets here.
+ *
+ * Returns null for every rejection resolveLiveOffer knows about, and null
+ * means one thing at both call sites: charge the item's normal price.
+ */
+export async function livePriceFor(
+  itemId: string,
+  sessionSlug: string | null | undefined,
+  blockId: string | null | undefined
+): Promise<{ price: number; sourceTag: string } | null> {
+  if (!sessionSlug || !blockId) return null;
+  const offer = resolveLiveOffer(await getLiveSettings(), sessionSlug, blockId, itemId);
+  if (!offer) return null;
+  return { price: offer.price, sourceTag: liveSourceTag(offer.session.slug) };
+}
+
+/**
+ * The source tag for a REGISTRATION (a lead), which has no price to
+ * verify — a register block is free by definition. Still checks that the
+ * block exists, is visible, is for this item and hasn't expired, so a
+ * stale link can't keep tagging registrations onto a webinar that ended.
+ */
+export async function liveSourceFor(
+  itemId: string,
+  sessionSlug: string | null | undefined,
+  blockId: string | null | undefined
+): Promise<string | null> {
+  if (!sessionSlug || !blockId) return null;
+  const settings = await getLiveSettings();
+  const session = liveSessionBySlug(settings, sessionSlug);
+  if (!session) return null;
+  const block = session.blocks.find((b) => b.id === blockId);
+  if (!block || !block.visible || block.itemId !== itemId) return null;
+  if (isLiveDeadlinePassed(block)) return null;
+  return liveSourceTag(session.slug);
+}
