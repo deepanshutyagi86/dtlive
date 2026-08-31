@@ -10,6 +10,7 @@ import NavDarkWatcher from "@/components/NavDarkWatcher";
 import JsonLd from "@/components/JsonLd";
 import { Outcomes, WhoFor, Faq } from "@/components/ItemSections";
 import GuideCta from "@/components/GuideCta";
+import OverviewVideoButton from "@/components/OverviewVideo";
 import { getItemBySlug, getSetting } from "@/lib/items";
 import { hasTaxDetailsColumn } from "@/lib/admin-repo";
 import {
@@ -321,13 +322,26 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
         </h1>
         <p className="text-[17px] leading-relaxed text-ink-soft max-w-[620px]">{item!.description}</p>
 
+        {/* Module 0 first, syllabus second. Someone deciding whether to
+            trust a course watches before they read, and this is the only
+            free thing on the page — it should be the easiest to reach. */}
+        {d.overviewVideo?.url && (
+          <OverviewVideoButton video={d.overviewVideo} title={item!.title} className="mt-5" />
+        )}
+
         {/* The earliest a top-to-bottom reader can reach the syllabus —
             before they've decided, not after they've read the whole page
             and are already at the curriculum accordion below. */}
         {syllabus && (
           <Link
             href={syllabusHref}
-            className="inline-flex items-center gap-2 min-h-[44px] mt-5 font-semibold text-[15px] text-ink border border-ink rounded-full px-5 py-2.5 hover:bg-ink hover:text-bone transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marigold focus-visible:ring-offset-2 focus-visible:ring-offset-bone"
+            // Filled marigold, matching the Enroll CTA. This is the one
+            // syllabus link a first-time reader meets before they have
+            // decided anything, so it is the one that gets the weight.
+            // The curriculum-section link and the sticky-panel button
+            // stay outlined on purpose — three filled buttons on one
+            // screen and none of them reads as the primary action.
+            className="inline-flex items-center gap-2 min-h-[44px] mt-5 font-semibold text-[15px] text-ink bg-marigold border border-marigold rounded-full px-5 py-2.5 hover:bg-ink hover:text-bone hover:border-ink transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marigold focus-visible:ring-offset-2 focus-visible:ring-offset-bone"
           >
             {syllabusSettings.ctaLabel} <span aria-hidden>→</span>
           </Link>

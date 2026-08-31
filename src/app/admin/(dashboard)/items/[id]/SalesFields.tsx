@@ -1,5 +1,6 @@
 "use client";
 import { LinesField, PdfUploadField, Repeater, SelectField, TextField, NumberField, Toggle } from "@/components/admin/AdminFields";
+import { DEFAULT_OVERVIEW_VIDEO_LABEL } from "@/lib/types";
 
 // Everything on this panel renders on the item's own detail page only —
 // never on a card. A card has one job, getting the click, and an outcome
@@ -19,6 +20,15 @@ export default function SalesFields({
   const setJoining = (patch: any) => set({ joining: { ...joining, ...patch } });
 
   const syllabus = details.syllabus ?? null;
+
+  // Patch-merge like setJoining above, so editing the label can't wipe the
+  // url. Clearing the url clears the whole object rather than leaving a
+  // stranded {label, note} behind with nothing to play.
+  const overviewVideo = details.overviewVideo ?? {};
+  const setOverviewVideo = (patch: any) => {
+    const next = { ...overviewVideo, ...patch };
+    set({ overviewVideo: next.url?.trim() ? next : undefined });
+  };
 
   return (
     <div className="mt-8">
@@ -46,6 +56,43 @@ export default function SalesFields({
           onChange={(v) => set({ syllabus: { ...syllabus, enabled: v } })}
           help="Off hides the link and the page without deleting the file."
         />
+      )}
+
+      <hr className="border-line my-6" />
+      <p className="font-mono text-[11px] uppercase tracking-wider text-muted mb-1">Overview video (Module 0)</p>
+      <p className="text-[13px] text-muted mb-5 leading-relaxed">
+        Optional. One free video shown as a button under the description, above the syllabus link.
+        Upload it to YouTube as <strong>Unlisted</strong> and paste the watch link — unlisted means
+        link-only, not searchable. <strong>Do not use Private</strong>: private videos are visible to
+        nobody but your own account and the player will be blank for everyone else. A Google Drive
+        share link or a direct .mp4 URL work too. Leave blank and no button appears.
+      </p>
+
+      <TextField
+        label="Video URL"
+        value={overviewVideo.url ?? ""}
+        onChange={(v) => setOverviewVideo({ url: v })}
+        placeholder="https://www.youtube.com/watch?v=..."
+        help="YouTube (unlisted), a Drive share link, or a direct .mp4. An unrecognised link simply hides the button."
+      />
+
+      {overviewVideo.url && (
+        <div className="grid md:grid-cols-2 gap-4">
+          <TextField
+            label="Button label"
+            value={overviewVideo.label ?? ""}
+            onChange={(v) => setOverviewVideo({ label: v })}
+            placeholder={DEFAULT_OVERVIEW_VIDEO_LABEL}
+            help="Blank uses the default."
+          />
+          <TextField
+            label="Small note under the button"
+            value={overviewVideo.note ?? ""}
+            onChange={(v) => setOverviewVideo({ note: v })}
+            placeholder="12 min · free to watch"
+            help="Optional. Saying it's free and how long it is is what gets it clicked."
+          />
+        </div>
       )}
 
       <hr className="border-line my-6" />

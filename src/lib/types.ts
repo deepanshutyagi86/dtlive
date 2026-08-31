@@ -85,6 +85,7 @@ interface RegistrationDisplayOptions extends ItemDetailsBase, SalesContent {
   showPriceBadge?: boolean;
   unlimitedSeats?: boolean;
   syllabus?: ItemSyllabus;
+  overviewVideo?: OverviewVideo;
 }
 
 /**
@@ -104,6 +105,31 @@ export interface ItemSyllabus {
   fileName?: string;
   enabled?: boolean;
 }
+
+/**
+ * The course overview video - "Module 0". One free video that does the
+ * job a paragraph of copy cannot: show the person who is teaching, and
+ * what the inside of the course actually looks like.
+ *
+ * Lives in the item's `details` JSON rather than a column, same reasoning
+ * as ItemSyllabus above: adding a column needs a hand-run migration
+ * against production, and this is exactly the optional per-item extra the
+ * JSON blob exists for.
+ *
+ * `url` accepts a YouTube link (unlisted is the recommendation), a Google
+ * Drive share link, or a direct .mp4 - see parseVideoUrl() in lib/video.ts,
+ * which is the ONLY thing that decides whether a given URL is playable.
+ * An unparseable url renders nothing at all rather than an empty player.
+ */
+export interface OverviewVideo {
+  url: string;
+  /** Button wording. Blank falls back to DEFAULT_OVERVIEW_VIDEO_LABEL. */
+  label?: string;
+  /** Small line under the button, e.g. "12 min · free to watch". */
+  note?: string;
+}
+
+export const DEFAULT_OVERVIEW_VIDEO_LABEL = "Watch the overview — Module 0";
 
 export interface CourseDetails extends RegistrationDisplayOptions {
   price: number; // in rupees
