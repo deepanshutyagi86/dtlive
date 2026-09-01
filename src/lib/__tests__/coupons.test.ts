@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { applyCoupon, markCouponUsed } from "@/lib/coupons";
 import { computePricing } from "@/lib/tax";
 import type { Coupon } from "@/lib/settings-types";
@@ -39,9 +39,52 @@ describe("applyCoupon", () => {
     expect(applyCoupon([coupon({ expiresAt: "2020-01-01" })], "SAVE10", "item-1", 1000).ok).toBe(false);
   });
 
-  it("accepts a coupon that expires today, through end of day IST", () => {
-    const today = new Date().toISOString().slice(0, 10);
-    expect(applyCoupon([coupon({ expiresAt: today })], "SAVE10", "item-1", 1000).ok).toBe(true);
+  // Expiry is authored as a plain date and means "usable through the whole
+  // of that day in India". These pin the two edges of that day against a
+  // frozen clock rather than against whatever time the suite happens to
+  // run at — the previous version of this test derived "today" from
+  // toISOString(), which is the UTC date, and so failed every day between
+  // 00:00 and 05:30 IST when UTC is still on the previous date. The
+  // production code was right; the test was measuring the wrong day.
+  describe("end-of-day IST expiry", () => {
+    // 2026-08-31T18:29:59Z is 2026-08-31 23:59:59 IST — the last second
+    // a coupon dated 2026-08-31 is usable.
+    const lastSecondIST = new Date("2026-08-31T18:29:59.000Z");
+    // One second later: 2026-09-01 00:00:00 IST. Same UTC *date*, next
+    // Indian day. This is the case a UTC-based check gets wrong.
+    const firstSecondNextDayIST = new Date("2026-08-31T18:30:00.000Z");
+    // 2026-08-31 02:00 IST — early morning in India, while UTC still
+    // reads 2026-08-30. The window the old test broke in.
+    const earlyMorningIST = new Date("2026-08-30T20:30:00.000Z");
+
+    afterEach(() => vi.useRealTimers());
+
+    function at(when: Date) {
+      vi.useFakeTimers();
+      vi.setSystemTime(when);
+    }
+
+    it("accepts through the last second of the expiry day", () => {
+      at(lastSecondIST);
+      expect(applyCoupon([coupon({ expiresAt: "2026-08-31" })], "SAVE10", "item-1", 1000).ok).toBe(true);
+    });
+
+    it("rejects one second into the next Indian day", () => {
+      at(firstSecondNextDayIST);
+      expect(applyCoupon([coupon({ expiresAt: "2026-08-31" })], "SAVE10", "item-1", 1000).ok).toBe(false);
+    });
+
+    it("accepts early on the expiry morning, when UTC still reads yesterday", () => {
+      at(earlyMorningIST);
+      expect(applyCoupon([coupon({ expiresAt: "2026-08-31" })], "SAVE10", "item-1", 1000).ok).toBe(true);
+    });
+
+    // A corrupt date must not read as "valid forever" — the opposite of
+    // what anyone typing into an expiry field intends.
+    it("rejects an unparseable expiry rather than ignoring it", () => {
+      at(lastSecondIST);
+      expect(applyCoupon([coupon({ expiresAt: "not-a-date" })], "SAVE10", "item-1", 1000).ok).toBe(false);
+    });
   });
 
   it("rejects once maxUses is reached", () => {
