@@ -1,4 +1,5 @@
-import SettingsForm, { SECTION_GROUPS } from "../settings/SettingsForm";
+import SettingsForm from "../settings/SettingsForm";
+import { SECTION_GROUPS } from "@/lib/settings-sections";
 
 export const dynamic = "force-dynamic";
 

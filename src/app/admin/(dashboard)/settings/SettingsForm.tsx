@@ -15,6 +15,9 @@ import {
   InvoiceSection,
 } from "./SettingsSections";
 import { asArray, normaliseBoothSets } from "@/lib/admin-normalise";
+// Plain module, deliberately: the six settings PAGES are server
+// components and cannot import shared data out of this client file.
+import type { SettingsSectionKey } from "@/lib/settings-sections";
 import {
   DEFAULT_BIO,
   DEFAULT_BOOTH,
@@ -35,7 +38,9 @@ import {
   type StreamSettings,
   type SyllabusSettings,
   type InvoiceSettings,
+  type NavLink,
   type NavSettings,
+  type StarterOption,
   type StarterSettings,
   type TaxSettings,
 } from "@/lib/settings-types";
@@ -131,64 +136,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 const inputClass = "w-full px-3.5 py-2.5 text-sm bg-card border border-line rounded-[10px] placeholder-ink-soft focus:outline-none focus:border-marigold focus:ring-2 focus:ring-marigold";
 
-/**
- * Every settings section this form knows how to render. The admin panel
- * splits them across several pages — see SECTION_GROUPS — so that one
- * screen is about one thing instead of thirteen.
- */
-export type SettingsSectionKey =
-  | "hero" | "ticker" | "testimonials" | "starter" | "stream"
-  | "bio" | "branding" | "nav" | "footer"
-  | "emails" | "notify"
-  | "coupons" | "tax" | "invoice" | "business"
-  | "syllabus" | "guideCta" | "booth";
-
-/**
- * Which sections live on which admin page.
- *
- * The form itself is NOT split into separate components: it loads every
- * setting and saves every setting whichever page you are on, so a value
- * you cannot see round-trips untouched rather than being dropped. Only
- * the rendering is filtered. Splitting the state as well would mean five
- * forms that can each half-save, which is a far worse failure than one
- * form that renders a subset.
- */
-export const SECTION_GROUPS: Record<
-  string,
-  { title: string; blurb: string; sections: SettingsSectionKey[] }
-> = {
-  homepage: {
-    title: "Homepage",
-    blurb: "What a first-time visitor reads, in the order they read it.",
-    sections: ["hero", "ticker", "testimonials", "starter", "stream"],
-  },
-  appearance: {
-    title: "Appearance",
-    blurb: "The frame around every page — menu, footer, icons, and the card that shows when a link is shared.",
-    sections: ["branding", "nav", "footer", "bio"],
-  },
-  emails: {
-    title: "Emails",
-    blurb: "What gets sent after someone buys or registers, and where your own copy goes.",
-    sections: ["emails", "notify"],
-  },
-  pricing: {
-    title: "Pricing",
-    blurb: "Discount codes, GST, and what the invoice says. This decides what buyers are charged.",
-    sections: ["coupons", "tax", "invoice"],
-  },
-  business: {
-    title: "Business details",
-    blurb: "Legal name, GSTIN, address and contact — printed on invoices and every legal page.",
-    sections: ["business"],
-  },
-  extras: {
-    title: "Extras",
-    blurb: "Smaller features that have their own switches.",
-    sections: ["syllabus", "guideCta", "booth"],
-  },
-};
-
 export default function SettingsForm({ show }: { show?: SettingsSectionKey[] }) {
   // Undefined means "everything", so anything still asking for the whole
   // form keeps working unchanged.
@@ -236,12 +183,20 @@ export default function SettingsForm({ show }: { show?: SettingsSectionKey[] }) 
         setLinks(d.footerLinks ?? {});
         setNotifyEmail(d.notifyEmail ?? "");
         setBranding(d.branding ?? {});
-        setNav({ ...DEFAULT_NAV, ...(d.nav ?? {}), links: d.nav?.links?.length ? d.nav.links : DEFAULT_NAV.links });
+        // asArray, not `.length`: a stored STRING passes a truthy length
+        // check and then throws inside Repeater's items.map.
+        setNav({
+          ...DEFAULT_NAV,
+          ...(d.nav ?? {}),
+          links: asArray<NavLink>(d.nav?.links).length ? d.nav.links : DEFAULT_NAV.links,
+        });
         setBio({ ...DEFAULT_BIO, ...(d.bio ?? {}) });
         setStarter({
           ...DEFAULT_STARTER,
           ...(d.starter ?? {}),
-          options: d.starter?.options?.length ? d.starter.options : DEFAULT_STARTER.options,
+          options: asArray<StarterOption>(d.starter?.options).length
+            ? d.starter.options
+            : DEFAULT_STARTER.options,
         });
         setGuideCta({ ...DEFAULT_GUIDE_CTA, ...(d.guideCta ?? {}) });
         setSyllabus({ ...DEFAULT_SYLLABUS, ...(d.syllabus ?? {}) });

@@ -156,11 +156,16 @@ async function publicBlock(
     externalUrl: null,
     // Only for register blocks — a paid block has no form of its own, and
     // shipping one would be a field list in the payload for nothing.
-    registrationFields:
-      block.kind === "register"
-        ? (item.details as { registrationFields?: RegistrationField[] }).registrationFields?.length
-          ? (item.details as { registrationFields: RegistrationField[] }).registrationFields
-          : DEFAULT_REGISTRATION_FIELDS
-        : null,
+    // Array.isArray, not `.length`: details is a schemaless JSON blob and
+    // this list ends up in RegisterModal's .map().
+    registrationFields: block.kind === "register" ? registrationFieldsFor(item.details) : null,
   };
+}
+
+/** The item's own registration form, or the default. One helper so the
+ *  live page, the poll payload and the ad page cannot disagree about what
+ *  "no custom fields" means. */
+export function registrationFieldsFor(details: unknown): RegistrationField[] {
+  const fields = (details as { registrationFields?: unknown })?.registrationFields;
+  return Array.isArray(fields) && fields.length > 0 ? (fields as RegistrationField[]) : DEFAULT_REGISTRATION_FIELDS;
 }

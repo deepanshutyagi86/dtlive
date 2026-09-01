@@ -1,4 +1,5 @@
 "use client";
+import { asArray } from "@/lib/admin-normalise";
 import { useId } from "react";
 import {
   ImageUploadField,
@@ -467,7 +468,12 @@ export function CouponsSection({
               </p>
               <div className="flex flex-wrap gap-x-5 gap-y-2">
                 {paidItems.map((item) => {
-                  const on = (c.appliesTo ?? []).includes(item.id);
+                  // asArray, not `?? []`: coupons go through asArray but
+                  // each coupon's own appliesTo does not, and a stored
+                  // string survives `??` — .includes then answers wrongly
+                  // and .filter below throws outright.
+                  const appliesTo = asArray<string>(c.appliesTo);
+                  const on = appliesTo.includes(item.id);
                   return (
                     <label key={item.id} className="flex items-center gap-2 text-sm cursor-pointer">
                       <input
@@ -477,8 +483,8 @@ export function CouponsSection({
                         onChange={(e) =>
                           update({
                             appliesTo: e.target.checked
-                              ? [...(c.appliesTo ?? []), item.id]
-                              : (c.appliesTo ?? []).filter((id) => id !== item.id),
+                              ? [...appliesTo, item.id]
+                              : appliesTo.filter((id) => id !== item.id),
                           })
                         }
                       />

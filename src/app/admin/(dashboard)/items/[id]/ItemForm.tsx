@@ -585,7 +585,7 @@ function AgencyFields({ details, setDetails }: { details: any; setDetails: (d: a
         <textarea
           className="input"
           rows={4}
-          value={(details.included ?? []).join("\n")}
+          value={(Array.isArray(details.included) ? details.included : []).join("\n")}
           onChange={(e) => setDetails({ ...details, included: e.target.value.split("\n") })}
         />
       </Field>

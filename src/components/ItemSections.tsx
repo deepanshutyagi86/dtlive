@@ -6,8 +6,13 @@ import type { FaqEntry } from "@/lib/types";
 // its field is empty, so an item saved before these existed looks exactly
 // as it did.
 
-function clean(list?: string[]): string[] {
-  return (list ?? []).map((s) => (s ?? "").trim()).filter(Boolean);
+// Array.isArray, not `?? []`. These come straight out of an item's
+// `details` JSON blob, which is schemaless: a field stored as a string —
+// by an older admin build, a hand edit, or an import — survives `??` and
+// then throws on .map, taking the whole product page down.
+function clean(list?: unknown): string[] {
+  if (!Array.isArray(list)) return [];
+  return list.map((s) => (typeof s === "string" ? s.trim() : "")).filter(Boolean);
 }
 
 export function Outcomes({ items }: { items?: string[] }) {
@@ -74,7 +79,11 @@ export function WhoFor({ forWho, notForWho }: { forWho?: string[]; notForWho?: s
 }
 
 export function Faq({ items }: { items?: FaqEntry[] }) {
-  const list = (items ?? []).filter((f) => f && f.q && f.q.trim() && f.a && f.a.trim());
+  // Same reason as clean() above — `details.faq` is schemaless JSON, so
+  // "is it an array" is checked before anything is called on it.
+  const list = (Array.isArray(items) ? items : []).filter(
+    (f) => f && typeof f.q === "string" && f.q.trim() && typeof f.a === "string" && f.a.trim()
+  );
   if (list.length === 0) return null;
   return (
     <section className="mt-14">

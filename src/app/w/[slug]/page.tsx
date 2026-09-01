@@ -15,6 +15,7 @@ import {
   Testimonials,
 } from "@/components/ads/AdSections";
 import { ItemVideoOverlay } from "@/components/ItemVideo";
+import { registrationFieldsFor } from "@/lib/live-public";
 import { getItemById } from "@/lib/items";
 import {
   cachedAdPage,
@@ -26,7 +27,7 @@ import {
 import { getSetting } from "@/lib/items";
 import { isDeadlinePassed } from "@/lib/settings-types";
 import { formatRupees, priceLabel as taxPriceLabel } from "@/lib/tax";
-import { DEFAULT_REGISTRATION_FIELDS, type RegistrationField, type WorkshopDetails } from "@/lib/types";
+import { type RegistrationField, type WorkshopDetails } from "@/lib/types";
 import { SITE_TZ } from "@/lib/dates";
 import type { Metadata } from "next";
 
@@ -122,9 +123,9 @@ export default async function AdLandingPage({ params }: { params: { slug: string
     .map((i) => (Array.isArray(allTestimonials) ? allTestimonials[i] : undefined))
     .filter((x): x is { quote: string; who: string } => !!x?.quote);
 
-  const registrationFields: RegistrationField[] = details.registrationFields?.length
-    ? details.registrationFields
-    : DEFAULT_REGISTRATION_FIELDS;
+  // Same helper live-public.ts uses for the webinar poll, so the ad page
+  // and the live page cannot disagree about what "no custom fields" means.
+  const registrationFields: RegistrationField[] = registrationFieldsFor(details);
 
   // Two palettes, expressed as class strings rather than CSS variables:
   // Tailwind compiles the classes it can see in the source, so a colour
@@ -254,15 +255,27 @@ export default async function AdLandingPage({ params }: { params: { slug: string
           converts better than one that reads like a website. pb-28 leaves
           room for the sticky bar so the last CTA is never underneath it. */}
       <main className="max-w-[760px] mx-auto px-5 py-9 md:py-14 pb-28">
-        {(page.eyebrow || !closed) && (
+        {/* The badge used to be saved and then silently never rendered —
+            an admin typed "LIVE THIS SUNDAY", got no error, and the page
+            ignored it. */}
+        {(page.eyebrow || page.badge || !closed) && (
           <div className="flex items-center justify-between gap-3 mb-5">
-            {page.eyebrow ? (
-              <span className={`font-mono text-[11px] font-bold tracking-wider border rounded-full px-3.5 py-1.5 ${t.accent} ${t.accentBorder}`}>
-                {page.eyebrow}
-              </span>
-            ) : (
-              <span />
-            )}
+            <div className="flex flex-wrap items-center gap-2">
+              {page.eyebrow && (
+                <span className={`font-mono text-[11px] font-bold tracking-wider border rounded-full px-3.5 py-1.5 ${t.accent} ${t.accentBorder}`}>
+                  {page.eyebrow}
+                </span>
+              )}
+              {page.badge && (
+                <span
+                  className={`font-mono text-[11px] font-bold tracking-wider rounded-full px-3.5 py-1.5 ${
+                    dark ? "bg-bone text-ink" : "bg-ink text-bone"
+                  }`}
+                >
+                  {page.badge}
+                </span>
+              )}
+            </div>
             {!closed && (
               <span className="inline-flex items-center gap-2 font-mono text-[11px] font-bold tracking-wider text-live">
                 <span className="w-2 h-2 rounded-full bg-live live-dot" />
