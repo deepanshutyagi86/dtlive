@@ -466,3 +466,110 @@ export function PdfUploadField({
     </div>
   );
 }
+
+/**
+ * Direct video upload, for a short promo film that isn't going on YouTube.
+ *
+ * No client-side compression, unlike ImageUploadField: re-encoding video
+ * in a browser tab is slow and lossy, and there is nothing safe to strip
+ * from someone's edited clip. The server-side ceiling in /api/admin/upload
+ * is therefore the only gate, and the help text below says so plainly —
+ * the cost of an oversized file here is a bandwidth bill, which is not
+ * something a person should discover from an invoice.
+ */
+export function VideoUploadField({
+  label,
+  value,
+  fileName,
+  onChange,
+  pathPrefix,
+  help,
+}: {
+  label: string;
+  value: string;
+  fileName?: string;
+  onChange: (v: { url: string; fileName: string } | null) => void;
+  pathPrefix: string;
+  help?: string;
+}) {
+  const id = useId();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleFile(file: File) {
+    setError(null);
+    setUploading(true);
+    setProgress(0);
+    try {
+      // Extension taken from the file, content type from the browser: the
+      // blob store serves this back with whatever type it was given, and
+      // a wrong one plays as a download prompt instead of a video.
+      const ext = (file.name.split(".").pop() || "mp4").toLowerCase();
+      const result = await upload(`${pathPrefix}${crypto.randomUUID()}.${ext}`, file, {
+        access: "public",
+        handleUploadUrl: "/api/admin/upload",
+        contentType: file.type || "video/mp4",
+        onUploadProgress: (p) => setProgress(Math.round(p.percentage)),
+      });
+      onChange({ url: result.url, fileName: file.name });
+    } catch (err: any) {
+      setError(err?.message || "Upload failed. Try again.");
+    } finally {
+      setUploading(false);
+      setProgress(0);
+    }
+  }
+
+  return (
+    <div className="mb-5">
+      <label htmlFor={id} className="block font-mono text-[10.5px] uppercase tracking-wider text-muted mb-1.5">
+        {label}
+      </label>
+      <div className="flex flex-wrap gap-2 items-center">
+        <button
+          id={id}
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+          className="bg-ink text-bone px-4 py-2.5 rounded-[10px] text-sm font-semibold hover:bg-marigold hover:text-ink transition-colors disabled:opacity-50"
+        >
+          {uploading ? `Uploading… ${progress}%` : value ? "Replace video" : "Upload video"}
+        </button>
+        {value && (
+          <>
+            <a
+              href={value}
+              target="_blank"
+              rel="noopener"
+              className="font-mono text-[11px] text-muted hover:text-ink transition-colors truncate max-w-[220px]"
+            >
+              {fileName || "video"}
+            </a>
+            <button
+              type="button"
+              onClick={() => onChange(null)}
+              className="font-mono text-[11px] text-muted hover:text-live-ink transition-colors"
+            >
+              Remove
+            </button>
+          </>
+        )}
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="video/mp4,video/webm,video/quicktime"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleFile(file);
+          e.target.value = "";
+        }}
+      />
+      {error && <p className="text-[12px] text-live-ink mt-1.5">{error}</p>}
+      {help && <p className="text-[12px] text-muted mt-1.5 leading-relaxed">{help}</p>}
+    </div>
+  );
+}

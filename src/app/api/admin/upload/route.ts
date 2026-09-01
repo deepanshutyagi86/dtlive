@@ -23,6 +23,15 @@ const SYLLABUS_PREFIX = "syllabus/";
 // images and keep the image rules — the prefix exists so the pathname is
 // self-documenting in the blob store, not to unlock anything.
 const BRANDING_PREFIX = "branding/";
+// The promo film uploaded straight to the site rather than to YouTube.
+// Its own prefix so video can be unlocked HERE and nowhere else — the
+// item thumbnail uploader must not become an arbitrary-file uploader.
+const VIDEO_PREFIX = "promo/";
+// Deliberately tight. Blob egress is billed per GB, and a promo film is
+// watched by every visitor to the page: a 30-second clip at this ceiling
+// is fine, a five-minute one is a bill. Anything longer belongs on
+// YouTube, which is free and adaptive — the URL field accepts that.
+const MAX_VIDEO_BYTES = 60 * 1024 * 1024;
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const body = (await request.json()) as HandleUploadBody;
@@ -45,6 +54,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         // the image rules below - the prefix exists so the blob store is
         // self-documenting, not to widen what is accepted.
         const isPdf = pathname.startsWith(GUIDE_PREFIX) || pathname.startsWith(SYLLABUS_PREFIX);
+        const isVideo = pathname.startsWith(VIDEO_PREFIX);
+
+        if (isVideo) {
+          return {
+            allowedContentTypes: ["video/mp4", "video/webm", "video/quicktime"],
+            maximumSizeInBytes: MAX_VIDEO_BYTES,
+            addRandomSuffix: true,
+          };
+        }
 
         return {
           allowedContentTypes: isPdf

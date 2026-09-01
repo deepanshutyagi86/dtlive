@@ -1,6 +1,6 @@
 "use client";
-import { LinesField, PdfUploadField, Repeater, SelectField, TextField, NumberField, Toggle } from "@/components/admin/AdminFields";
-import { DEFAULT_OVERVIEW_VIDEO_LABEL } from "@/lib/types";
+import { LinesField, PdfUploadField, Repeater, SelectField, TextField, NumberField, Toggle, VideoUploadField } from "@/components/admin/AdminFields";
+import { DEFAULT_OVERVIEW_VIDEO_LABEL, DEFAULT_PROMO_VIDEO_LABEL } from "@/lib/types";
 
 // Everything on this panel renders on the item's own detail page only —
 // never on a card. A card has one job, getting the click, and an outcome
@@ -21,14 +21,17 @@ export default function SalesFields({
 
   const syllabus = details.syllabus ?? null;
 
-  // Patch-merge like setJoining above, so editing the label can't wipe the
+  // Patch-merge like setJoining above, so editing a label can't wipe the
   // url. Clearing the url clears the whole object rather than leaving a
   // stranded {label, note} behind with nothing to play.
-  const overviewVideo = details.overviewVideo ?? {};
-  const setOverviewVideo = (patch: any) => {
-    const next = { ...overviewVideo, ...patch };
-    set({ overviewVideo: next.url?.trim() ? next : undefined });
+  const videoSetter = (key: "overviewVideo" | "promoVideo") => (patch: any) => {
+    const next = { ...(details[key] ?? {}), ...patch };
+    set({ [key]: next.url?.trim() ? next : undefined });
   };
+  const overviewVideo = details.overviewVideo ?? {};
+  const setOverviewVideo = videoSetter("overviewVideo");
+  const promoVideo = details.promoVideo ?? {};
+  const setPromoVideo = videoSetter("promoVideo");
 
   return (
     <div className="mt-8">
@@ -59,13 +62,70 @@ export default function SalesFields({
       )}
 
       <hr className="border-line my-6" />
+      <p className="font-mono text-[11px] uppercase tracking-wider text-muted mb-1">Promo video (on the image)</p>
+      <p className="text-[13px] text-muted mb-5 leading-relaxed">
+        Optional. The marketing film — shown as a play button in the middle of this item&apos;s main image, so
+        it&apos;s the first thing someone who just landed can press. Either paste a YouTube link (set it to
+        <strong> Unlisted</strong>, never Private) or upload a short clip straight to the site.
+      </p>
+
+      <TextField
+        label="Video URL"
+        value={promoVideo.url ?? ""}
+        // Clears fileName: typing a URL replaces an uploaded file, and a
+        // stale filename would leave the upload box claiming to hold
+        // something that is no longer what plays.
+        onChange={(v) => setPromoVideo({ url: v, fileName: undefined })}
+        placeholder="https://www.youtube.com/watch?v=..."
+        help="YouTube, a Drive share link, or a direct .mp4. Leave blank if you're uploading below instead."
+      />
+
+      <VideoUploadField
+        label="…or upload the file"
+        // `fileName` is what marks a video as uploaded rather than linked,
+        // so the upload box shows a file only when there is actually one —
+        // sniffing the URL for "youtube" would misread every other host.
+        value={promoVideo.fileName ? promoVideo.url : ""}
+        fileName={promoVideo.fileName}
+        pathPrefix="promo/"
+        onChange={(v) => setPromoVideo({ url: v?.url ?? "", fileName: v?.fileName ?? undefined })}
+        help="Up to 60MB — about 30 seconds at good quality. Uploaded video is served from this site, and you pay for the bandwidth every time someone watches it, so anything longer than a minute belongs on YouTube (free, and it adapts to a weak connection)."
+      />
+
+      {promoVideo.url && (
+        <>
+          <Toggle
+            label="Show the play button on this item's image"
+            checked={promoVideo.enabled !== false}
+            onChange={(v) => setPromoVideo({ enabled: v })}
+            help="Off hides the play button without losing the video."
+          />
+          <div className="grid md:grid-cols-2 gap-4">
+            <TextField
+              label="Label under the play button"
+              value={promoVideo.label ?? ""}
+              onChange={(v) => setPromoVideo({ label: v })}
+              placeholder={DEFAULT_PROMO_VIDEO_LABEL}
+              help="Keep it short — it sits over the image."
+            />
+            <TextField
+              label="Small note"
+              value={promoVideo.note ?? ""}
+              onChange={(v) => setPromoVideo({ note: v })}
+              placeholder="90 seconds"
+            />
+          </div>
+        </>
+      )}
+
+      <hr className="border-line my-6" />
       <p className="font-mono text-[11px] uppercase tracking-wider text-muted mb-1">Overview video (Module 0)</p>
       <p className="text-[13px] text-muted mb-5 leading-relaxed">
-        Optional. One free video shown as a button under the description, above the syllabus link.
-        Upload it to YouTube as <strong>Unlisted</strong> and paste the watch link — unlisted means
-        link-only, not searchable. <strong>Do not use Private</strong>: private videos are visible to
-        nobody but your own account and the player will be blank for everyone else. A Google Drive
-        share link or a direct .mp4 URL work too. Leave blank and no button appears.
+        Optional, and a different job from the promo above. This is the teaching preview — what the inside of the
+        course actually looks like — shown as a labelled button under the description, for someone already reading
+        and deciding whether it&apos;s any good. YouTube <strong>Unlisted</strong> is the right home for it:
+        it&apos;s longer, and unlisted means link-only, not searchable. <strong>Never Private</strong> — private
+        videos are visible to nobody but your own account and the player is blank for everyone else.
       </p>
 
       <TextField
@@ -77,22 +137,30 @@ export default function SalesFields({
       />
 
       {overviewVideo.url && (
-        <div className="grid md:grid-cols-2 gap-4">
-          <TextField
-            label="Button label"
-            value={overviewVideo.label ?? ""}
-            onChange={(v) => setOverviewVideo({ label: v })}
-            placeholder={DEFAULT_OVERVIEW_VIDEO_LABEL}
-            help="Blank uses the default."
+        <>
+          <Toggle
+            label="Show the Module 0 button"
+            checked={overviewVideo.enabled !== false}
+            onChange={(v) => setOverviewVideo({ enabled: v })}
+            help="Off hides the button without losing the link."
           />
-          <TextField
-            label="Small note under the button"
-            value={overviewVideo.note ?? ""}
-            onChange={(v) => setOverviewVideo({ note: v })}
-            placeholder="12 min · free to watch"
-            help="Optional. Saying it's free and how long it is is what gets it clicked."
-          />
-        </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            <TextField
+              label="Button label"
+              value={overviewVideo.label ?? ""}
+              onChange={(v) => setOverviewVideo({ label: v })}
+              placeholder={DEFAULT_OVERVIEW_VIDEO_LABEL}
+              help="Blank uses the default."
+            />
+            <TextField
+              label="Small note under the button"
+              value={overviewVideo.note ?? ""}
+              onChange={(v) => setOverviewVideo({ note: v })}
+              placeholder="12 min · free to watch"
+              help="Optional. Saying it's free and how long it is is what gets it clicked."
+            />
+          </div>
+        </>
       )}
 
       <hr className="border-line my-6" />

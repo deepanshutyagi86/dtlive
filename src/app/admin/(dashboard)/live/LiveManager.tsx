@@ -13,7 +13,15 @@ interface ItemOption {
 }
 
 export default function LiveManager({ items }: { items: ItemOption[] }) {
+  // `settings` is a DRAFT. Typing changes it and nothing else — the earlier
+  // version of this screen saved on every keystroke, which put a network
+  // round trip and a re-render between one letter and the next and made the
+  // whole page jitter as you typed.
   const [settings, setSettings] = useState<LiveSettings | null>(null);
+  // What the server last confirmed, as JSON. Comparing against it is how
+  // "are there unsaved changes" is answered without tracking a dirty flag
+  // on every field by hand and eventually forgetting one.
+  const [savedJson, setSavedJson] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -22,14 +30,42 @@ export default function LiveManager({ items }: { items: ItemOption[] }) {
   useEffect(() => {
     fetch("/api/settings")
       .then((r) => r.json())
-      .then((d) => setSettings({ ...DEFAULT_LIVE, ...(d.live ?? {}) }))
+      .then((d) => {
+        const loaded = { ...DEFAULT_LIVE, ...(d.live ?? {}) };
+        setSettings(loaded);
+        setSavedJson(JSON.stringify(loaded));
+      })
       .catch(() => setError("Could not load. Reload the page."));
   }, []);
 
-  // One save path for everything on this screen, including the reveal
-  // switches. During a webinar a reveal has to be one click and then it is
-  // done — asking someone mid-sentence to click a switch and then find a
-  // Save button is how an offer goes up four minutes late.
+  const dirty = settings !== null && savedJson !== null && JSON.stringify(settings) !== savedJson;
+
+  // Closing the tab with unsaved edits should cost a confirmation, not the
+  // edits. Only armed while something is actually unsaved.
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+
+  /** Draft-only. Nothing reaches the server until Save. */
+  const edit = (next: LiveSettings) => setSettings(next);
+
+  /**
+   * Writes the WHOLE current draft, including any unsaved text edits.
+   *
+   * Used by the actions that must take effect the instant they are clicked:
+   * revealing a block, choosing which session is /live, adding or deleting.
+   * During a webinar a reveal has to be one click and done — asking someone
+   * mid-sentence to then find a Save button is how an offer goes up four
+   * minutes late.
+   *
+   * It saves the whole draft rather than just the one field on purpose:
+   * saving a subset would mean an instant action silently discarded
+   * whatever else was typed. The reveal row warns when that is about to
+   * publish unsaved text along with the flag.
+   */
   async function persist(next: LiveSettings) {
     setSettings(next);
     setSaving(true);
@@ -41,10 +77,12 @@ export default function LiveManager({ items }: { items: ItemOption[] }) {
         body: JSON.stringify({ live: next }),
       });
       if (!res.ok) throw new Error();
+      setSavedJson(JSON.stringify(next));
       setSavedAt(new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
     } catch {
-      // Deliberately loud. A silent failure here means the presenter says
-      // "it's on the page now" to a room where it is not.
+      // Deliberately loud, and the draft is deliberately NOT reverted —
+      // a silent failure here means the presenter says "it's on the page
+      // now" to a room where it is not.
       setError("SAVE FAILED — the page did not change. Check your connection and click again.");
     } finally {
       setSaving(false);
@@ -55,7 +93,11 @@ export default function LiveManager({ items }: { items: ItemOption[] }) {
     return <p className="text-sm text-muted">Loading…</p>;
   }
 
+  // Text edits are drafts; the reveal switches below call persist() directly.
   const patchSession = (id: string, patch: Partial<LiveSession>) =>
+    edit({ ...settings, sessions: settings.sessions.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
+
+  const patchSessionNow = (id: string, patch: Partial<LiveSession>) =>
     persist({ ...settings, sessions: settings.sessions.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
 
   function addSession() {
@@ -81,9 +123,18 @@ export default function LiveManager({ items }: { items: ItemOption[] }) {
             within about ten seconds — they do not need to refresh.
           </p>
         </div>
-        <span className="font-mono text-[11px] text-muted">
-          {saving ? "saving…" : savedAt ? `saved ${savedAt}` : ""}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-[11px] text-muted">
+            {saving ? "saving…" : dirty ? "unsaved changes" : savedAt ? `saved ${savedAt}` : ""}
+          </span>
+          <button
+            onClick={() => persist(settings)}
+            disabled={!dirty || saving}
+            className="bg-ink text-bone px-5 py-2.5 rounded-full font-semibold text-sm hover:bg-marigold hover:text-ink transition-colors disabled:opacity-40 disabled:hover:bg-ink disabled:hover:text-bone"
+          >
+            {saving ? "Saving…" : "Save changes"}
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -96,13 +147,13 @@ export default function LiveManager({ items }: { items: ItemOption[] }) {
         <Toggle
           label="Switch the /live page on"
           checked={settings.enabled}
-          onChange={(v) => persist({ ...settings, enabled: v })}
+          onChange={(v) => edit({ ...settings, enabled: v })}
           help="Off = /live and every /live/… address returns Not Found. Nothing is deleted."
         />
         <TextField
           label="What the page says before anything is revealed"
           value={settings.holdingLine}
-          onChange={(v) => persist({ ...settings, holdingLine: v })}
+          onChange={(v) => edit({ ...settings, holdingLine: v })}
           placeholder={DEFAULT_LIVE.holdingLine}
           help="Shown for as long as every block is still hidden — which is most of a webinar."
         />
@@ -133,6 +184,8 @@ export default function LiveManager({ items }: { items: ItemOption[] }) {
             open={openId === session.id}
             onToggleOpen={() => setOpenId(openId === session.id ? null : session.id)}
             onPatch={(patch) => patchSession(session.id, patch)}
+            onPatchNow={(patch) => patchSessionNow(session.id, patch)}
+            dirty={dirty}
             onDelete={() =>
               persist({ ...settings, sessions: settings.sessions.filter((s) => s.id !== session.id) })
             }
@@ -158,6 +211,8 @@ function SessionCard({
   open,
   onToggleOpen,
   onPatch,
+  onPatchNow,
+  dirty,
   onDelete,
   onMakeActive,
 }: {
@@ -165,7 +220,13 @@ function SessionCard({
   items: ItemOption[];
   open: boolean;
   onToggleOpen: () => void;
+  /** Draft edit — waits for Save. */
   onPatch: (patch: Partial<LiveSession>) => void;
+  /** Saves immediately. Only the reveal switches use this. */
+  onPatchNow: (patch: Partial<LiveSession>) => void;
+  /** True when the page has unsaved text edits, so the reveal row can say
+   *  that flipping a switch will publish them too. */
+  dirty: boolean;
   onDelete: () => void;
   onMakeActive: () => void;
 }) {
@@ -183,6 +244,10 @@ function SessionCard({
 
   const patchBlock = (id: string, patch: Partial<LiveBlock>) =>
     onPatch({ blocks: session.blocks.map((b) => (b.id === id ? { ...b, ...patch } : b)) });
+
+  /** The reveal switch, and only the reveal switch. */
+  const revealBlock = (id: string, visible: boolean) =>
+    onPatchNow({ blocks: session.blocks.map((b) => (b.id === id ? { ...b, visible } : b)) });
 
   return (
     <div className="border border-line rounded-card bg-card overflow-hidden">
@@ -225,13 +290,18 @@ function SessionCard({
       {session.blocks.length > 0 && (
         <div className="px-5 py-4 border-b border-line bg-bone">
           <p className="font-mono text-[10.5px] uppercase tracking-wider text-muted mb-3">
-            Reveal — flip one and it appears on every open page
+            Reveal — flip one and it appears on every open page. Saves instantly.
           </p>
+          {dirty && (
+            <p className="text-[12px] text-live-ink font-semibold mb-3">
+              You have unsaved edits — flipping a switch publishes those too.
+            </p>
+          )}
           <div className="flex flex-col gap-2">
             {session.blocks.map((b) => (
               <button
                 key={b.id}
-                onClick={() => patchBlock(b.id, { visible: !b.visible })}
+                onClick={() => revealBlock(b.id, !b.visible)}
                 className={`flex items-center justify-between gap-3 px-4 py-3 rounded-lg border text-left transition-colors ${
                   b.visible ? "bg-marigold border-marigold" : "bg-card border-line hover:border-ink"
                 }`}

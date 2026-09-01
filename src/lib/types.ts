@@ -85,7 +85,10 @@ interface RegistrationDisplayOptions extends ItemDetailsBase, SalesContent {
   showPriceBadge?: boolean;
   unlimitedSeats?: boolean;
   syllabus?: ItemSyllabus;
-  overviewVideo?: OverviewVideo;
+  /** Teaching preview — a button under the description. */
+  overviewVideo?: ItemVideo;
+  /** Marketing film — a play button on the item's main image. */
+  promoVideo?: ItemVideo;
 }
 
 /**
@@ -107,29 +110,67 @@ export interface ItemSyllabus {
 }
 
 /**
- * The course overview video - "Module 0". One free video that does the
- * job a paragraph of copy cannot: show the person who is teaching, and
- * what the inside of the course actually looks like.
+ * A video attached to an item. Two of them exist, and they are NOT
+ * interchangeable — they answer different questions for different people:
  *
- * Lives in the item's `details` JSON rather than a column, same reasoning
- * as ItemSyllabus above: adding a column needs a hand-run migration
- * against production, and this is exactly the optional per-item extra the
- * JSON blob exists for.
+ *   overviewVideo — "Module 0". A teaching preview: what the inside of the
+ *                   course actually looks like. Shown as a labelled button
+ *                   under the description, for someone already reading the
+ *                   page and deciding whether it is any good.
+ *
+ *   promoVideo    — the marketing film. Shown as a play button on the
+ *                   item's main image, so it is the first thing a person
+ *                   who just arrived can press. Usually short, and often
+ *                   uploaded directly rather than hosted on YouTube.
+ *
+ * Both live in the item's `details` JSON rather than columns, same
+ * reasoning as ItemSyllabus: a column needs a hand-run migration against
+ * production, and these are exactly the optional per-item extra the JSON
+ * blob exists for.
  *
  * `url` accepts a YouTube link (unlisted is the recommendation), a Google
- * Drive share link, or a direct .mp4 - see parseVideoUrl() in lib/video.ts,
- * which is the ONLY thing that decides whether a given URL is playable.
- * An unparseable url renders nothing at all rather than an empty player.
+ * Drive share link, or a direct .mp4 — see parseVideoUrl() in lib/video.ts,
+ * the only thing that decides whether a URL is playable. An unparseable
+ * url renders nothing at all rather than an empty player.
  */
-export interface OverviewVideo {
+export interface ItemVideo {
   url: string;
-  /** Button wording. Blank falls back to DEFAULT_OVERVIEW_VIDEO_LABEL. */
+  /** Wording on the button, or under the play circle. */
   label?: string;
-  /** Small line under the button, e.g. "12 min · free to watch". */
+  /** Small line beneath, e.g. "12 min · free to watch". */
   note?: string;
+  /** Set only when the file was uploaded to the site rather than linked.
+   *  Display-only, in the admin panel — it is also how that panel knows
+   *  which of its two inputs, URL or upload, this video came from. */
+  fileName?: string;
+  /**
+   * Tri-state, same shape and reasoning as ItemSyllabus.enabled: undefined
+   * means "on, because a URL was pasted" — so adding a video is one action
+   * rather than two. false is an explicit hide that keeps the URL.
+   */
+  enabled?: boolean;
 }
 
 export const DEFAULT_OVERVIEW_VIDEO_LABEL = "Watch the overview — Module 0";
+export const DEFAULT_PROMO_VIDEO_LABEL = "Watch";
+
+/** Which of an item's two videos is being asked for. */
+export type ItemVideoKey = "overviewVideo" | "promoVideo";
+
+/**
+ * The ONE thing that decides whether a given video shows, so the button,
+ * the play overlay and the admin preview can never disagree. Same pattern
+ * as syllabusFor() in site-settings.ts.
+ */
+export function itemVideoFor(details: unknown, key: ItemVideoKey): ItemVideo | null {
+  const video = (details as Partial<Record<ItemVideoKey, ItemVideo>>)?.[key];
+  if (!video?.url?.trim()) return null;
+  if (video.enabled === false) return null;
+  return video;
+}
+
+export const overviewVideoFor = (details: unknown) => itemVideoFor(details, "overviewVideo");
+export const promoVideoFor = (details: unknown) => itemVideoFor(details, "promoVideo");
 
 export interface CourseDetails extends RegistrationDisplayOptions {
   price: number; // in rupees

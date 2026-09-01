@@ -10,7 +10,7 @@ import NavDarkWatcher from "@/components/NavDarkWatcher";
 import JsonLd from "@/components/JsonLd";
 import { Outcomes, WhoFor, Faq } from "@/components/ItemSections";
 import GuideCta from "@/components/GuideCta";
-import OverviewVideoButton from "@/components/OverviewVideo";
+import { ItemVideoButton, ItemVideoOverlay } from "@/components/ItemVideo";
 import MetaPixelView from "@/components/MetaPixelView";
 import { getItemBySlug, getSetting } from "@/lib/items";
 import { hasTaxDetailsColumn } from "@/lib/admin-repo";
@@ -25,7 +25,7 @@ import {
   SITE_URL,
 } from "@/lib/site-settings";
 import { computePricing, priceLabel as taxPriceLabel, priceSubLabel } from "@/lib/tax";
-import type { CourseDetails, WorkshopDetails } from "@/lib/types";
+import { overviewVideoFor, promoVideoFor, type CourseDetails, type WorkshopDetails } from "@/lib/types";
 import type { Metadata } from "next";
 import { SITE_TZ } from "@/lib/dates";
 
@@ -100,6 +100,11 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
   // a file actually exists. Every link below is gated on this one value, so
   // none of them can point at a page that would 404.
   const syllabus = syllabusFor(item!.details, syllabusSettings);
+  // Two different videos for two different moments: the promo film plays
+  // from the hero image, Module 0 sits under the description. Both null
+  // unless a URL exists AND that video's own switch is on.
+  const promoVideo = promoVideoFor(item!.details);
+  const overviewVideo = overviewVideoFor(item!.details);
   const syllabusHref = `/items/${item!.slug}/syllabus`;
 
   const isWorkshop = item!.category === "workshop";
@@ -292,7 +297,8 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
           <span aria-hidden>←</span> All {listing.label.toLowerCase()}
         </Link>
 
-        <div className="rounded-card overflow-hidden mb-6 mt-2">
+        {/* `relative` so the play overlay can fill exactly this box. */}
+        <div className="relative rounded-card overflow-hidden mb-6 mt-2">
           <ItemImage
             thumbnail={item!.thumbnail}
             title={item!.title}
@@ -305,6 +311,10 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
             // first thing in the main column and fills the viewport width.
             priority
           />
+          {/* The PROMO film. On the hero rather than beside it — a still
+              frame with a play button says "there is a video here" without
+              a line of copy, and costs no vertical space. */}
+          {promoVideo && <ItemVideoOverlay video={promoVideo} title={item!.title} />}
         </div>
 
         {closed ? (
@@ -328,11 +338,12 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
             any page. Also where an ad click's UTM tags get recorded. */}
         <MetaPixelView contentId={item!.id} contentName={item!.title} value={price} />
 
-        {/* Module 0 first, syllabus second. Someone deciding whether to
-            trust a course watches before they read, and this is the only
-            free thing on the page — it should be the easiest to reach. */}
-        {d.overviewVideo?.url && (
-          <OverviewVideoButton video={d.overviewVideo} title={item!.title} className="mt-5" />
+        {/* MODULE 0 — the teaching preview, for someone who has read this
+            far and is deciding whether the course is any good. Above the
+            syllabus link because watching beats reading, and it is the
+            only free thing on the page. */}
+        {overviewVideo && (
+          <ItemVideoButton video={overviewVideo} title={item!.title} className="mt-5" />
         )}
 
         {/* The earliest a top-to-bottom reader can reach the syllabus —
