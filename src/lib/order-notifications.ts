@@ -104,7 +104,13 @@ export async function sendPaidOrderNotifications(order: PaidOrder): Promise<void
   try {
     const template = resolveTemplate(emailCopy.paidBuyer, DEFAULT_EMAIL_COPY.paidBuyer);
     const rendered = renderTemplate(template, values);
-    await sendEmail({ to: order.buyerEmail, ...rendered });
+    const sent = await sendEmail({ to: order.buyerEmail, ...rendered });
+    // Logged against the ORDER ID. A paying customer who never got a
+    // receipt is a support problem, and "which order was it" is the first
+    // question — a bare provider error in the console cannot answer it.
+    if (!sent.ok) {
+      console.error(`Paid order ${order.id}: buyer confirmation NOT sent to ${order.buyerEmail} — ${sent.error}`);
+    }
   } catch (err) {
     console.error("Paid order: buyer confirmation email failed:", err);
   }
@@ -114,7 +120,10 @@ export async function sendPaidOrderNotifications(order: PaidOrder): Promise<void
     if (notifyEmail) {
       const template = resolveTemplate(emailCopy.paidAdmin, DEFAULT_EMAIL_COPY.paidAdmin);
       const rendered = renderTemplate(template, values);
-      await sendEmail({ to: notifyEmail, ...rendered });
+      const sent = await sendEmail({ to: notifyEmail, ...rendered });
+      if (!sent.ok) {
+        console.error(`Paid order ${order.id}: admin alert NOT sent to ${notifyEmail} — ${sent.error}`);
+      }
     }
   } catch (err) {
     console.error("Paid order: admin alert email failed:", err);

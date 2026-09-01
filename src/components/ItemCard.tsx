@@ -3,7 +3,7 @@ import RegisterModal from "./RegisterModal";
 import ItemImage from "./ItemImage";
 import { CATEGORY_CTA, CATEGORY_LABELS, CHIP_CLASS } from "@/lib/types";
 import { formatRupees, priceLabel } from "@/lib/tax";
-import { DEFAULT_TAX, type TaxSettings } from "@/lib/settings-types";
+import { DEFAULT_TAX, taxFor, taxModeFor, type TaxSettings } from "@/lib/settings-types";
 import { SITE_TZ } from "@/lib/dates";
 import type {
   AgencyDetails,
@@ -55,6 +55,11 @@ export function chipLabel(item: CardItem): string {
 // price entirely.
 export function metaLine(item: CardItem, tax: TaxSettings = DEFAULT_TAX): string {
   const d = item.details as any;
+  // Resolved here rather than by each caller: every grid, the homepage
+  // and the compare strip all render through this one function, so a
+  // per-item GST override lands everywhere at once and no card can show
+  // a price the checkout would not charge.
+  tax = taxFor(tax, taxModeFor(item.details));
   if (item.category === "course") {
     const c = d as CourseDetails;
     return `${priceLabel(c.price, tax)} · ${c.duration ?? "self-paced"}`;

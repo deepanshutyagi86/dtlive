@@ -45,6 +45,7 @@ import {
   type LiveBlock,
   type LiveSession,
   type LiveSettings,
+  type TaxMode,
   type NavLink,
   type NavSettings,
   type StarterSettings,
@@ -662,3 +663,26 @@ export const cachedAdPage = unstable_cache(
   ["ad-page"],
   { revalidate: 30, tags: ["ad-pages"] }
 );
+
+/**
+ * An ad page's GST override for one item.
+ *
+ * Deliberately separate from adPriceFor: that returns null when the page
+ * sets no price of its own, but a campaign can perfectly well sell at the
+ * item's normal price and still want GST off. Folding the two together
+ * would silently drop the tax override in exactly that case.
+ *
+ * Validated the same way everything else about an ad page is — the page
+ * must exist, be switched on, be for this item, and not have expired —
+ * so a stale link cannot keep suppressing tax on a finished campaign.
+ */
+export async function adTaxModeFor(
+  itemId: string,
+  slug: string | null | undefined
+): Promise<TaxMode | undefined> {
+  if (!slug) return undefined;
+  const page = adPageBySlug(await getAdPages(), slug);
+  if (!page || page.itemId !== itemId) return undefined;
+  if (isDeadlinePassed(page.deadlineIso)) return undefined;
+  return page.taxMode;
+}

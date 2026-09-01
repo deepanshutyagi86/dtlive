@@ -16,7 +16,7 @@
 import { getItemById } from "./items";
 import { getTaxSettingsForDisplay } from "./site-settings";
 import { formatRupees, priceLabel as taxPriceLabel } from "./tax";
-import { isLiveDeadlinePassed, type LiveBlock, type LiveSession } from "./settings-types";
+import { isLiveDeadlinePassed, taxFor, taxModeFor, type LiveBlock, type LiveSession } from "./settings-types";
 import {
   CATEGORY_CTA,
   DEFAULT_REGISTRATION_FIELDS,
@@ -141,7 +141,11 @@ async function publicBlock(
     thumbnail: item.thumbnail,
     imageFocal: details.imageFocal ?? null,
     category: item.category,
-    priceLabel: block.kind === "paid" ? taxPriceLabel(price as number, tax) : null,
+    // The item's own GST override applies here too — a course sold at a
+    // webinar is the same course. /live blocks have no tax setting of
+    // their own; the item is the right place for it.
+    priceLabel:
+      block.kind === "paid" ? taxPriceLabel(price as number, taxFor(tax, taxModeFor(item.details))) : null,
     // Struck through beside the price. Only shown when it is actually
     // higher than what is being charged — a "discount" that isn't one
     // is the fastest way to lose a room's trust.

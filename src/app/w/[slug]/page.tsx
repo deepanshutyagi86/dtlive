@@ -26,7 +26,7 @@ import {
   SITE_URL,
 } from "@/lib/site-settings";
 import { getSetting } from "@/lib/items";
-import { adSourceTag, isDeadlinePassed } from "@/lib/settings-types";
+import { adSourceTag, isDeadlinePassed, taxFor, taxModeFor } from "@/lib/settings-types";
 import { formatRupees, priceLabel as taxPriceLabel } from "@/lib/tax";
 import { type RegistrationField, type WorkshopDetails } from "@/lib/types";
 import { SITE_TZ } from "@/lib/dates";
@@ -79,7 +79,7 @@ export default async function AdLandingPage({ params }: { params: { slug: string
   // Unknown slug and switched-off page alike: there is no page here.
   if (!page) notFound();
 
-  const [item, tax, business, bio, allTestimonials, paidHere] = await Promise.all([
+  const [item, globalTax, business, bio, allTestimonials, paidHere] = await Promise.all([
     getItemById(page.itemId),
     getTaxSettingsForDisplay(),
     getBusinessSettings(),
@@ -92,6 +92,10 @@ export default async function AdLandingPage({ params }: { params: { slug: string
   // A page whose item was deleted or unpublished would render a button
   // that fails on click. Better to 404 the page itself.
   if (!item || !item.live) notFound();
+
+  // Global → item → this campaign. Same chain the checkout resolves, so
+  // the price on the page is the price charged.
+  const tax = taxFor(globalTax, taxModeFor(item.details), page.taxMode);
 
   const dark = page.theme !== "light";
   const closed = isDeadlinePassed(page.deadlineIso);

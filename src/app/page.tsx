@@ -10,6 +10,7 @@ import StarterRouter from "@/components/StarterRouter";
 import JsonLd from "@/components/JsonLd";
 import { getDoorCounts, getFeaturedItem, getLiveStreamItems, getSetting } from "@/lib/items";
 import { getBio, getNav, getStarter, getStreamSettings, getTaxSettingsForDisplay, SITE_URL } from "@/lib/site-settings";
+import { taxFor, taxModeFor } from "@/lib/settings-types";
 import { priceLabel } from "@/lib/tax";
 import { metaFor, externalFor } from "@/lib/homepage";
 import type { CourseDetails, WorkshopDetails } from "@/lib/types";
@@ -73,6 +74,9 @@ export default async function HomePage() {
   let spotlight: SpotlightData | null = null;
   if (featured && (featured.category === "course" || featured.category === "workshop")) {
     const d = featured.details as any;
+    // This one item's resolved GST, so the hero chip agrees with the
+    // price on the item's own page and at checkout.
+    const itemTax = taxFor(tax, taxModeFor(featured.details));
     const showSeats = featured.category === "workshop" && !d.unlimitedSeats && d.showSeatsBadge !== false;
     const showPrice = d.showPriceBadge !== false;
 
@@ -90,9 +94,9 @@ export default async function HomePage() {
         "Live on Zoom"
       );
       if (showSeats) chips.push(`${(d as WorkshopDetails).seatsLeft} seats left`);
-      if (showPrice) chips.push(`${priceLabel((d as WorkshopDetails).price, tax)} early bird`);
+      if (showPrice) chips.push(`${priceLabel((d as WorkshopDetails).price, itemTax)} early bird`);
     } else {
-      if (showPrice) chips.push(priceLabel((d as CourseDetails).price, tax));
+      if (showPrice) chips.push(priceLabel((d as CourseDetails).price, itemTax));
       chips.push((d as CourseDetails).duration ?? "self-paced");
     }
 

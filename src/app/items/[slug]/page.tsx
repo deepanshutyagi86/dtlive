@@ -25,6 +25,7 @@ import {
   SITE_URL,
 } from "@/lib/site-settings";
 import { computePricing, priceLabel as taxPriceLabel, priceSubLabel } from "@/lib/tax";
+import { taxFor, taxModeFor } from "@/lib/settings-types";
 import { overviewVideoFor, promoVideoFor, type CourseDetails, type WorkshopDetails } from "@/lib/types";
 import type { Metadata } from "next";
 import { SITE_TZ } from "@/lib/dates";
@@ -94,7 +95,12 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
     notFound();
   }
 
-  const tax = { ...taxSettings, b2bEnabled: taxSettings.b2bEnabled && b2bReady };
+  // The global switch, overridden by this item's own setting. Everything
+  // below — the badge, the sticky bar, the checkout modal and the
+  // schema.org offer — reads this one value, so they cannot disagree
+  // about whether GST applies.
+  const resolvedTax = taxFor(taxSettings, taxModeFor(item!.details));
+  const tax = { ...resolvedTax, b2bEnabled: resolvedTax.b2bEnabled && b2bReady };
 
   // null unless BOTH the global switch and this item's own switch agree and
   // a file actually exists. Every link below is gated on this one value, so

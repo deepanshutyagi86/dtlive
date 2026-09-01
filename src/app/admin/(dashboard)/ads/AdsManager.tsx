@@ -292,6 +292,20 @@ function PageCard({
             </div>
           )}
 
+          {page.kind === "paid" && (
+            <SelectField
+              label="Charge GST on this campaign"
+              value={page.taxMode ?? "default"}
+              onChange={(v) => onPatch({ taxMode: v as "default" | "on" | "off" })}
+              options={[
+                { value: "default", label: "Follow the item's own setting" },
+                { value: "on", label: "Always charge GST here" },
+                { value: "off", label: "Never charge GST here" },
+              ]}
+              help="Wins over the item's setting and the global one, for this campaign only. Worth switching off on a round ad price — 18% turns ₹27 into ₹31.86 at checkout, which isn't the number in your ad."
+            />
+          )}
+
           {paidButFree && (
             <p className="text-[12px] text-live-ink font-semibold mb-3">
               This is set to take payment but the price is zero. Give it a price, or switch it to Register.

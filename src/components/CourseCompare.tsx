@@ -1,3 +1,4 @@
+import { taxFor, taxModeFor } from "@/lib/settings-types";
 import Link from "next/link";
 import type { CardItem } from "./ItemCard";
 import type { CourseDetails } from "@/lib/types";
@@ -30,6 +31,10 @@ export default function CourseCompare({ items, tax = DEFAULT_TAX }: { items: Car
       level: (d.level ?? "").trim(),
       duration: (d.duration ?? "").trim(),
       price: d.price,
+      // Each row carries its OWN resolved GST — this strip lists several
+      // courses side by side, and one of them may have tax switched off.
+      // A single shared `tax` would print the wrong suffix on that row.
+      tax: taxFor(tax, taxModeFor(c.details)),
     };
   });
 
@@ -75,7 +80,7 @@ export default function CourseCompare({ items, tax = DEFAULT_TAX }: { items: Car
                     {r.title}
                   </Link>
                   {Number.isFinite(r.price) && (
-                    <span className="block font-mono text-[11px] text-muted mt-1">{priceLabel(r.price, tax)}</span>
+                    <span className="block font-mono text-[11px] text-muted mt-1">{priceLabel(r.price, r.tax)}</span>
                   )}
                 </th>
                 <td className="py-5 pr-4 text-[15px] leading-relaxed text-ink-soft">{r.bestFor || "—"}</td>

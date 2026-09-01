@@ -1,5 +1,5 @@
 import { priceLabel } from "./tax";
-import { DEFAULT_TAX, type TaxSettings } from "./settings-types";
+import { DEFAULT_TAX, taxFor, taxModeFor, type TaxSettings } from "./settings-types";
 import type { Item } from "@/lib/db";
 import type { AgencyDetails, CourseDetails, ShopDetails, VentureDetails, WorkshopDetails } from "@/lib/types";
 import { SITE_TZ } from "@/lib/dates";
@@ -8,6 +8,10 @@ import { SITE_TZ } from "@/lib/dates";
 // backward-compatible for any caller not yet threaded through.
 export function metaFor(item: Item, tax: TaxSettings = DEFAULT_TAX): string {
   const d = item.details as any;
+  // Same resolution metaLine() does in ItemCard: this item's own GST
+  // override, so the stream card cannot print a price the checkout would
+  // not charge.
+  tax = taxFor(tax, taxModeFor(item.details));
   switch (item.category) {
     case "course":
       return `${priceLabel((d as CourseDetails).price, tax)} · ${(d as CourseDetails).duration ?? "self-paced"}`;

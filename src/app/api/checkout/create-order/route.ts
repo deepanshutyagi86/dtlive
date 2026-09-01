@@ -5,9 +5,10 @@ import { createRazorpayOrder } from "@/lib/razorpay";
 import type { CourseDetails, WorkshopDetails } from "@/lib/types";
 import { rateLimit, clientIpFrom } from "@/lib/rate-limit";
 import { isValidEmail, isValidPhone, normalisePhone } from "@/lib/validate";
-import { getBusinessSettings, getCoupons, getTaxSettings, adPriceFor, livePriceFor } from "@/lib/site-settings";
+import { getBusinessSettings, getCoupons, getTaxSettings, adPriceFor, adTaxModeFor, livePriceFor } from "@/lib/site-settings";
 import { markCouponUsed } from "@/lib/coupons";
 import { quoteOrder } from "@/lib/checkout-pricing";
+import { taxFor, taxModeFor } from "@/lib/settings-types";
 import { sanitiseAttribution } from "@/lib/attribution";
 
 // A workshop whose start time has passed must stop selling seats. Nothing
@@ -101,12 +102,18 @@ export async function POST(req: NextRequest) {
       getBusinessSettings(),
     ]);
 
+    // GST for THIS sale: the global switch, overridden by the item's own
+    // setting, overridden again by the ad page's. Resolved from the same
+    // server-side rows that decided the price — the browser has no say in
+    // whether tax applies, exactly as it has none over the amount.
+    const effectiveTax = taxFor(tax, taxModeFor(details), await adTaxModeFor(item.id, adPage));
+
     const quote = quoteOrder({
       listPrice,
       itemId: item.id,
       couponCode: typeof couponCode === "string" ? couponCode : null,
       coupons,
-      tax,
+      tax: effectiveTax,
       sellerStateCode: business.stateCode,
       buyerGst: buyerGst && typeof buyerGst === "object" ? buyerGst : null,
     });

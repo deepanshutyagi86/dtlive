@@ -301,6 +301,24 @@ export default function SalesFields({
       )}
 
       <hr className="border-line my-6" />
+      <p className="font-mono text-[11px] uppercase tracking-wider text-muted mb-1">GST</p>
+      <p className="text-[13px] text-muted mb-5 leading-relaxed">
+        Two separate things: whether tax is <strong>charged</strong>, and whether an invoice
+        <strong> document</strong> is issued. Both default to whatever Pricing &amp; GST says.
+      </p>
+
+      <SelectField
+        label="Charge GST on this item"
+        value={details.taxMode ?? "default"}
+        onChange={(v) => set({ taxMode: v })}
+        options={[
+          { value: "default", label: "Use the global setting" },
+          { value: "on", label: "Always charge GST on this" },
+          { value: "off", label: "Never charge GST on this" },
+        ]}
+        help="Changes what the buyer actually pays, and what the price on every page reads. Overrides Pricing & GST for this one item, everywhere it's sold — its own page, the homepage, a /live block. An ad page can override it again for one campaign."
+      />
+
       <SelectField
         label="GST invoice for this item"
         value={details.invoice ?? "default"}

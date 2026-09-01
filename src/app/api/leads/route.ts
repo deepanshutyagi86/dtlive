@@ -156,7 +156,14 @@ export async function POST(req: NextRequest) {
     try {
       const template = resolveTemplate(emailCopy.leadBuyer, DEFAULT_EMAIL_COPY.leadBuyer);
       const rendered = renderTemplate(template, leadValues);
-      await sendEmail({ to: lead.email, ...rendered });
+      const sent = await sendEmail({ to: lead.email, ...rendered });
+      // Logged against the LEAD ID, same reasoning as the paid-order path:
+      // sendEmail reports why now, and a bare console line with no id is
+      // not something a registrant's "I never got a confirmation" support
+      // message can be matched back to.
+      if (!sent.ok) {
+        console.error(`Lead ${lead.id}: registrant confirmation NOT sent to ${lead.email} — ${sent.error}`);
+      }
     } catch (err) {
       console.error("Leads: registrant confirmation email failed:", err);
     }
@@ -167,7 +174,10 @@ export async function POST(req: NextRequest) {
     if (notifyEmail) {
       const template = resolveTemplate(emailCopy.leadAdmin, DEFAULT_EMAIL_COPY.leadAdmin);
       const rendered = renderTemplate(template, leadValues);
-      await sendEmail({ to: notifyEmail, ...rendered });
+      const sent = await sendEmail({ to: notifyEmail, ...rendered });
+      if (!sent.ok) {
+        console.error(`Lead ${lead.id}: admin alert NOT sent to ${notifyEmail} — ${sent.error}`);
+      }
     }
   } catch (err) {
     console.error("Leads: admin alert email failed:", err);

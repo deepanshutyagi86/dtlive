@@ -275,6 +275,54 @@ export const DEFAULT_TAX: TaxSettings = {
   b2bPrompt: "Buying through a company? Add your GSTIN and we'll raise the invoice to your business so you can claim input credit.",
 };
 
+/**
+ * Whether GST is charged on one particular thing, overriding the global
+ * switch above.
+ *
+ *   "default" — follow TaxSettings.enabled (the global switch)
+ *   "on"      — charge GST on this, even if the global switch is off
+ *   "off"     — never charge GST on this, even if the global switch is on
+ *
+ * Absent means "default", so every item and ad page written before this
+ * existed keeps behaving exactly as it did.
+ */
+export type TaxMode = "default" | "on" | "off";
+
+/**
+ * Resolves the tax settings that actually apply to ONE sale.
+ *
+ * Overrides are applied in the order given, so pass them
+ * LEAST-specific first and the most specific wins:
+ *
+ *     taxFor(global, itemMode, adPageMode)
+ *
+ * An ad page selling a course at a promotional price can therefore switch
+ * GST off for that campaign without touching the course, and the course's
+ * own setting still governs every other surface it is sold on.
+ *
+ * Only `enabled` is overridden — never the rate, the inclusive/exclusive
+ * mode, or the B2B switch. Those are properties of the BUSINESS, not of a
+ * product: one seller cannot charge 18% on one item and 12% on another
+ * just because a toggle allowed it.
+ *
+ * Returns the original object untouched when nothing changes, so the
+ * common path allocates nothing and referential equality still holds.
+ */
+export function taxFor(global: TaxSettings, ...overrides: (TaxMode | undefined)[]): TaxSettings {
+  let enabled = global.enabled;
+  for (const override of overrides) {
+    if (override === "on") enabled = true;
+    else if (override === "off") enabled = false;
+  }
+  return enabled === global.enabled ? global : { ...global, enabled };
+}
+
+/** An item's own tax override, read out of its schemaless details blob. */
+export function taxModeFor(details: unknown): TaxMode | undefined {
+  const mode = (details as { taxMode?: unknown })?.taxMode;
+  return mode === "on" || mode === "off" || mode === "default" ? mode : undefined;
+}
+
 // GST state codes. Needed for the CGST+SGST vs IGST decision: same state as
 // the seller splits the rate in two, a different state charges it whole as
 // IGST. Ordered by code so the checkout dropdown is predictable.
@@ -786,6 +834,16 @@ export interface AdPage {
    * lie told to buyers, and it is the kind that gets checked.
    */
   joinedBaseline?: number;
+  /**
+   * GST on this campaign, overriding both the item's own setting and the
+   * global switch. Absent = follow the item, then the global.
+   *
+   * The reason this exists per-campaign: a ₹27 ad price is usually a
+   * round number chosen because it reads well, and adding 18% to it turns
+   * ₹27 into ₹31.86 on the checkout — which is a different number from
+   * the one in the ad.
+   */
+  taxMode?: TaxMode;
   /** Set when the video was uploaded here rather than linked. Display-only
    *  in the admin panel, and how it knows which of its two inputs to fill. */
   videoFileName?: string;

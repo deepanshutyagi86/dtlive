@@ -1,3 +1,5 @@
+import type { TaxMode } from "./settings-types";
+
 export type Category = "course" | "workshop" | "agency" | "shop" | "venture";
 
 export type CurriculumBlock = { title: string; body: string };
@@ -66,8 +68,13 @@ interface SalesContent {
   level?: string;
   bestFor?: string;
   buildOutcome?: string;
-  /** Per-item override of the GST invoice setting. */
+  /** Per-item override of the GST invoice setting — whether a DOCUMENT
+   *  is issued. Separate from taxMode below, which decides whether tax is
+   *  CHARGED at all. */
   invoice?: "default" | "always" | "never";
+  /** Per-item override of whether GST is charged. Absent = follow the
+   *  global switch. See taxFor() in settings-types.ts. */
+  taxMode?: TaxMode;
 }
 
 // Shared by every category's details shape.

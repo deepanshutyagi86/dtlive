@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getItemById } from "@/lib/items";
-import { getBusinessSettings, getCoupons, getTaxSettings, adPriceFor, livePriceFor } from "@/lib/site-settings";
+import { getBusinessSettings, getCoupons, getTaxSettings, adPriceFor, adTaxModeFor, livePriceFor } from "@/lib/site-settings";
 import { quoteOrder } from "@/lib/checkout-pricing";
+import { taxFor, taxModeFor } from "@/lib/settings-types";
 import { rateLimit, clientIpFrom } from "@/lib/rate-limit";
 import type { CourseDetails, WorkshopDetails } from "@/lib/types";
 
@@ -51,12 +52,17 @@ export async function POST(req: NextRequest) {
       getBusinessSettings(),
     ]);
 
+    // The same resolution create-order performs, so the breakdown the
+    // modal previews is the breakdown that gets charged. If these two ever
+    // disagree the buyer is shown one total and billed another.
+    const effectiveTax = taxFor(tax, taxModeFor(item.details), await adTaxModeFor(item.id, adPage));
+
     const quote = quoteOrder({
       listPrice,
       itemId: item.id,
       couponCode: typeof code === "string" ? code : null,
       coupons,
-      tax,
+      tax: effectiveTax,
       sellerStateCode: business.stateCode,
       buyerGst: buyerGst && typeof buyerGst === "object" ? buyerGst : null,
     });

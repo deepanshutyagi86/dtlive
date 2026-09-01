@@ -2,6 +2,9 @@ import { redirect } from "next/navigation";
 import { getAdminSession } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { SITE_TZ } from "@/lib/dates";
+import { emailConfig } from "@/lib/email";
+import { getNotifyEmail } from "@/lib/items";
+import EmailCheck from "./EmailCheck";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +29,9 @@ export default async function DiagnosticsPage() {
     // leave as "unknown" if DATABASE_URL is missing or malformed
   }
 
+  const { configured: emailConfigured, from: emailFrom } = emailConfig();
+  const notifyEmail = await getNotifyEmail().catch(() => null);
+
   const [itemsResult, leadsResult, ordersResult, timeResult] = await Promise.all([
     sql`SELECT id, title, slug, category, live, featured, updated_at FROM items ORDER BY updated_at DESC`,
     sql`SELECT COUNT(*)::int AS count FROM leads`,
@@ -45,6 +51,8 @@ export default async function DiagnosticsPage() {
     <div>
       <p className="font-mono text-[11px] tracking-wider uppercase text-muted mb-1.5">System</p>
       <h1 className="font-display font-extrabold text-3xl tracking-tight mb-8">Diagnostics</h1>
+
+      <EmailCheck configured={emailConfigured} from={emailFrom} notifyEmail={notifyEmail} />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <Stat label="DB host" value={dbHost} mono />
