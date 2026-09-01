@@ -4,7 +4,8 @@ import Footer, { FooterLinks } from "@/components/Footer";
 import MetaPixelPurchase from "@/components/MetaPixelPurchase";
 import { claimOrderPaid, decrementWorkshopSeats, getOrderById } from "@/lib/admin-repo";
 import { getSetting } from "@/lib/items";
-import { getBio, getInvoiceSettings, getNav, invoiceAppliesTo } from "@/lib/site-settings";
+import { getAllAdPages, getBio, getInvoiceSettings, getNav, invoiceAppliesTo } from "@/lib/site-settings";
+import { adSourceTag } from "@/lib/settings-types";
 import type { WorkshopDetails } from "@/lib/types";
 import { SITE_TZ } from "@/lib/dates";
 import { fetchRazorpayOrderPayments } from "@/lib/razorpay";
@@ -85,6 +86,21 @@ export default async function OrderConfirmedPage({
   }
 
   const paid = order?.status === "paid";
+
+  // A buyer who came through an ad campaign can be sent to that
+  // campaign's own WhatsApp group rather than the item's default one —
+  // orders carry `source` (migration 002), so the campaign is knowable
+  // here without the browser telling us anything.
+  //
+  // Falls back to the item's joining link whenever there is no override,
+  // no source, or the column has not been migrated yet.
+  let campaignGroup: { url: string; label?: string } | null = null;
+  if (order?.source?.startsWith("ad:")) {
+    const pages = await getAllAdPages().catch(() => []);
+    const match = pages.find((p) => adSourceTag(p.slug) === order!.source);
+    if (match?.groupUrl) campaignGroup = { url: match.groupUrl, label: match.groupLabel };
+  }
+
   const showInvoice = !!order && paid && invoiceAppliesTo(invoiceSettings, order.item.details);
 
   return (
@@ -115,7 +131,7 @@ export default async function OrderConfirmedPage({
                 nothing to do — the highest-intent moment on the whole site
                 spent on a dead end. All of it is per-item and editable in
                 /admin/items → Joining details. */}
-            <NextSteps order={order} invoiceHref={showInvoice ? `/order/${order.id}/invoice` : null} />
+            <NextSteps order={order} invoiceHref={showInvoice ? `/order/${order.id}/invoice` : null} campaignGroup={campaignGroup} />
 
             <Link href="/" className="inline-block mt-10 border border-ink font-semibold px-6 py-3 rounded-full hover:bg-ink hover:text-bone transition-colors">
               Back to the stream
@@ -142,9 +158,12 @@ export default async function OrderConfirmedPage({
 function NextSteps({
   order,
   invoiceHref,
+  campaignGroup,
 }: {
   order: { id: string; itemId: string; item: { title: string; slug: string; category: string; details: any } };
   invoiceHref: string | null;
+  /** Overrides the item's group link for buyers from one ad campaign. */
+  campaignGroup: { url: string; label?: string } | null;
 }) {
   const d = (order.item.details ?? {}) as WorkshopDetails & {
     joining?: {
@@ -171,10 +190,14 @@ function NextSteps({
         }) + " IST"
       : null;
 
+  // The group link is deliberately NOT one of the buttons below. It is
+  // the single most valuable thing a buyer can do in the next ten
+  // seconds — someone who joins the group turns up, someone who closes
+  // this tab forgets by the weekend — and one option among four is not
+  // how you get an action taken.
+  const group = campaignGroup ?? (joining.groupUrl ? { url: joining.groupUrl, label: joining.groupLabel } : null);
+
   const actions: { href: string; label: string; primary?: boolean; external?: boolean }[] = [];
-  if (joining.groupUrl) {
-    actions.push({ href: joining.groupUrl, label: joining.groupLabel || "Join the group", primary: true, external: true });
-  }
   if (joining.meetingUrl) {
     actions.push({ href: joining.meetingUrl, label: joining.meetingLabel || "Open the session link", external: true });
   }
@@ -187,10 +210,31 @@ function NextSteps({
     actions.push({ href: invoiceHref, label: "Download GST invoice" });
   }
 
-  if (!dateLabel && actions.length === 0 && !joining.note) return null;
+  if (!dateLabel && actions.length === 0 && !joining.note && !group) return null;
 
   return (
-    <div className="mt-8 text-left bg-card border border-line rounded-card p-6">
+    <div className="mt-8 text-left">
+      {group && (
+        <div className="bg-ink text-bone rounded-card p-6 md:p-7 mb-4">
+          <p className="font-mono text-[10.5px] uppercase tracking-wider text-marigold mb-2">Do this now</p>
+          <p className="font-display font-extrabold text-[22px] tracking-tight">
+            {group.label || "Join the WhatsApp group"}
+          </p>
+          <p className="text-[15px] leading-relaxed text-[#c9c8bd] mt-2">
+            Everything happens there — the joining link, the reminders, and anything you need before we start.
+          </p>
+          <a
+            href={group.url}
+            target="_blank"
+            rel="noopener"
+            className="block w-full text-center bg-marigold text-ink font-semibold text-[16px] px-6 py-3.5 rounded-full mt-5 hover:bg-marigold-deep transition-colors"
+          >
+            {group.label || "Join the group"} →
+          </a>
+        </div>
+      )}
+
+      <div className="bg-card border border-line rounded-card p-6">
       <p className="font-mono text-[10.5px] uppercase tracking-wider text-muted mb-3">What happens next</p>
 
       {dateLabel && (
@@ -218,6 +262,7 @@ function NextSteps({
             {a.label}
           </a>
         ))}
+      </div>
       </div>
     </div>
   );

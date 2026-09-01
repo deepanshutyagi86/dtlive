@@ -766,6 +766,67 @@ export interface AdPage {
   /** Set when the video was uploaded here rather than linked. Display-only
    *  in the admin panel, and how it knows which of its two inputs to fill. */
   videoFileName?: string;
+
+  /* --- proof, and the reasons to believe any of this ---------------- */
+
+  /**
+   * The block that answers "who are you". Cold traffic off an ad has
+   * known you for eleven seconds and is being asked for card details;
+   * without a face and a credential the page is all pressure and no
+   * reason, which is what a scam looks like.
+   */
+  showTeacher?: boolean;
+  /** One line of credentials under the name. Blank uses the site bio. */
+  teacherNote?: string;
+  /** Short proof points shown as a row of chips — "100+ students taught". */
+  proofPoints: string[];
+  /**
+   * Which of the site's saved testimonials to show, by position in that
+   * list. Positions rather than ids because testimonials have never had
+   * ids; the consequence is that REORDERING them in Appearance shifts
+   * what an ad page shows, so the picker says so.
+   */
+  testimonialPicks: number[];
+
+  /* --- reasons not to worry ----------------------------------------- */
+
+  /** The risk reversal. At ₹27 the money is not the barrier — wasting an
+   *  evening is. This line is what removes that, and it is close to free. */
+  guarantee?: string;
+  /** Two columns that stop the wrong people buying, which is worth more
+   *  than the sale: refunds cost more than they earn. */
+  forWho: string[];
+  notForWho: string[];
+  /** What actually happens in the session, in order. `time` optional. */
+  agenda: { time?: string; title: string }[];
+  /** Under the button: why you are asking for a phone number. */
+  formNote?: string;
+  /** Show UPI/card marks by the button. "Secured by Razorpay" in 10px
+   *  grey does very little on its own. */
+  showPaymentMarks?: boolean;
+
+  /* --- the WhatsApp step, and what happens when it's over ----------- */
+
+  /**
+   * Where a buyer is sent the second payment succeeds. Overrides the
+   * item's own joining link for people who came through THIS campaign, so
+   * a campaign can have its own group. Blank falls back to the item.
+   *
+   * This is the highest-leverage field on the whole page and it is not on
+   * the page at all: getting a buyer into WhatsApp immediately is what
+   * decides whether they turn up, and turning up is where the money is.
+   */
+  groupUrl?: string;
+  groupLabel?: string;
+
+  /** Shown once the deadline has passed. Ads keep running for hours after
+   *  a deadline, and every one of those clicks is already paid for — a
+   *  dead end there is pure waste. */
+  expiredHeadline?: string;
+  expiredBody?: string;
+  /** Offer the next one instead of nothing. */
+  expiredCtaLabel?: string;
+  expiredCtaHref?: string;
 }
 
 export interface AdPagesSettings {

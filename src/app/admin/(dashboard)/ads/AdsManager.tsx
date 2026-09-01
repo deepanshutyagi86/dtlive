@@ -33,6 +33,10 @@ export default function AdsManager({ items }: { items: ItemOption[] }) {
   const [error, setError] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
 
+  // The site's saved testimonials, so each ad page can tick the ones that
+  // fit its offer rather than retyping them.
+  const [testimonials, setTestimonials] = useState<{ quote: string; who: string }[]>([]);
+
   useEffect(() => {
     fetch("/api/settings")
       .then((r) => r.json())
@@ -40,6 +44,7 @@ export default function AdsManager({ items }: { items: ItemOption[] }) {
         const loaded = { ...DEFAULT_AD_PAGES, ...(d.adPages ?? {}) };
         setSettings(loaded);
         setSavedJson(JSON.stringify(loaded));
+        setTestimonials(Array.isArray(d.testimonials) ? d.testimonials : []);
       })
       .catch(() => setError("Could not load. Reload the page."));
   }, []);
@@ -91,6 +96,11 @@ export default function AdsManager({ items }: { items: ItemOption[] }) {
       ctaLabel: "",
       bullets: [],
       faq: [],
+      proofPoints: [],
+      testimonialPicks: [],
+      forWho: [],
+      notForWho: [],
+      agenda: [],
     };
     setSettings({ ...settings!, pages: [page, ...settings!.pages] });
     setOpenId(page.id);
@@ -146,6 +156,7 @@ export default function AdsManager({ items }: { items: ItemOption[] }) {
             open={openId === page.id}
             onToggleOpen={() => setOpenId(openId === page.id ? null : page.id)}
             onPatch={(p) => patch(page.id, p)}
+            testimonials={testimonials}
             onDelete={() => setSettings({ ...settings, pages: settings.pages.filter((x) => x.id !== page.id) })}
           />
         ))}
@@ -161,6 +172,7 @@ function PageCard({
   onToggleOpen,
   onPatch,
   onDelete,
+  testimonials,
 }: {
   page: AdPage;
   items: ItemOption[];
@@ -168,6 +180,7 @@ function PageCard({
   onToggleOpen: () => void;
   onPatch: (p: Partial<AdPage>) => void;
   onDelete: () => void;
+  testimonials: { quote: string; who: string }[];
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const item = items.find((i) => i.id === page.itemId);
@@ -429,6 +442,204 @@ function PageCard({
             />
           </div>
 
+          <hr className="border-line my-6" />
+          <p className="font-mono text-[11px] uppercase tracking-wider text-muted mb-1">Proof</p>
+          <p className="text-[13px] text-muted mb-5 leading-relaxed">
+            Someone off an ad has known you for about eleven seconds and is being asked for card details. Without
+            proof and a face, urgency alone reads as a scam. This is the half of the page that earns the click.
+          </p>
+
+          <LinesField
+            label="Proof points — one per line"
+            value={page.proofPoints}
+            onChange={(v) => onPatch({ proofPoints: v })}
+            rows={4}
+            placeholder={"100+ students taught\n15+ websites shipped\nApps live on the Play Store"}
+            help="Short, checkable, shown as chips near the top."
+          />
+
+          <Toggle
+            label="Show the “who's teaching” block"
+            checked={page.showTeacher !== false}
+            onChange={(v) => onPatch({ showTeacher: v })}
+            help="Your name and photo from Appearance → Bio. Cold traffic buys the person before the workshop."
+          />
+          {page.showTeacher !== false && (
+            <TextField
+              label="Credentials line"
+              value={page.teacherNote ?? ""}
+              onChange={(v) => onPatch({ teacherNote: v })}
+              rows={2}
+              placeholder="Blank uses your site bio."
+            />
+          )}
+
+          <div className="mb-5">
+            <p className="font-mono text-[10.5px] uppercase tracking-wider text-muted mb-1.5">
+              Testimonials to show
+            </p>
+            {testimonials.length === 0 ? (
+              <p className="text-[13px] text-muted leading-relaxed">
+                None saved yet. Add them in Appearance → Testimonials and they&apos;ll appear here to pick from.
+              </p>
+            ) : (
+              <>
+                <div className="flex flex-col gap-1.5">
+                  {testimonials.map((entry, i) => (
+                    <label key={i} className="flex gap-2.5 items-start text-[13px] cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="mt-1 shrink-0"
+                        checked={page.testimonialPicks.includes(i)}
+                        onChange={(e) =>
+                          onPatch({
+                            testimonialPicks: e.target.checked
+                              ? [...page.testimonialPicks, i]
+                              : page.testimonialPicks.filter((n) => n !== i),
+                          })
+                        }
+                      />
+                      <span className="leading-snug">
+                        <span className="text-ink-soft">&ldquo;{entry.quote.slice(0, 90)}&rdquo;</span>
+                        <span className="block font-mono text-[11px] text-muted">— {entry.who}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-[12px] text-muted mt-2 leading-relaxed">
+                  Picked by position in that list — so if you reorder or delete testimonials in Appearance, come
+                  back and re-check these.
+                </p>
+              </>
+            )}
+          </div>
+
+          <hr className="border-line my-6" />
+          <p className="font-mono text-[11px] uppercase tracking-wider text-muted mb-1">Reasons not to worry</p>
+
+          <TextField
+            label="Your promise (risk reversal)"
+            value={page.guarantee ?? ""}
+            onChange={(v) => onPatch({ guarantee: v })}
+            rows={3}
+            placeholder="Can't make it live? You get the recording. Not useful? Message me and I'll refund it, no questions."
+            help="At a low price the money isn't the barrier — wasting an evening is. This is the line that removes it, and it costs you almost nothing."
+          />
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <LinesField
+              label="This is for you if — one per line"
+              value={page.forWho}
+              onChange={(v) => onPatch({ forWho: v })}
+              rows={4}
+              placeholder={"You've never written a line of code\nYou want to ship, not to study"}
+            />
+            <LinesField
+              label="It's not for you if — one per line"
+              value={page.notForWho}
+              onChange={(v) => onPatch({ notForWho: v })}
+              rows={4}
+              placeholder={"You already build production apps\nYou want a certificate, not a skill"}
+              help="Filtering people out is worth more than the sale — a refund costs more than it earned."
+            />
+          </div>
+
+          <p className="font-mono text-[10.5px] uppercase tracking-wider text-muted mb-1.5">
+            What happens in the session
+          </p>
+          <Repeater
+            items={page.agenda}
+            onChange={(v) => onPatch({ agenda: v })}
+            addLabel="Add a step"
+            emptyHint="No agenda yet. People buying a live session want to know how the time is spent."
+            blank={() => ({ time: "", title: "" })}
+            render={(a, update) => (
+              <div className="grid grid-cols-[110px_1fr] gap-3">
+                <TextField label="Time" value={a.time ?? ""} onChange={(v) => update({ time: v })} placeholder="0–15 min" />
+                <TextField label="What" value={a.title} onChange={(v) => update({ title: v })} placeholder="Set up your first project" />
+              </div>
+            )}
+          />
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <TextField
+              label="Line under the button"
+              value={page.formNote ?? ""}
+              onChange={(v) => onPatch({ formNote: v })}
+              placeholder="We'll send the joining link on WhatsApp."
+              help="Say why you want a phone number, before they wonder. An unexplained field reads as a data grab."
+            />
+            <div className="pt-6">
+              <Toggle
+                label="Show UPI / card marks"
+                checked={page.showPaymentMarks !== false}
+                onChange={(v) => onPatch({ showPaymentMarks: v })}
+                help="A payment method someone recognises reassures more than the gateway's name."
+              />
+            </div>
+          </div>
+
+          <hr className="border-line my-6" />
+          <p className="font-mono text-[11px] uppercase tracking-wider text-muted mb-1">After they pay</p>
+          <p className="text-[13px] text-muted mb-5 leading-relaxed">
+            The highest-leverage thing on this whole page, and it isn&apos;t on the page. Someone who joins the
+            group turns up; someone who closes the tab forgets by the weekend — and turning up is where the money
+            actually is.
+          </p>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <TextField
+              label="WhatsApp group link"
+              value={page.groupUrl ?? ""}
+              onChange={(v) => onPatch({ groupUrl: v })}
+              placeholder="https://chat.whatsapp.com/…"
+              help="Shown as the big button the second payment succeeds. Blank uses the item's own joining link."
+            />
+            <TextField
+              label="Button wording"
+              value={page.groupLabel ?? ""}
+              onChange={(v) => onPatch({ groupLabel: v })}
+              placeholder="Join the WhatsApp group"
+            />
+          </div>
+
+          <hr className="border-line my-6" />
+          <p className="font-mono text-[11px] uppercase tracking-wider text-muted mb-1">Once it&apos;s over</p>
+          <p className="text-[13px] text-muted mb-5 leading-relaxed">
+            Your ads keep running for hours after a deadline and every one of those clicks is already paid for.
+            Offer the next thing instead of a closed sign.
+          </p>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <TextField
+              label="Headline once closed"
+              value={page.expiredHeadline ?? ""}
+              onChange={(v) => onPatch({ expiredHeadline: v })}
+              placeholder="You just missed this one."
+            />
+            <TextField
+              label="Button once closed"
+              value={page.expiredCtaLabel ?? ""}
+              onChange={(v) => onPatch({ expiredCtaLabel: v })}
+              placeholder="Tell me about the next one"
+            />
+          </div>
+          <TextField
+            label="Body once closed"
+            value={page.expiredBody ?? ""}
+            onChange={(v) => onPatch({ expiredBody: v })}
+            rows={2}
+            placeholder="The next session is usually within a fortnight — leave your number and I'll tell you first."
+          />
+          <TextField
+            label="Where that button goes"
+            value={page.expiredCtaHref ?? ""}
+            onChange={(v) => onPatch({ expiredCtaHref: v })}
+            placeholder="https://chat.whatsapp.com/…  or  /workshops"
+            help="No link means no button — just the message."
+          />
+
+          <hr className="border-line my-6" />
           <p className="font-mono text-[10.5px] uppercase tracking-wider text-muted mb-1.5">Questions</p>
           <Repeater
             items={page.faq}

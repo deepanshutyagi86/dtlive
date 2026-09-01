@@ -25,6 +25,11 @@ function page(over: Partial<AdPage> = {}): AdPage {
     ctaLabel: "",
     bullets: [],
     faq: [],
+    proofPoints: [],
+    testimonialPicks: [],
+    forWho: [],
+    notForWho: [],
+    agenda: [],
     ...over,
   };
 }

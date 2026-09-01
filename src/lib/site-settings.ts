@@ -5,6 +5,7 @@
 // field existed still renders — the missing field falls back instead of
 // coming through as undefined. Same rule the hero copy already followed.
 
+import { unstable_cache } from "next/cache";
 import { firstLiveSet, parsePlaylistId } from "./booth";
 import { getSetting } from "./items";
 import { BUSINESS, BUSINESS_ADDRESS_LINES } from "./legal";
@@ -412,6 +413,12 @@ export async function getLiveSettings(): Promise<LiveSettings> {
   };
 }
 
+/** Array-of-non-empty-strings, the shape half a dozen of these fields
+ *  share. Anything that isn't a string is dropped rather than rendered. */
+function strings(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string" && v.trim() !== "") : [];
+}
+
 function isFocal(f: any): boolean {
   return f && Number.isFinite(f.x) && Number.isFinite(f.y);
 }
@@ -558,6 +565,32 @@ export async function getAdPages(): Promise<AdPagesSettings> {
       showSeats: p.showSeats !== false,
       seatsOverride: Number.isFinite(p.seatsOverride) && p.seatsOverride >= 0 ? p.seatsOverride : undefined,
       videoFileName: clean(p.videoFileName),
+
+      showTeacher: p.showTeacher !== false,
+      teacherNote: clean(p.teacherNote),
+      proofPoints: strings(p.proofPoints),
+      // Filtered to real, in-bounds positions here rather than at render:
+      // a testimonial deleted in Appearance would otherwise leave an ad
+      // page pointing past the end of the list.
+      testimonialPicks: Array.isArray(p.testimonialPicks)
+        ? p.testimonialPicks.filter((n: unknown) => Number.isInteger(n) && (n as number) >= 0)
+        : [],
+      guarantee: clean(p.guarantee),
+      forWho: strings(p.forWho),
+      notForWho: strings(p.notForWho),
+      agenda: Array.isArray(p.agenda)
+        ? p.agenda
+            .filter((a: any) => a && typeof a.title === "string" && a.title.trim())
+            .map((a: any) => ({ time: clean(a.time), title: a.title }))
+        : [],
+      formNote: clean(p.formNote),
+      showPaymentMarks: p.showPaymentMarks !== false,
+      groupUrl: clean(p.groupUrl),
+      groupLabel: clean(p.groupLabel),
+      expiredHeadline: clean(p.expiredHeadline),
+      expiredBody: clean(p.expiredBody),
+      expiredCtaLabel: clean(p.expiredCtaLabel),
+      expiredCtaHref: clean(p.expiredCtaHref),
     }));
 
   return { pages };
@@ -601,3 +634,27 @@ export async function adSourceFor(itemId: string, slug: string | null | undefine
   if (isDeadlinePassed(page.deadlineIso)) return null;
   return adSourceTag(page.slug);
 }
+
+/**
+ * One cached read for everything /w needs.
+ *
+ * The page is force-dynamic no longer: it is hit by paid traffic, where
+ * every 100ms of time-to-first-byte is money already spent on the click,
+ * and three uncached database round trips per visitor is a cost with no
+ * matching benefit. Thirty seconds is short enough that the seats-left
+ * number is never meaningfully wrong and long enough that a burst of ad
+ * clicks is served from memory.
+ *
+ * Caching is safe here specifically because the PRICE is not trusted from
+ * this read: checkout re-resolves it through resolveAdOffer at purchase
+ * time. A stale page can show an old seat count; it cannot charge an old
+ * price.
+ */
+export const cachedAdPage = unstable_cache(
+  async (slug: string) => {
+    const page = adPageBySlug(await getAdPages(), slug);
+    return page;
+  },
+  ["ad-page"],
+  { revalidate: 30, tags: ["ad-pages"] }
+);

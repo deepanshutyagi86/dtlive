@@ -49,6 +49,9 @@ export interface OrderRow {
   client_ip: string | null;
   client_user_agent: string | null;
   event_source_url: string | null;
+  /** Which surface this came through — `ad:<slug>` or `live:<slug>`.
+   *  Nullable, and null on every row written before migration 002. */
+  source?: string | null;
   created_at: string;
 }
 
@@ -102,6 +105,7 @@ export interface Order {
   clientIp: string | null;
   clientUserAgent: string | null;
   eventSourceUrl: string | null;
+  source: string | null;
   createdAt: string;
 }
 
@@ -157,6 +161,9 @@ export function toOrder(r: OrderRow): Order {
     clientIp: r.client_ip,
     clientUserAgent: r.client_user_agent,
     eventSourceUrl: r.event_source_url,
+    // `?? null` rather than a bare read: before migration 002 the column
+    // does not exist and the row simply has no such key.
+    source: r.source ?? null,
     createdAt: r.created_at,
   };
 }

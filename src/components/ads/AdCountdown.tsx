@@ -36,12 +36,29 @@ export default function AdCountdown({
   if (left === null) return null;
 
   const total = Math.floor(left / 1000);
-  const parts = [
-    { value: Math.floor(total / 86400), unit: "DAYS" },
-    { value: Math.floor((total % 86400) / 3600), unit: "HRS" },
-    { value: Math.floor((total % 3600) / 60), unit: "MIN" },
-    { value: total % 60, unit: "SEC" },
-  ];
+  const days = Math.floor(total / 86400);
+  const hours = Math.floor((total % 86400) / 3600);
+
+  // Seconds only appear inside the last 24 hours.
+  //
+  // A seconds counter spinning on a five-day timer is not urgency, it is
+  // decoration — and a reader who has seen a hundred landing pages reads
+  // spinning seconds on a distant deadline as a gimmick, which costs more
+  // trust than the timer buys attention. Showing the fine grain only when
+  // the deadline is genuinely close means the urgency is believed when it
+  // finally appears.
+  const imminent = total < 86400;
+
+  const parts = imminent
+    ? [
+        { value: hours, unit: "HRS" },
+        { value: Math.floor((total % 3600) / 60), unit: "MIN" },
+        { value: total % 60, unit: "SEC" },
+      ]
+    : [
+        { value: days, unit: days === 1 ? "DAY" : "DAYS" },
+        { value: hours, unit: hours === 1 ? "HR" : "HRS" },
+      ];
 
   const numberClass = dark ? "text-bone" : "text-ink";
   const unitClass = dark ? "text-[#8b8a80]" : "text-muted";
