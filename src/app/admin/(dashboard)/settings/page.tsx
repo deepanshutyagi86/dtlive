@@ -1,11 +1,9 @@
-import SettingsForm from "./SettingsForm";
+import { redirect } from "next/navigation";
 
+// Settings used to be one page with thirteen unrelated things on it. It is
+// now split across Homepage / Appearance / Emails / Pricing / Business /
+// Extras. This redirect exists so an old bookmark or a muscle-memory URL
+// still lands somewhere useful rather than on a 404.
 export default function AdminSettingsPage() {
-  return (
-    <div>
-      <p className="font-mono text-[11px] tracking-wider uppercase text-muted mb-1.5">Site-wide</p>
-      <h1 className="font-display font-extrabold text-3xl tracking-tight mb-8">Settings</h1>
-      <SettingsForm />
-    </div>
-  );
+  redirect("/admin/homepage");
 }

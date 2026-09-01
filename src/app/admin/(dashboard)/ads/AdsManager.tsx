@@ -8,6 +8,7 @@ import {
   SelectField,
   TextField,
   Toggle,
+  VideoUploadField,
 } from "@/components/admin/AdminFields";
 import FocalPointPicker from "@/components/admin/FocalPointPicker";
 import { DEFAULT_AD_PAGES, type AdPage, type AdPagesSettings } from "@/lib/settings-types";
@@ -313,10 +314,84 @@ function PageCard({
           <TextField
             label="Video URL (optional)"
             value={page.videoUrl ?? ""}
-            onChange={(v) => onPatch({ videoUrl: v })}
+            // Clears videoFileName: typing a URL replaces an uploaded
+            // file, and a stale filename would leave the upload box
+            // claiming to hold what no longer plays.
+            onChange={(v) => onPatch({ videoUrl: v, videoFileName: undefined })}
             placeholder="https://www.youtube.com/watch?v=..."
-            help="Adds a play button over the hero. For cold traffic a short video usually beats any amount of copy."
+            help="Adds a play button over the hero. For cold traffic a short video usually beats any amount of copy. YouTube Unlisted — never Private."
           />
+
+          <VideoUploadField
+            label="…or upload the file"
+            value={page.videoFileName ? page.videoUrl ?? "" : ""}
+            fileName={page.videoFileName}
+            pathPrefix="promo/"
+            onChange={(v) => onPatch({ videoUrl: v?.url ?? "", videoFileName: v?.fileName ?? undefined })}
+            help="Up to 60MB — about 30 seconds at good quality. Uploaded video is served from this site and you pay bandwidth every time it plays, so anything longer belongs on YouTube."
+          />
+
+          <hr className="border-line my-6" />
+          <p className="font-mono text-[10.5px] uppercase tracking-wider text-muted mb-3">Urgency &amp; framing</p>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <SelectField
+              label="Look"
+              value={page.theme ?? "dark"}
+              onChange={(v) => onPatch({ theme: v as "dark" | "light" })}
+              options={[
+                { value: "dark", label: "Dark — the one built to convert" },
+                { value: "light", label: "Light" },
+              ]}
+            />
+            <TextField
+              label="Pill above the headline"
+              value={page.eyebrow ?? ""}
+              onChange={(v) => onPatch({ eyebrow: v })}
+              placeholder="EARLY BIRD"
+              help="Blank shows no pill."
+            />
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <TextField
+              label="Date chip"
+              value={page.dateLabel ?? ""}
+              onChange={(v) => onPatch({ dateLabel: v })}
+              placeholder="auto — from the workshop's date"
+              help="Leave blank and it reads the item's own date, so it can never drift out of step with it."
+            />
+            <TextField
+              label="Where chip"
+              value={page.locationLabel ?? ""}
+              onChange={(v) => onPatch({ locationLabel: v })}
+              placeholder="auto — from the workshop's joining details"
+            />
+          </div>
+
+          <TextField
+            label="Price chip"
+            value={page.priceChipLabel ?? ""}
+            onChange={(v) => onPatch({ priceChipLabel: v })}
+            placeholder="₹27 early bird"
+            help="Blank builds one from the price."
+          />
+
+          <Toggle
+            label="Show how many seats are left"
+            checked={page.showSeats !== false}
+            onChange={(v) => onPatch({ showSeats: v })}
+            help="Reads the real remaining seats off the workshop, so the number falls as people actually buy. It hides itself when there is no real number behind it."
+          />
+
+          {page.showSeats !== false && (
+            <PriceField
+              label="Override the seat count"
+              value={page.seatsOverride}
+              onChange={(v) => onPatch({ seatsOverride: v })}
+              help="Only for something with no seat tracking of its own. Blank is almost always right — a typed number stops being true the moment someone pays."
+            />
+          )}
 
           <LinesField
             label="What you get — one per line"
@@ -344,7 +419,7 @@ function PageCard({
               value={page.deadlineIso ?? ""}
               onChange={(v) => onPatch({ deadlineIso: v })}
               type="datetime-local"
-              help="A hard stop — past this the page stops selling, not just counting down."
+              help="Drives the big countdown AND stops the page selling when it passes. No date here means no countdown — which on an ad page is most of the urgency gone."
             />
             <TextField
               label="Line under the button"

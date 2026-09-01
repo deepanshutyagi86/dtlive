@@ -130,7 +130,69 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 const inputClass = "w-full px-3.5 py-2.5 text-sm bg-card border border-line rounded-[10px] placeholder-ink-soft focus:outline-none focus:border-marigold focus:ring-2 focus:ring-marigold";
 
-export default function SettingsForm() {
+/**
+ * Every settings section this form knows how to render. The admin panel
+ * splits them across several pages — see SECTION_GROUPS — so that one
+ * screen is about one thing instead of thirteen.
+ */
+export type SettingsSectionKey =
+  | "hero" | "ticker" | "testimonials" | "starter" | "stream"
+  | "bio" | "branding" | "nav" | "footer"
+  | "emails" | "notify"
+  | "coupons" | "tax" | "invoice" | "business"
+  | "syllabus" | "guideCta" | "booth";
+
+/**
+ * Which sections live on which admin page.
+ *
+ * The form itself is NOT split into separate components: it loads every
+ * setting and saves every setting whichever page you are on, so a value
+ * you cannot see round-trips untouched rather than being dropped. Only
+ * the rendering is filtered. Splitting the state as well would mean five
+ * forms that can each half-save, which is a far worse failure than one
+ * form that renders a subset.
+ */
+export const SECTION_GROUPS: Record<
+  string,
+  { title: string; blurb: string; sections: SettingsSectionKey[] }
+> = {
+  homepage: {
+    title: "Homepage",
+    blurb: "What a first-time visitor reads, in the order they read it.",
+    sections: ["hero", "ticker", "testimonials", "starter", "stream"],
+  },
+  appearance: {
+    title: "Appearance",
+    blurb: "The frame around every page — menu, footer, icons, and the card that shows when a link is shared.",
+    sections: ["branding", "nav", "footer", "bio"],
+  },
+  emails: {
+    title: "Emails",
+    blurb: "What gets sent after someone buys or registers, and where your own copy goes.",
+    sections: ["emails", "notify"],
+  },
+  pricing: {
+    title: "Pricing",
+    blurb: "Discount codes, GST, and what the invoice says. This decides what buyers are charged.",
+    sections: ["coupons", "tax", "invoice"],
+  },
+  business: {
+    title: "Business details",
+    blurb: "Legal name, GSTIN, address and contact — printed on invoices and every legal page.",
+    sections: ["business"],
+  },
+  extras: {
+    title: "Extras",
+    blurb: "Smaller features that have their own switches.",
+    sections: ["syllabus", "guideCta", "booth"],
+  },
+};
+
+export default function SettingsForm({ show }: { show?: SettingsSectionKey[] }) {
+  // Undefined means "everything", so anything still asking for the whole
+  // form keeps working unchanged.
+  const visible = (key: SettingsSectionKey) => !show || show.includes(key);
+
   const [heroCopy, setHeroCopy] = useState<HeroCopy>({});
   const [ticker, setTicker] = useState<string[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
@@ -245,7 +307,7 @@ export default function SettingsForm() {
 
   return (
     <div className="max-w-[640px] space-y-12">
-      <section>
+      {visible("hero") && <section>
         <h2 className="font-display font-bold text-lg mb-1">Homepage hero</h2>
         <p className="text-sm text-muted mb-3">The first thing a visitor reads. Blank fields fall back to the default shown.</p>
         <Field label="Eyebrow">
@@ -282,9 +344,9 @@ export default function SettingsForm() {
             onChange={(e) => setHeroCopy({ ...heroCopy, subline: e.target.value })}
           />
         </Field>
-      </section>
+      </section>}
 
-      <section>
+      {visible("ticker") && <section>
         <h2 className="font-display font-bold text-lg mb-3">Ticker lines</h2>
         <p className="text-sm text-muted mb-3">One proof point per line — scrolls on the homepage.</p>
         <textarea
@@ -293,9 +355,9 @@ export default function SettingsForm() {
           value={ticker.join("\n")}
           onChange={(e) => setTicker(e.target.value.split("\n"))}
         />
-      </section>
+      </section>}
 
-      <section>
+      {visible("testimonials") && <section>
         <h2 className="font-display font-bold text-lg mb-3">Testimonials</h2>
         {testimonials.map((t, i) => (
           <div key={i} className="flex gap-2 mb-2">
@@ -330,9 +392,9 @@ export default function SettingsForm() {
         >
           + Add testimonial
         </button>
-      </section>
+      </section>}
 
-      <section>
+      {visible("emails") && <section>
         <h2 className="font-display font-bold text-lg mb-1">Email templates</h2>
         <p className="text-sm text-muted mb-4">
           Plain text only — placeholders get swapped in when each email sends. Blank subject or body falls back to
@@ -371,9 +433,9 @@ export default function SettingsForm() {
             );
           })}
         </div>
-      </section>
+      </section>}
 
-      <section>
+      {visible("notify") && <section>
         <h2 className="font-display font-bold text-lg mb-3">Notifications</h2>
         <p className="text-sm text-muted mb-3">
           Where new-order and new-lead alerts get sent. Leave blank to use the footer email below instead.
@@ -384,9 +446,9 @@ export default function SettingsForm() {
           value={notifyEmail}
           onChange={(e) => setNotifyEmail(e.target.value)}
         />
-      </section>
+      </section>}
 
-      <section>
+      {visible("footer") && <section>
         <h2 className="font-display font-bold text-lg mb-3">Contact & social links</h2>
         <div className="space-y-3">
           {(["whatsapp", "instagram", "youtube", "linkedin", "email"] as const).map((key) => (
@@ -400,22 +462,22 @@ export default function SettingsForm() {
             </div>
           ))}
         </div>
-      </section>
+      </section>}
 
       <hr className="border-line" />
 
-      <BrandingSection value={branding} onChange={setBranding} />
-      <NavSection value={nav} onChange={setNav} />
-      <StarterSection value={starter} onChange={setStarter} />
-      <GuideCtaSection value={guideCta} onChange={setGuideCta} />
-      <StreamSection value={stream} onChange={setStream} />
-      <SyllabusSection value={syllabus} onChange={setSyllabus} />
-      <BoothSection value={booth} onChange={setBooth} />
-      <BioSection value={bio} onChange={setBio} />
-      <CouponsSection value={coupons} onChange={setCoupons} items={items} />
-      <TaxSection value={tax} onChange={setTax} b2bReady={b2bReady} />
-      <BusinessSection value={business} onChange={setBusiness} />
-      <InvoiceSection value={invoice} onChange={setInvoice} />
+      {visible("branding") && <BrandingSection value={branding} onChange={setBranding} />}
+      {visible("nav") && <NavSection value={nav} onChange={setNav} />}
+      {visible("starter") && <StarterSection value={starter} onChange={setStarter} />}
+      {visible("guideCta") && <GuideCtaSection value={guideCta} onChange={setGuideCta} />}
+      {visible("stream") && <StreamSection value={stream} onChange={setStream} />}
+      {visible("syllabus") && <SyllabusSection value={syllabus} onChange={setSyllabus} />}
+      {visible("booth") && <BoothSection value={booth} onChange={setBooth} />}
+      {visible("bio") && <BioSection value={bio} onChange={setBio} />}
+      {visible("coupons") && <CouponsSection value={coupons} onChange={setCoupons} items={items} />}
+      {visible("tax") && <TaxSection value={tax} onChange={setTax} b2bReady={b2bReady} />}
+      {visible("business") && <BusinessSection value={business} onChange={setBusiness} />}
+      {visible("invoice") && <InvoiceSection value={invoice} onChange={setInvoice} />}
 
       <div className="flex items-center gap-4">
         <button

@@ -545,6 +545,19 @@ export async function getAdPages(): Promise<AdPagesSettings> {
             .map((f: any) => ({ q: f.q, a: f.a }))
         : [],
       trustLine: clean(p.trustLine),
+      // Dark unless explicitly set light — the default is the one the
+      // page was designed around.
+      theme: p.theme === "light" ? "light" : "dark",
+      eyebrow: clean(p.eyebrow),
+      dateLabel: clean(p.dateLabel),
+      locationLabel: clean(p.locationLabel),
+      priceChipLabel: clean(p.priceChipLabel),
+      // Defaults ON: a workshop that tracks seats should say so unless
+      // told otherwise. The page still hides the line when there is no
+      // real number behind it.
+      showSeats: p.showSeats !== false,
+      seatsOverride: Number.isFinite(p.seatsOverride) && p.seatsOverride >= 0 ? p.seatsOverride : undefined,
+      videoFileName: clean(p.videoFileName),
     }));
 
   return { pages };

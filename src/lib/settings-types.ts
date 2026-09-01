@@ -736,6 +736,36 @@ export interface AdPage {
   faq: AdPageFaq[];
   /** Small reassurance under the button, e.g. "Recording included." */
   trustLine?: string;
+
+  /* --- how the page looks and what it shouts ------------------------ */
+
+  /** Dark is the default and the one built to convert: it is what makes
+   *  the countdown and the marigold button carry. Light exists so an
+   *  offer with a bright creative can be tested against it. */
+  theme?: "dark" | "light";
+  /** The small pill above the headline, e.g. "FEATURED" or "EARLY BIRD".
+   *  Blank shows no pill. */
+  eyebrow?: string;
+  /** Chips under the sub-headline. Both auto-fill from the workshop item
+   *  (its date, and its joining location) — these only OVERRIDE, so the
+   *  same fact never has to be typed in two places and cannot drift. */
+  dateLabel?: string;
+  locationLabel?: string;
+  /** The price chip, e.g. "₹27 early bird". Blank builds one from the
+   *  price itself. */
+  priceChipLabel?: string;
+  /**
+   * Seats. The real numbers come off the workshop item and fall as people
+   * actually buy, which is the only kind of scarcity worth printing.
+   * `seatsOverride` replaces the remaining count for pages selling
+   * something with no seat tracking of its own; `showSeats: false` hides
+   * the line entirely.
+   */
+  showSeats?: boolean;
+  seatsOverride?: number;
+  /** Set when the video was uploaded here rather than linked. Display-only
+   *  in the admin panel, and how it knows which of its two inputs to fill. */
+  videoFileName?: string;
 }
 
 export interface AdPagesSettings {
