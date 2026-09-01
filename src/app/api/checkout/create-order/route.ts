@@ -5,7 +5,7 @@ import { createRazorpayOrder } from "@/lib/razorpay";
 import type { CourseDetails, WorkshopDetails } from "@/lib/types";
 import { rateLimit, clientIpFrom } from "@/lib/rate-limit";
 import { isValidEmail, isValidPhone, normalisePhone } from "@/lib/validate";
-import { getBusinessSettings, getCoupons, getTaxSettings, livePriceFor } from "@/lib/site-settings";
+import { getBusinessSettings, getCoupons, getTaxSettings, adPriceFor, livePriceFor } from "@/lib/site-settings";
 import { markCouponUsed } from "@/lib/coupons";
 import { quoteOrder } from "@/lib/checkout-pricing";
 import { sanitiseAttribution } from "@/lib/attribution";
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { itemId, name, email, phone, couponCode, buyerGst, fbc, fbp, eventSourceUrl, liveSession, liveBlockId, attribution } =
+    const { itemId, name, email, phone, couponCode, buyerGst, fbc, fbp, eventSourceUrl, liveSession, liveBlockId, adPage, attribution } =
       await req.json();
 
     if (!itemId || !name || !email || !phone) {
@@ -63,7 +63,12 @@ export async function POST(req: NextRequest) {
     // expired, or belongs to a different item. Nothing the browser sent
     // becomes money — see resolveLiveOffer() in settings-types.ts.
     const live = await livePriceFor(item.id, liveSession, liveBlockId);
-    const listPrice = live ? live.price : details.price;
+    // The /w ad-page price, resolved the same way and from the same kind
+    // of evidence: a slug, checked server-side. A checkout can only ever
+    // come from one surface, so live wins if somehow both are named.
+    const ad = live ? null : await adPriceFor(item.id, adPage);
+    const offer = live ?? ad;
+    const listPrice = offer ? offer.price : details.price;
 
     if (!Number.isFinite(listPrice) || listPrice <= 0) {
       return NextResponse.json(
@@ -152,7 +157,7 @@ export async function POST(req: NextRequest) {
     // the money path's success condition — tagSource swallows its own
     // errors, because losing a reporting tag must never cost a sale that
     // has already been paid for.
-    if (live) await tagSource("orders", order.id, live.sourceTag);
+    if (offer) await tagSource("orders", order.id, offer.sourceTag);
     await tagAttribution("orders", order.id, sanitiseAttribution(attribution));
 
     const rzpOrder = await createRazorpayOrder({

@@ -616,6 +616,41 @@ export function liveSessionBySlug(settings: LiveSettings, slug: string): LiveSes
  * where honouring a webinar price would be a discount someone found by
  * reading the page source rather than by being on the call.
  */
+/**
+ * THE rule for whether an offer may be sold, shared by /live blocks and
+ * /w ad pages.
+ *
+ * Two surfaces sell the same items at their own prices, and the ways an
+ * offer can be illegitimate are identical on both: switched off, pointed
+ * at a different item than the one being bought, or past its deadline.
+ * Written once here so a rule added later cannot be added to one surface
+ * and forgotten on the other — which is exactly the shape of bug that
+ * ends with someone paying a webinar price they were never offered.
+ *
+ * `live` is the surface's own visibility flag: LiveBlock.visible, or
+ * AdPage.enabled.
+ */
+export function isOfferSellable(
+  offer: { live: boolean; itemId: string; deadlineIso?: string },
+  itemId: string,
+  now: number = Date.now()
+): boolean {
+  if (!offer.live) return false;
+  if (offer.itemId !== itemId) return false;
+  return !isDeadlinePassed(offer.deadlineIso, now);
+}
+
+/** Shared by the gate above and every countdown, so an expired offer stops
+ *  being sellable at exactly the second it stops looking sellable.
+ *  An UNPARSEABLE date reads as "no deadline", never as "expired" — a typo
+ *  in the admin panel must not silently kill a live offer mid-webinar. */
+export function isDeadlinePassed(deadlineIso: string | undefined, now: number = Date.now()): boolean {
+  if (!deadlineIso) return false;
+  const t = new Date(deadlineIso).getTime();
+  if (Number.isNaN(t)) return false;
+  return t < now;
+}
+
 export function resolveLiveOffer(
   settings: LiveSettings,
   sessionSlug: string | null | undefined,
@@ -627,19 +662,115 @@ export function resolveLiveOffer(
   if (!session) return null;
 
   const block = session.blocks.find((b) => b.id === blockId);
-  if (!block || !block.visible || block.itemId !== itemId) return null;
-  if (isLiveDeadlinePassed(block)) return null;
+  if (!block) return null;
+  if (!isOfferSellable({ live: block.visible, itemId: block.itemId, deadlineIso: block.deadlineIso }, itemId)) {
+    return null;
+  }
   if (block.overridePrice === undefined) return null;
 
   return { session, block, price: block.overridePrice };
 }
 
-/** Shared by the resolver above and the countdown on the page, so an
- *  expired block stops being sellable at exactly the second it stops
- *  looking sellable. */
+/** Block-shaped wrapper over isDeadlinePassed, for the many UI call
+ *  sites that already hold a LiveBlock rather than a date string. */
 export function isLiveDeadlinePassed(block: LiveBlock, now: number = Date.now()): boolean {
-  if (!block.deadlineIso) return false;
-  const t = new Date(block.deadlineIso).getTime();
-  if (Number.isNaN(t)) return false;
-  return t < now;
+  return isDeadlinePassed(block.deadlineIso, now);
+}
+
+
+/* ------------------------------------------------------------------ */
+/* Ad pages — /w/<slug>, built for cold traffic off a paid ad          */
+/*                                                                     */
+/* Deliberately NOT a /live session with a flag. A webinar page holds  */
+/* several offers and hides them until they are pitched; an ad page    */
+/* holds exactly one offer, shows it immediately, and never polls,     */
+/* because the person arriving has no idea who you are and every       */
+/* second of load time is money already spent on the click.            */
+/*                                                                     */
+/* What the two DO share is the rule about when an offer may be sold — */
+/* isOfferSellable() above — so the thing that protects your prices    */
+/* exists once, not twice.                                             */
+/* ------------------------------------------------------------------ */
+
+export interface AdPageFaq {
+  q: string;
+  a: string;
+}
+
+export interface AdPage {
+  id: string;
+  /** URL segment: /w/<slug>. Also the tag written to leads.source and
+   *  orders.source as `ad:<slug>`. Changing it orphans that history. */
+  slug: string;
+  /** Off = /w/<slug> returns Not Found. Nothing is deleted, and — via
+   *  isOfferSellable — nothing can be bought at this page's price either. */
+  enabled: boolean;
+
+  /** The one line that has to do the work. Not the item's title: an ad
+   *  page answers "why should I care", a product page answers "what is
+   *  this", and the same sentence rarely does both. */
+  headline: string;
+  subheadline: string;
+  heroImageUrl?: string;
+  imageFocal?: { x: number; y: number };
+  /** Optional video, played from the hero. For cold traffic this often
+   *  outperforms any amount of copy. */
+  videoUrl?: string;
+
+  /** What is being sold or signed up for. */
+  itemId: string;
+  kind: "paid" | "register";
+  /** The ad price, in rupees. Absent = the item's normal price.
+   *  NEVER read in the browser and sent to checkout — the server
+   *  re-reads it; the browser only ever names a slug. */
+  price?: number;
+  strikePrice?: number;
+  ctaLabel: string;
+  badge?: string;
+  scarcity?: string;
+  /** ISO datetime. A countdown, and a hard stop on sellability. */
+  deadlineIso?: string;
+
+  /** "What you'll get" — one line each. The whole body of the page. */
+  bullets: string[];
+  faq: AdPageFaq[];
+  /** Small reassurance under the button, e.g. "Recording included." */
+  trustLine?: string;
+}
+
+export interface AdPagesSettings {
+  pages: AdPage[];
+}
+
+export const DEFAULT_AD_PAGES: AdPagesSettings = { pages: [] };
+
+/** The tag written to leads.source / orders.source for an ad page. One
+ *  function, so the writer and the admin filter cannot disagree. */
+export function adSourceTag(slug: string): string {
+  return `ad:${slug}`;
+}
+
+export function adPageBySlug(settings: AdPagesSettings, slug: string): AdPage | null {
+  const page = settings.pages.find((p) => p.slug === slug) ?? null;
+  return page && page.enabled ? page : null;
+}
+
+/**
+ * The price gate for /w, mirroring resolveLiveOffer. Returns null — meaning
+ * "charge the item's own price" — whenever the page is off, unknown, for a
+ * different item, expired, or simply sets no price of its own.
+ */
+export function resolveAdOffer(
+  settings: AdPagesSettings,
+  slug: string | null | undefined,
+  itemId: string
+): { page: AdPage; price: number } | null {
+  if (!slug) return null;
+  const page = adPageBySlug(settings, slug);
+  if (!page) return null;
+  if (!isOfferSellable({ live: page.enabled, itemId: page.itemId, deadlineIso: page.deadlineIso }, itemId)) {
+    return null;
+  }
+  if (page.price === undefined) return null;
+  return { page, price: page.price };
 }

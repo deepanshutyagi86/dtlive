@@ -15,12 +15,17 @@ import {
   DEFAULT_BRANDING,
   DEFAULT_COUPONS,
   DEFAULT_GUIDE_CTA,
+  DEFAULT_AD_PAGES,
   DEFAULT_INVOICE,
   DEFAULT_LIVE,
   DEFAULT_NAV,
+  adPageBySlug,
+  adSourceTag,
+  isDeadlinePassed,
   isLiveDeadlinePassed,
   liveSessionBySlug,
   liveSourceTag,
+  resolveAdOffer,
   resolveLiveOffer,
   DEFAULT_STARTER,
   DEFAULT_STREAM,
@@ -33,6 +38,8 @@ import {
   type BusinessSettings,
   type Coupon,
   type GuideCtaSettings,
+  type AdPage,
+  type AdPagesSettings,
   type InvoiceSettings,
   type LiveBlock,
   type LiveSession,
@@ -488,4 +495,96 @@ export async function liveSourceFor(
   if (!block || !block.visible || block.itemId !== itemId) return null;
   if (isLiveDeadlinePassed(block)) return null;
   return liveSourceTag(session.slug);
+}
+
+/* ------------------------------------------------------------------ */
+/* Ad pages                                                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Field-by-field merge like every getter above, and deliberately NOT on
+ * the readChromeSetting path: an ad page carries a price, and a swallowed
+ * database error falling back to defaults would quietly turn a ₹27 ad
+ * offer back into the item's full price on a page you are paying to send
+ * people to. Same reasoning as getLiveSettings.
+ */
+export async function getAdPages(): Promise<AdPagesSettings> {
+  const stored = await getSetting<Record<string, unknown>>("adPages", {});
+  const raw = Array.isArray(stored.pages) ? stored.pages : [];
+
+  const pages: AdPage[] = raw
+    // No slug means no URL and nothing to tag its registrations with, so
+    // it cannot be rendered or reported on.
+    .filter((p: any) => p && typeof p.id === "string" && typeof p.slug === "string" && p.slug.trim())
+    .map((p: any) => ({
+      id: p.id,
+      slug: String(p.slug).trim(),
+      // Defaults to OFF. A page arriving in a shape this code doesn't
+      // recognise must not be live, and — through isOfferSellable — must
+      // not be sellable either.
+      enabled: p.enabled === true,
+      headline: clean(p.headline) || "",
+      subheadline: clean(p.subheadline) || "",
+      heroImageUrl: clean(p.heroImageUrl),
+      imageFocal: isFocal(p.imageFocal) ? { x: p.imageFocal.x, y: p.imageFocal.y } : undefined,
+      videoUrl: clean(p.videoUrl),
+      itemId: typeof p.itemId === "string" ? p.itemId : "",
+      kind: p.kind === "paid" ? "paid" : "register",
+      // 0 is a real price (free) and must survive; Number.isFinite, not a
+      // truthiness check, which would silently drop it.
+      price: Number.isFinite(p.price) && p.price >= 0 ? p.price : undefined,
+      strikePrice: Number.isFinite(p.strikePrice) && p.strikePrice > 0 ? p.strikePrice : undefined,
+      ctaLabel: clean(p.ctaLabel) || "",
+      badge: clean(p.badge),
+      scarcity: clean(p.scarcity),
+      deadlineIso: clean(p.deadlineIso),
+      bullets: Array.isArray(p.bullets) ? p.bullets.filter((b: unknown) => typeof b === "string" && b.trim()) : [],
+      faq: Array.isArray(p.faq)
+        ? p.faq
+            .filter((f: any) => f && typeof f.q === "string" && typeof f.a === "string")
+            .map((f: any) => ({ q: f.q, a: f.a }))
+        : [],
+      trustLine: clean(p.trustLine),
+    }));
+
+  return { pages };
+}
+
+/** Every ad page, enabled or not — the admin list and the registrations
+ *  view both need to see a page that has been switched off, which is the
+ *  normal state of a finished campaign. */
+export async function getAllAdPages(): Promise<AdPage[]> {
+  return (await getAdPages()).pages;
+}
+
+/** What /w/<slug> renders. Null for unknown or switched-off. */
+export async function adPageFor(slug: string): Promise<AdPage | null> {
+  return adPageBySlug(await getAdPages(), slug);
+}
+
+/**
+ * The /w counterpart of livePriceFor: both money routes call it with
+ * nothing but a slug from the browser, and it answers with a price read
+ * from the database.
+ */
+export async function adPriceFor(
+  itemId: string,
+  slug: string | null | undefined
+): Promise<{ price: number; sourceTag: string } | null> {
+  if (!slug) return null;
+  const offer = resolveAdOffer(await getAdPages(), slug, itemId);
+  if (!offer) return null;
+  return { price: offer.price, sourceTag: adSourceTag(offer.page.slug) };
+}
+
+/** The source tag for a free registration from an ad page, which has no
+ *  price to verify. Still checks the page exists, is on, is for this item
+ *  and hasn't expired, so a stale ad link can't keep tagging people onto
+ *  a campaign that ended. */
+export async function adSourceFor(itemId: string, slug: string | null | undefined): Promise<string | null> {
+  if (!slug) return null;
+  const page = adPageBySlug(await getAdPages(), slug);
+  if (!page || page.itemId !== itemId) return null;
+  if (isDeadlinePassed(page.deadlineIso)) return null;
+  return adSourceTag(page.slug);
 }

@@ -28,6 +28,7 @@ export default function RegisterModal({
   triggerLabel,
   liveSession,
   liveBlockId,
+  adPage,
 }: {
   itemId: string;
   title: string;
@@ -48,6 +49,9 @@ export default function RegisterModal({
   // the session it came from.
   liveSession?: string;
   liveBlockId?: string;
+  /** Set only when opened from a /w ad page. Same rule as the live ids:
+   *  it is a SLUG, never a price. */
+  adPage?: string;
 }) {
   const fields =
     registrationFields && registrationFields.length > 0 ? registrationFields : DEFAULT_REGISTRATION_FIELDS;
@@ -125,6 +129,7 @@ export default function RegisterModal({
           answers: form,
           liveSession: liveSession ?? null,
           liveBlockId: liveBlockId ?? null,
+          adPage: adPage ?? null,
           attribution: readAttribution(),
           fbc: readCookie("_fbc"),
           fbp: readCookie("_fbp"),

@@ -3,7 +3,7 @@ import { getAdminSession } from "@/lib/auth";
 import { claimMetaLeadEvent, createLead, decrementWorkshopSeats, listLeads, tagAttribution, tagSource } from "@/lib/admin-repo";
 import { sendMetaLeadEvent } from "@/lib/meta-capi";
 import { getItemById, getNotifyEmail, getSetting } from "@/lib/items";
-import { liveSourceFor } from "@/lib/site-settings";
+import { adSourceFor, liveSourceFor } from "@/lib/site-settings";
 import { sanitiseAttribution } from "@/lib/attribution";
 import { DEFAULT_REGISTRATION_FIELDS } from "@/lib/types";
 import type { WorkshopDetails } from "@/lib/types";
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { itemId, answers, fbc, fbp, eventSourceUrl, liveSession, liveBlockId, attribution } = await req.json();
+  const { itemId, answers, fbc, fbp, eventSourceUrl, liveSession, liveBlockId, adPage, attribution } = await req.json();
   if (!answers || typeof answers !== "object") {
     return NextResponse.json({ error: "Missing form answers." }, { status: 400 });
   }
@@ -129,7 +129,9 @@ export async function POST(req: NextRequest) {
   // Which webinar this registration came from, when it came from one.
   // Verified server-side against the settings row rather than believed:
   // a stale link can't keep tagging people onto a session that has ended.
-  const liveTag = itemId ? await liveSourceFor(itemId, liveSession, liveBlockId) : null;
+  const liveTag = itemId
+    ? (await liveSourceFor(itemId, liveSession, liveBlockId)) ?? (await adSourceFor(itemId, adPage))
+    : null;
   if (liveTag) await tagSource("leads", lead.id, liveTag);
   await tagAttribution("leads", lead.id, sanitiseAttribution(attribution));
 

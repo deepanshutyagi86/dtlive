@@ -66,6 +66,7 @@ export default function CheckoutModal({
   triggerLabel,
   liveSession,
   liveBlockId,
+  adPage,
 }: {
   itemId: string;
   title: string;
@@ -87,6 +88,9 @@ export default function CheckoutModal({
   // the session it came from.
   liveSession?: string;
   liveBlockId?: string;
+  /** Set only when opened from a /w ad page. Same rule as the live ids:
+   *  it is a SLUG, never a price. */
+  adPage?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", phone: "" });
@@ -147,7 +151,7 @@ export default function CheckoutModal({
         const res = await fetch("/api/checkout/apply-coupon", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ itemId, code: code ?? "", buyerGst: gstDetails, liveSession, liveBlockId }),
+          body: JSON.stringify({ itemId, code: code ?? "", buyerGst: gstDetails, liveSession, liveBlockId, adPage }),
         });
         const data = (await res.json()) as Quote & { ok: boolean; reason?: string };
         if (!data.ok && code) return null;
@@ -161,7 +165,7 @@ export default function CheckoutModal({
     // fetches the PREVIEW price. A stale closure would show the buyer the
     // list price while create-order charged the webinar price — the two
     // must be quoted from the same pair of ids.
-    [itemId, liveSession, liveBlockId]
+    [itemId, liveSession, liveBlockId, adPage]
   );
 
   // Open with a fresh quote so the GST line is correct from the first
@@ -204,7 +208,7 @@ export default function CheckoutModal({
       const res = await fetch("/api/checkout/apply-coupon", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ itemId, code, buyerGst: gstOpen ? gst : null, liveSession, liveBlockId }),
+        body: JSON.stringify({ itemId, code, buyerGst: gstOpen ? gst : null, liveSession, liveBlockId, adPage }),
       });
       const data = await res.json();
       if (data.ok && data.code) {
@@ -256,6 +260,7 @@ export default function CheckoutModal({
           couponCode: applied?.code ?? null,
           liveSession: liveSession ?? null,
           liveBlockId: liveBlockId ?? null,
+          adPage: adPage ?? null,
           buyerGst: tax.b2bEnabled && gst.gstin.trim() ? gst : null,
           attribution: readAttribution(),
           fbc: readCookie("_fbc"),
