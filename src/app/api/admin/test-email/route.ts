@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/auth";
-import { emailConfig, emailHtml, sendEmail } from "@/lib/email";
+import { emailConfig, emailHtml, emailTextFooter, sendEmail } from "@/lib/email";
 import { getNotifyEmail } from "@/lib/items";
+import { getEmailSender } from "@/lib/site-settings";
 
 /**
  * Sends one real email and reports exactly what happened.
@@ -47,14 +48,23 @@ export async function POST(req: NextRequest) {
   }
 
   const stamp = new Date().toISOString();
+  // Sent exactly the way a real order email is sent — same footer, same
+  // Reply-To. A test that skipped those would prove nothing about
+  // whether real mail lands.
+  const sender = await getEmailSender().catch(() => undefined);
+
   const result = await sendEmail({
     to,
+    replyTo: sender?.email,
     subject: "Test email from DT.live",
-    text: `This is a test from your admin panel.\n\nIf you're reading this, order and registration emails will send.\n\nSent ${stamp}\nFrom ${from}`,
+    // emailTextFooter, same as emailHtml below — the two parts must carry
+    // the same identity, or the disagreement is itself a spam signal.
+    text: `This is a test from your admin panel.\n\nIf you're reading this, order and registration emails will send.\n\nSent ${stamp}\nFrom ${from}${emailTextFooter(sender)}`,
     html: emailHtml(
       `<p style="margin:0 0 12px;font-size:16px;">This is a test from your admin panel.</p>
        <p style="margin:0 0 12px;font-size:15px;color:#4a4a42;">If you're reading this, order and registration emails will send.</p>
-       <p style="margin:0;font-family:monospace;font-size:12px;color:#8b8a80;">${stamp}<br/>from ${from}</p>`
+       <p style="margin:0;font-family:monospace;font-size:12px;color:#8b8a80;">${stamp}<br/>from ${from}</p>`,
+      sender
     ),
   });
 

@@ -6,6 +6,7 @@
 // coming through as undefined. Same rule the hero copy already followed.
 
 import { unstable_cache } from "next/cache";
+import type { EmailSender } from "./email";
 import { firstLiveSet, parsePlaylistId } from "./booth";
 import { getSetting } from "./items";
 import { BUSINESS, BUSINESS_ADDRESS_LINES } from "./legal";
@@ -22,6 +23,7 @@ import {
   DEFAULT_NAV,
   adPageBySlug,
   adSourceTag,
+  businessFullAddress,
   isDeadlinePassed,
   isLiveDeadlinePassed,
   liveSessionBySlug,
@@ -685,4 +687,25 @@ export async function adTaxModeFor(
   if (!page || page.itemId !== itemId) return undefined;
   if (isDeadlinePassed(page.deadlineIso)) return undefined;
   return page.taxMode;
+}
+
+/**
+ * The sender identity printed at the bottom of every email, and the
+ * address replies go to.
+ *
+ * Built from BusinessSettings so there is one place a phone number or an
+ * address changes — the same facts already on the invoice and every legal
+ * page. Nothing here is decorative: a short transactional message with no
+ * identifiable sender is what Gmail reads as spam, which is exactly what
+ * it did.
+ */
+export async function getEmailSender(): Promise<EmailSender> {
+  const business = await getBusinessSettings();
+  return {
+    tradeName: business.tradeName || business.legalName,
+    address: businessFullAddress(business),
+    email: business.email,
+    phone: business.phone,
+    siteUrl: SITE_URL,
+  };
 }

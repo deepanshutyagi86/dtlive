@@ -2,7 +2,7 @@
 // placeholders — the admin never authors HTML directly (matches "no heavy
 // HTML template framework"); the HTML body is derived from the same plain
 // text via emailHtml()'s wrapper plus a simple paragraph/line-break split.
-import { emailHtml } from "./email";
+import { emailHtml, emailTextFooter, type EmailSender } from "./email";
 
 export interface EmailTemplate {
   subject: string;
@@ -140,15 +140,19 @@ export function resolveTemplate(
 
 export function renderTemplate(
   template: EmailTemplate,
-  values: PlaceholderValues
+  values: PlaceholderValues,
+  /** Who is sending. Appended as an identity footer to BOTH the HTML and
+   *  the text part — see emailHtml() for why that is a deliverability
+   *  concern and not decoration. */
+  sender?: EmailSender
 ): { subject: string; text: string; html: string } {
   // Subjects go out as a raw header field — strip any stray newline from a
   // substituted value rather than let it split into extra header lines.
   const subject = substitute(template.subject, values, false).replace(/[\r\n]+/g, " ");
-  const text = substitute(template.body, values, false);
+  const text = substitute(template.body, values, false) + emailTextFooter(sender);
   const htmlBody = substitute(template.body, values, true)
     .split("\n\n")
     .map((para) => `<p style="margin:0 0 16px;line-height:1.6;">${para.replace(/\n/g, "<br>")}</p>`)
     .join("");
-  return { subject, text, html: emailHtml(htmlBody) };
+  return { subject, text, html: emailHtml(htmlBody, sender) };
 }

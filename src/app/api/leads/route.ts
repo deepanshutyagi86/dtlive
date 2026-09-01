@@ -3,7 +3,7 @@ import { getAdminSession } from "@/lib/auth";
 import { claimMetaLeadEvent, createLead, decrementWorkshopSeats, listLeads, tagAttribution, tagSource } from "@/lib/admin-repo";
 import { sendMetaLeadEvent } from "@/lib/meta-capi";
 import { getItemById, getNotifyEmail, getSetting } from "@/lib/items";
-import { adSourceFor, liveSourceFor } from "@/lib/site-settings";
+import { adSourceFor, getEmailSender, liveSourceFor } from "@/lib/site-settings";
 import { sanitiseAttribution } from "@/lib/attribution";
 import { DEFAULT_REGISTRATION_FIELDS } from "@/lib/types";
 import type { WorkshopDetails } from "@/lib/types";
@@ -140,6 +140,10 @@ export async function POST(req: NextRequest) {
   }
 
   const emailCopy = await getSetting<EmailCopy>("emailCopy", {});
+  // Identity footer + Reply-To, same as the paid-order emails. Swallowed
+  // on failure: a missing footer must never cost someone their
+  // registration confirmation.
+  const emailSender = await getEmailSender().catch(() => undefined);
   // itemId is optional (a general enquiry has none) — leadValues.item is ""
   // in that case, and the {item} token in either template below already
   // renders as an empty string rather than "undefined" (see substitute()
@@ -155,8 +159,8 @@ export async function POST(req: NextRequest) {
   if (lead.email) {
     try {
       const template = resolveTemplate(emailCopy.leadBuyer, DEFAULT_EMAIL_COPY.leadBuyer);
-      const rendered = renderTemplate(template, leadValues);
-      const sent = await sendEmail({ to: lead.email, ...rendered });
+      const rendered = renderTemplate(template, leadValues, emailSender);
+      const sent = await sendEmail({ to: lead.email, ...rendered, replyTo: emailSender?.email });
       // Logged against the LEAD ID, same reasoning as the paid-order path:
       // sendEmail reports why now, and a bare console line with no id is
       // not something a registrant's "I never got a confirmation" support
@@ -173,8 +177,8 @@ export async function POST(req: NextRequest) {
     const notifyEmail = await getNotifyEmail();
     if (notifyEmail) {
       const template = resolveTemplate(emailCopy.leadAdmin, DEFAULT_EMAIL_COPY.leadAdmin);
-      const rendered = renderTemplate(template, leadValues);
-      const sent = await sendEmail({ to: notifyEmail, ...rendered });
+      const rendered = renderTemplate(template, leadValues, emailSender);
+      const sent = await sendEmail({ to: notifyEmail, ...rendered, replyTo: emailSender?.email });
       if (!sent.ok) {
         console.error(`Lead ${lead.id}: admin alert NOT sent to ${notifyEmail} — ${sent.error}`);
       }

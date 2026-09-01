@@ -10,7 +10,7 @@
 import type { Order } from "./db";
 import { sendEmail } from "./email";
 import { getNotifyEmail, getSetting } from "./items";
-import { getAllAdPages, getInvoiceSettings, invoiceAppliesTo, SITE_URL } from "./site-settings";
+import { getAllAdPages, getEmailSender, getInvoiceSettings, invoiceAppliesTo, SITE_URL } from "./site-settings";
 import { adSourceTag } from "./settings-types";
 import { DEFAULT_EMAIL_COPY, resolveTemplate, renderTemplate } from "./email-templates";
 import type { EmailCopy } from "./email-templates";
@@ -78,6 +78,9 @@ export async function sendPaidOrderNotifications(order: PaidOrder): Promise<void
     }
   }
 
+  // One lookup, used for the footer on both emails and as the Reply-To.
+  const sender = await getEmailSender().catch(() => undefined);
+
   const values = {
     name: order.buyerName,
     firstName: buyerFirstName,
@@ -103,8 +106,8 @@ export async function sendPaidOrderNotifications(order: PaidOrder): Promise<void
 
   try {
     const template = resolveTemplate(emailCopy.paidBuyer, DEFAULT_EMAIL_COPY.paidBuyer);
-    const rendered = renderTemplate(template, values);
-    const sent = await sendEmail({ to: order.buyerEmail, ...rendered });
+    const rendered = renderTemplate(template, values, sender);
+    const sent = await sendEmail({ to: order.buyerEmail, ...rendered, replyTo: sender?.email });
     // Logged against the ORDER ID. A paying customer who never got a
     // receipt is a support problem, and "which order was it" is the first
     // question — a bare provider error in the console cannot answer it.
@@ -119,8 +122,8 @@ export async function sendPaidOrderNotifications(order: PaidOrder): Promise<void
     const notifyEmail = await getNotifyEmail();
     if (notifyEmail) {
       const template = resolveTemplate(emailCopy.paidAdmin, DEFAULT_EMAIL_COPY.paidAdmin);
-      const rendered = renderTemplate(template, values);
-      const sent = await sendEmail({ to: notifyEmail, ...rendered });
+      const rendered = renderTemplate(template, values, sender);
+      const sent = await sendEmail({ to: notifyEmail, ...rendered, replyTo: sender?.email });
       if (!sent.ok) {
         console.error(`Paid order ${order.id}: admin alert NOT sent to ${notifyEmail} — ${sent.error}`);
       }
