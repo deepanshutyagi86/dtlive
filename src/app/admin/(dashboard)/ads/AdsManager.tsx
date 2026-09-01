@@ -12,6 +12,7 @@ import {
 } from "@/components/admin/AdminFields";
 import FocalPointPicker from "@/components/admin/FocalPointPicker";
 import { DEFAULT_AD_PAGES, type AdPage, type AdPagesSettings } from "@/lib/settings-types";
+import { normaliseAdPage } from "@/lib/admin-normalise";
 
 interface ItemOption {
   id: string;
@@ -41,7 +42,12 @@ export default function AdsManager({ items }: { items: ItemOption[] }) {
     fetch("/api/settings")
       .then((r) => r.json())
       .then((d) => {
-        const loaded = { ...DEFAULT_AD_PAGES, ...(d.adPages ?? {}) };
+        const stored = (d.adPages ?? {}) as Partial<AdPagesSettings>;
+        const loaded: AdPagesSettings = {
+          ...DEFAULT_AD_PAGES,
+          ...stored,
+          pages: Array.isArray(stored.pages) ? stored.pages.map(normaliseAdPage) : [],
+        };
         setSettings(loaded);
         setSavedJson(JSON.stringify(loaded));
         setTestimonials(Array.isArray(d.testimonials) ? d.testimonials : []);
@@ -83,25 +89,16 @@ export default function AdsManager({ items }: { items: ItemOption[] }) {
     setSettings({ ...settings, pages: settings.pages.map((x) => (x.id === id ? { ...x, ...p } : x)) });
 
   function addPage() {
-    const page: AdPage = {
+    // Same normaliser as the load path, so a new page and a loaded page
+    // can never be different shapes.
+    const page = normaliseAdPage({
       id: crypto.randomUUID(),
-      slug: "",
       // Off until deliberately switched on. A half-written page must not
       // be reachable — and must not be sellable — the moment it is saved.
       enabled: false,
-      headline: "",
-      subheadline: "",
       itemId: items[0]?.id ?? "",
       kind: "paid",
-      ctaLabel: "",
-      bullets: [],
-      faq: [],
-      proofPoints: [],
-      testimonialPicks: [],
-      forWho: [],
-      notForWho: [],
-      agenda: [],
-    };
+    });
     setSettings({ ...settings!, pages: [page, ...settings!.pages] });
     setOpenId(page.id);
   }

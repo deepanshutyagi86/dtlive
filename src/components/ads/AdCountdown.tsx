@@ -9,6 +9,9 @@ import { useEffect, useState } from "react";
 // about how long they have, not a decoration that keeps running after the
 // offer is gone.
 //
+// Every unit is shown and the seconds tick, at any distance from the
+// deadline. A running clock is what reads as a countdown at all.
+//
 // Rendered only after mount. A countdown computed during SSR is already
 // wrong by the time it reaches the browser and mismatches on hydration,
 // so the first paint deliberately shows nothing.
@@ -36,29 +39,16 @@ export default function AdCountdown({
   if (left === null) return null;
 
   const total = Math.floor(left / 1000);
-  const days = Math.floor(total / 86400);
-  const hours = Math.floor((total % 86400) / 3600);
 
-  // Seconds only appear inside the last 24 hours.
-  //
-  // A seconds counter spinning on a five-day timer is not urgency, it is
-  // decoration — and a reader who has seen a hundred landing pages reads
-  // spinning seconds on a distant deadline as a gimmick, which costs more
-  // trust than the timer buys attention. Showing the fine grain only when
-  // the deadline is genuinely close means the urgency is believed when it
-  // finally appears.
-  const imminent = total < 86400;
-
-  const parts = imminent
-    ? [
-        { value: hours, unit: "HRS" },
-        { value: Math.floor((total % 3600) / 60), unit: "MIN" },
-        { value: total % 60, unit: "SEC" },
-      ]
-    : [
-        { value: days, unit: days === 1 ? "DAY" : "DAYS" },
-        { value: hours, unit: hours === 1 ? "HR" : "HRS" },
-      ];
+  // All four units, always, and always moving. A clock that visibly runs
+  // is the point — a static "5 days" reads as a label, and the thing that
+  // makes a countdown feel like a countdown is watching it move.
+  const parts = [
+    { value: Math.floor(total / 86400), unit: "DAYS" },
+    { value: Math.floor((total % 86400) / 3600), unit: "HRS" },
+    { value: Math.floor((total % 3600) / 60), unit: "MIN" },
+    { value: total % 60, unit: "SEC" },
+  ];
 
   const numberClass = dark ? "text-bone" : "text-ink";
   const unitClass = dark ? "text-[#8b8a80]" : "text-muted";

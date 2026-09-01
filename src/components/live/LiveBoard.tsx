@@ -33,6 +33,11 @@ export default function LiveBoard({
 
   useEffect(() => {
     let cancelled = false;
+    // Reset per effect run. Left latched from a previous session's 404, a
+    // client-side navigation from /live to /live/<slug> would mount the
+    // same component against a new slug and never poll it — the page
+    // would sit frozen on whatever the server rendered.
+    stopped.current = false;
     let id: ReturnType<typeof setInterval>;
 
     async function poll() {
@@ -97,7 +102,10 @@ export default function LiveBoard({
           sessionSlug={session.slug}
           tax={tax}
           gstin={gstin}
-          registrationFields={registrationFields[block.itemId]}
+          // From the payload, so a block revealed mid-webinar brings its
+          // own form with it. The server-rendered prop is the fallback
+          // for a first paint that predates this field.
+          registrationFields={block.registrationFields ?? registrationFields[block.itemId]}
         />
       ))}
     </div>

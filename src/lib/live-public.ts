@@ -17,7 +17,13 @@ import { getItemById } from "./items";
 import { getTaxSettingsForDisplay } from "./site-settings";
 import { formatRupees, priceLabel as taxPriceLabel } from "./tax";
 import { isLiveDeadlinePassed, type LiveBlock, type LiveSession } from "./settings-types";
-import { CATEGORY_CTA, type Category, type ImageFocal } from "./types";
+import {
+  CATEGORY_CTA,
+  DEFAULT_REGISTRATION_FIELDS,
+  type Category,
+  type ImageFocal,
+  type RegistrationField,
+} from "./types";
 
 export interface PublicLiveBlock {
   id: string;
@@ -37,6 +43,16 @@ export interface PublicLiveBlock {
   deadlineIso: string | null;
   ctaLabel: string;
   externalUrl: string | null;
+  /**
+   * The item's own registration form, carried in the payload.
+   *
+   * It used to be resolved once, server-side, for the blocks visible at
+   * first render — so a register block REVEALED during the webinar
+   * arrived with nothing and silently fell back to the default name/
+   * email/phone form. The custom questions were never asked, in exactly
+   * the scenario the reveal mechanic exists for.
+   */
+  registrationFields: RegistrationField[] | null;
 }
 
 export interface PublicLiveSession {
@@ -100,6 +116,7 @@ async function publicBlock(
       deadlineIso: block.deadlineIso ?? null,
       ctaLabel: block.ctaLabel || "Open",
       externalUrl: block.externalUrl,
+      registrationFields: null,
     };
   }
 
@@ -137,5 +154,13 @@ async function publicBlock(
     deadlineIso: block.deadlineIso ?? null,
     ctaLabel: block.ctaLabel || (block.kind === "register" ? "Register free" : CATEGORY_CTA[item.category]),
     externalUrl: null,
+    // Only for register blocks — a paid block has no form of its own, and
+    // shipping one would be a field list in the payload for nothing.
+    registrationFields:
+      block.kind === "register"
+        ? (item.details as { registrationFields?: RegistrationField[] }).registrationFields?.length
+          ? (item.details as { registrationFields: RegistrationField[] }).registrationFields
+          : DEFAULT_REGISTRATION_FIELDS
+        : null,
   };
 }

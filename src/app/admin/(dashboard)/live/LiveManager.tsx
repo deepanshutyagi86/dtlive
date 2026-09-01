@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ImageUploadField, SelectField, TextField, Toggle } from "@/components/admin/AdminFields";
 import FocalPointPicker from "@/components/admin/FocalPointPicker";
 import { DEFAULT_LIVE, type LiveBlock, type LiveSession, type LiveSettings } from "@/lib/settings-types";
+import { normaliseBlock, normaliseSession } from "@/lib/admin-normalise";
 
 interface ItemOption {
   id: string;
@@ -31,7 +32,12 @@ export default function LiveManager({ items }: { items: ItemOption[] }) {
     fetch("/api/settings")
       .then((r) => r.json())
       .then((d) => {
-        const loaded = { ...DEFAULT_LIVE, ...(d.live ?? {}) };
+        const stored = (d.live ?? {}) as Partial<LiveSettings>;
+        const loaded: LiveSettings = {
+          ...DEFAULT_LIVE,
+          ...stored,
+          sessions: Array.isArray(stored.sessions) ? stored.sessions.map(normaliseSession) : [],
+        };
         setSettings(loaded);
         setSavedJson(JSON.stringify(loaded));
       })
@@ -101,14 +107,7 @@ export default function LiveManager({ items }: { items: ItemOption[] }) {
     persist({ ...settings, sessions: settings.sessions.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
 
   function addSession() {
-    const session: LiveSession = {
-      id: crypto.randomUUID(),
-      slug: "",
-      title: "",
-      subtitle: "",
-      active: false,
-      blocks: [],
-    };
+    const session = normaliseSession({ id: crypto.randomUUID() });
     persist({ ...settings!, sessions: [session, ...settings!.sessions] });
     setOpenId(session.id);
   }
@@ -233,12 +232,11 @@ function SessionCard({
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   function addBlock() {
-    const block: LiveBlock = {
+    const block = normaliseBlock({
       id: crypto.randomUUID(),
       kind: "register",
       itemId: items[0]?.id ?? "",
-      visible: false,
-    };
+    });
     onPatch({ blocks: [...session.blocks, block] });
   }
 

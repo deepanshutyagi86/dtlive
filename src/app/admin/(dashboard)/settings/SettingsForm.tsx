@@ -14,6 +14,7 @@ import {
   BusinessSection,
   InvoiceSection,
 } from "./SettingsSections";
+import { asArray, normaliseBoothSets } from "@/lib/admin-normalise";
 import {
   DEFAULT_BIO,
   DEFAULT_BOOTH,
@@ -217,6 +218,7 @@ export default function SettingsForm({ show }: { show?: SettingsSectionKey[] }) 
   // Only used to render the "applies to" checkboxes on a coupon.
   const [items, setItems] = useState<{ id: string; title: string; category: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -228,8 +230,8 @@ export default function SettingsForm({ show }: { show?: SettingsSectionKey[] }) 
       .then((r) => r.json())
       .then((d) => {
         setHeroCopy(d.heroCopy ?? {});
-        setTicker(d.ticker ?? []);
-        setTestimonials(d.testimonials ?? []);
+        setTicker(asArray<string>(d.ticker));
+        setTestimonials(asArray<Testimonial>(d.testimonials));
         setEmailCopy(d.emailCopy ?? {});
         setLinks(d.footerLinks ?? {});
         setNotifyEmail(d.notifyEmail ?? "");
@@ -244,16 +246,33 @@ export default function SettingsForm({ show }: { show?: SettingsSectionKey[] }) 
         setGuideCta({ ...DEFAULT_GUIDE_CTA, ...(d.guideCta ?? {}) });
         setSyllabus({ ...DEFAULT_SYLLABUS, ...(d.syllabus ?? {}) });
         setStream({ ...DEFAULT_STREAM, ...(d.stream ?? {}) });
-        setBooth({ ...DEFAULT_BOOTH, ...(d.booth ?? {}), sets: Array.isArray(d.booth?.sets) ? d.booth.sets : DEFAULT_BOOTH.sets });
-        setCoupons(Array.isArray(d.coupons) ? d.coupons : []);
+        // normaliseBoothSets, not a bare Array.isArray: the sets inside
+        // are raw too, and one missing `tracklist` crashed this page.
+        // It also carries the old `mixes` key the server still reads, so
+        // the panel can no longer say "no playlists" about a room that is
+        // playing on the live site.
+        setBooth({ ...DEFAULT_BOOTH, ...(d.booth ?? {}), sets: normaliseBoothSets(d.booth) });
+        setCoupons(asArray<Coupon>(d.coupons));
         setBusiness({
           ...DEFAULT_BUSINESS,
           ...(d.business ?? {}),
-          addressLines: d.business?.addressLines?.length ? d.business.addressLines : DEFAULT_BUSINESS.addressLines,
+          // Array.isArray, not `.length` — a stored STRING passes a
+          // length check and then throws on LinesField's join().
+          addressLines: asArray<string>(d.business?.addressLines).length
+            ? d.business.addressLines
+            : DEFAULT_BUSINESS.addressLines,
         });
         setInvoice({ ...DEFAULT_INVOICE, ...(d.invoice ?? {}) });
         setTax({ ...DEFAULT_TAX, ...(d.tax ?? {}) });
         setB2bReady(d.b2bReady === true);
+        setLoading(false);
+      })
+      // Without this, a 401 or a 500 rejected the chain, setLoading(false)
+      // never ran, and all six settings pages sat on a bare "Loading…"
+      // forever with nothing said. The other two admin panels already
+      // catch; this one didn't.
+      .catch(() => {
+        setLoadError("Could not load your settings. Check your connection and reload the page.");
         setLoading(false);
       });
 
@@ -304,6 +323,13 @@ export default function SettingsForm({ show }: { show?: SettingsSectionKey[] }) 
   }
 
   if (loading) return <p className="text-muted">Loading…</p>;
+  if (loadError) {
+    return (
+      <p className="border border-live text-live-ink bg-live/5 rounded-lg px-4 py-3 text-sm font-semibold max-w-[640px]">
+        {loadError}
+      </p>
+    );
+  }
 
   return (
     <div className="max-w-[640px] space-y-12">
