@@ -564,6 +564,10 @@ export async function getAdPages(): Promise<AdPagesSettings> {
       // real number behind it.
       showSeats: p.showSeats !== false,
       seatsOverride: Number.isFinite(p.seatsOverride) && p.seatsOverride >= 0 ? p.seatsOverride : undefined,
+      // Defaults OFF: a counter is a public claim, so it appears only
+      // when it has been deliberately switched on.
+      showJoined: p.showJoined === true,
+      joinedBaseline: Number.isFinite(p.joinedBaseline) && p.joinedBaseline >= 0 ? p.joinedBaseline : undefined,
       videoFileName: clean(p.videoFileName),
 
       showTeacher: p.showTeacher !== false,

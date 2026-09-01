@@ -763,6 +763,29 @@ export interface AdPage {
    */
   showSeats?: boolean;
   seatsOverride?: number;
+  /**
+   * "N people have joined" — the other half of the scarcity pair, and
+   * usually the stronger one: seats-left says "hurry", joined says
+   * "other people already decided this was worth it", and for a stranger
+   * off an ad the second is the more persuasive claim.
+   *
+   * Independent of showSeats. Both, either, or neither.
+   */
+  showJoined?: boolean;
+  /**
+   * A starting number added to the live count of real paid orders.
+   *
+   * This is here for a legitimate reason: the live count only knows about
+   * THIS campaign, so a workshop you have already run twice reads as "0
+   * people have joined" on the day you launch the ad, which is false in
+   * the other direction. The baseline is where the people who already
+   * took it go.
+   *
+   * It is a public claim about how many people bought something. Put a
+   * number here you could defend if someone asked. An invented one is a
+   * lie told to buyers, and it is the kind that gets checked.
+   */
+  joinedBaseline?: number;
   /** Set when the video was uploaded here rather than linked. Display-only
    *  in the admin panel, and how it knows which of its two inputs to fill. */
   videoFileName?: string;

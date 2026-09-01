@@ -10,7 +10,8 @@
 import type { Order } from "./db";
 import { sendEmail } from "./email";
 import { getNotifyEmail, getSetting } from "./items";
-import { getInvoiceSettings, invoiceAppliesTo, SITE_URL } from "./site-settings";
+import { getAllAdPages, getInvoiceSettings, invoiceAppliesTo, SITE_URL } from "./site-settings";
+import { adSourceTag } from "./settings-types";
 import { DEFAULT_EMAIL_COPY, resolveTemplate, renderTemplate } from "./email-templates";
 import type { EmailCopy } from "./email-templates";
 import type { WorkshopDetails } from "./types";
@@ -62,6 +63,21 @@ export async function sendPaidOrderNotifications(order: PaidOrder): Promise<void
         }) + " IST"
       : "";
 
+  // Resolved the same way /order/confirmed resolves it, from the order's
+  // own `source` tag — nothing here is supplied by the browser.
+  let campaignGroupUrl = "";
+  if (order.source?.startsWith("ad:")) {
+    try {
+      const pages = await getAllAdPages();
+      const match = pages.find((p) => adSourceTag(p.slug) === order.source);
+      if (match?.groupUrl) campaignGroupUrl = match.groupUrl;
+    } catch (err) {
+      // Attribution lookup must never cost a buyer their confirmation
+      // email — fall back to the item's own link.
+      console.error("Paid order: could not resolve the campaign group link:", err);
+    }
+  }
+
   const values = {
     name: order.buyerName,
     firstName: buyerFirstName,
@@ -71,7 +87,11 @@ export async function sendPaidOrderNotifications(order: PaidOrder): Promise<void
     email: order.buyerEmail,
     phone: order.buyerPhone,
     date: dateLabel,
-    groupUrl: joining.groupUrl ?? "",
+    // The campaign's own group link wins over the item's for a buyer who
+    // came through an ad page. Without this, the confirmation PAGE sent
+    // them to one group and the confirmation EMAIL to another — the two
+    // surfaces disagreeing about the same next step.
+    groupUrl: campaignGroupUrl || joining.groupUrl || "",
     meetingUrl: joining.meetingUrl ?? "",
     calendarUrl: isWorkshop && d.date ? `${SITE_URL}/items/${order.item.slug}/calendar` : "",
     invoiceUrl:

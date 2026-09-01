@@ -17,6 +17,7 @@ import {
 import { ItemVideoOverlay } from "@/components/ItemVideo";
 import { registrationFieldsFor } from "@/lib/live-public";
 import { getItemById } from "@/lib/items";
+import { countPaidBySource } from "@/lib/admin-repo";
 import {
   cachedAdPage,
   getBio,
@@ -25,7 +26,7 @@ import {
   SITE_URL,
 } from "@/lib/site-settings";
 import { getSetting } from "@/lib/items";
-import { isDeadlinePassed } from "@/lib/settings-types";
+import { adSourceTag, isDeadlinePassed } from "@/lib/settings-types";
 import { formatRupees, priceLabel as taxPriceLabel } from "@/lib/tax";
 import { type RegistrationField, type WorkshopDetails } from "@/lib/types";
 import { SITE_TZ } from "@/lib/dates";
@@ -78,12 +79,15 @@ export default async function AdLandingPage({ params }: { params: { slug: string
   // Unknown slug and switched-off page alike: there is no page here.
   if (!page) notFound();
 
-  const [item, tax, business, bio, allTestimonials] = await Promise.all([
+  const [item, tax, business, bio, allTestimonials, paidHere] = await Promise.all([
     getItemById(page.itemId),
     getTaxSettingsForDisplay(),
     getBusinessSettings(),
     getBio(),
     getSetting<{ quote: string; who: string }[]>("testimonials", []),
+    // Real paid orders through THIS campaign. Not cached with the page —
+    // it is the number most likely to be looked at twice.
+    page.showJoined ? countPaidBySource(adSourceTag(page.slug)) : Promise.resolve(0),
   ]);
   // A page whose item was deleted or unpublished would render a button
   // that fails on click. Better to 404 the page itself.
@@ -114,6 +118,12 @@ export default async function AdLandingPage({ params }: { params: { slug: string
   const seatsLeft = details.unlimitedSeats ? page.seatsOverride ?? null : details.seatsLeft ?? null;
   const seatsTotal = details.unlimitedSeats ? null : details.seatsTotal ?? null;
   const showSeats = page.showSeats !== false && seatsLeft !== null && seatsLeft > 0 && !closed;
+
+  // Baseline + real paid orders. The baseline exists because the live
+  // count only knows about this campaign, so a workshop already run twice
+  // would otherwise read "0 people have joined" on launch day.
+  const joinedCount = (page.joinedBaseline ?? 0) + paidHere;
+  const showJoined = page.showJoined === true && joinedCount > 0;
   const soldOut = page.showSeats !== false && seatsLeft !== null && seatsLeft <= 0;
 
   // Picked by position, and filtered against the current list — a
@@ -355,8 +365,14 @@ export default async function AdLandingPage({ params }: { params: { slug: string
               </p>
             )}
 
+            {showJoined && (
+              <p className="flex items-center gap-2 font-mono text-[12px] mt-3">
+                <span aria-hidden className="w-1.5 h-1.5 rounded-full bg-live live-dot" />
+                {joinedCount} {joinedCount === 1 ? "person has" : "people have"} joined
+              </p>
+            )}
             {showSeats && (
-              <p className="font-mono text-[12px] text-live mt-3">
+              <p className="font-mono text-[12px] text-live mt-1.5">
                 {seatsTotal ? `${seatsLeft} of ${seatsTotal} seats left` : `${seatsLeft} seats left`}
               </p>
             )}
@@ -489,9 +505,11 @@ export default async function AdLandingPage({ params }: { params: { slug: string
           <div className="max-w-[760px] mx-auto flex items-center justify-between gap-4">
             <div className="min-w-0">
               {priceLabel && <span className="font-mono font-bold text-[16px] text-marigold">{priceLabel}</span>}
-              {showSeats && (
+                {showJoined ? (
+                <small className="block font-mono text-[10px] text-[#8b8a80]">{joinedCount} joined</small>
+              ) : showSeats ? (
                 <small className="block font-mono text-[10px] text-[#8b8a80]">{seatsLeft} seats left</small>
-              )}
+              ) : null}
             </div>
             <div className="shrink-0 w-[52%] max-w-[240px]">
               {page.kind === "paid" ? (

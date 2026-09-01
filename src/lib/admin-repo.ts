@@ -512,6 +512,31 @@ export async function listBySource(source: string): Promise<
   }));
 }
 
+/**
+ * How many people have actually paid through one surface.
+ *
+ * Feeds the "N people have joined" counter on an ad page. Counts PAID
+ * orders only — a pending order is someone who opened a checkout and may
+ * never finish, and counting those would inflate a number shown to
+ * buyers as fact.
+ *
+ * Returns 0 when the `source` column does not exist yet (migration 002
+ * unrun), so the counter reads as "just the baseline" rather than
+ * throwing on a page that is taking money.
+ */
+export async function countPaidBySource(source: string): Promise<number> {
+  if (!(await hasSourceColumn())) return 0;
+  try {
+    const { rows } = await sql`
+      SELECT COUNT(*)::int AS n FROM orders WHERE source = ${source} AND status = 'paid'
+    `;
+    return Number(rows[0]?.n ?? 0);
+  } catch (err) {
+    console.error(`Could not count paid orders for "${source}":`, err);
+    return 0;
+  }
+}
+
 export async function setLeadStatus(id: string, status: Lead["status"]): Promise<void> {
   await sql`UPDATE leads SET status = ${status} WHERE id = ${id}`;
 }

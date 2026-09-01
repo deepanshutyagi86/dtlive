@@ -394,6 +394,22 @@ function PageCard({
             help="Reads the real remaining seats off the workshop, so the number falls as people actually buy. It hides itself when there is no real number behind it."
           />
 
+          <Toggle
+            label="Show how many people have joined"
+            checked={page.showJoined === true}
+            onChange={(v) => onPatch({ showJoined: v })}
+            help="Counts real PAID orders through this ad page, and rises as people buy. Usually the stronger of the two — seats-left says hurry, joined says other people already decided this was worth it."
+          />
+
+          {page.showJoined === true && (
+            <PriceField
+              label="Starting count"
+              value={page.joinedBaseline}
+              onChange={(v) => onPatch({ joinedBaseline: v })}
+              help="Added to the live count. It exists because the live count only knows about THIS campaign — a workshop you've already run twice would otherwise say '0 people have joined' on launch day, which is false the other way. Put a number you could defend if someone asked: an invented one is a lie told to buyers, and it's the kind that gets checked."
+            />
+          )}
+
           {page.showSeats !== false && (
             <PriceField
               label="Override the seat count"
