@@ -244,6 +244,53 @@ export async function tagSource(
   }
 }
 
+// Migration 003. Probed on leads and taken to speak for orders too, same
+// reasoning as hasSourceColumn above — the migration adds both together.
+let attributionColumnExists: boolean | null = null;
+
+export async function hasAttributionColumn(): Promise<boolean> {
+  if (attributionColumnExists !== null) return attributionColumnExists;
+  try {
+    const { rows } = await sql`
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name = 'leads' AND column_name = 'attribution'
+      LIMIT 1
+    `;
+    attributionColumnExists = rows.length > 0;
+  } catch (err) {
+    console.error("Could not check for leads.attribution, assuming absent:", err);
+    attributionColumnExists = false;
+  }
+  return attributionColumnExists;
+}
+
+/**
+ * Which ad, post or link produced this person. Same follow-up-UPDATE shape
+ * and the same swallow-and-log policy as tagSource: a marketing tag is
+ * never allowed to fail a payment that has already gone through.
+ *
+ * The value must already have been through sanitiseAttribution() — this
+ * writes what it is given, and what it is given came from a browser.
+ */
+export async function tagAttribution(
+  table: "leads" | "orders",
+  id: string,
+  attribution: unknown | null
+): Promise<void> {
+  if (!attribution) return;
+  if (!(await hasAttributionColumn())) return;
+  try {
+    const json = JSON.stringify(attribution);
+    if (table === "leads") {
+      await sql`UPDATE leads SET attribution = ${json} WHERE id = ${id}`;
+    } else {
+      await sql`UPDATE orders SET attribution = ${json} WHERE id = ${id}`;
+    }
+  } catch (err) {
+    console.error(`Could not tag ${table}.${id} with attribution:`, err);
+  }
+}
+
 export async function setOrderCashfreeId(orderId: string, cashfreeOrderId: string): Promise<void> {
   await sql`UPDATE orders SET cashfree_order_id = ${cashfreeOrderId} WHERE id = ${orderId}`;
 }

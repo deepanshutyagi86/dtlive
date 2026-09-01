@@ -5,6 +5,7 @@ import ModalHeroHeader from "./ModalHeroHeader";
 import { useModalBehavior } from "@/lib/useModalBehavior";
 import { useModalViewport, HERO_COLLAPSE_HEIGHT, scrollFieldIntoView } from "@/lib/useModalViewport";
 import { isValidEmail, isValidPhone, stripToPhoneChars } from "@/lib/validate";
+import { readAttribution } from "@/lib/attribution";
 import { formatRupees, isValidGstin } from "@/lib/tax";
 import { GST_STATES, type TaxSettings } from "@/lib/settings-types";
 import type { Category, ImageFocal } from "@/lib/types";
@@ -168,6 +169,18 @@ export default function CheckoutModal({
   useEffect(() => {
     if (!open) return;
     refreshQuote(applied?.code ?? null, gstOpen ? gst : null);
+
+    // InitiateCheckout: opening this modal is the strongest intent signal
+    // short of paying, and it is the event a campaign optimises on while
+    // Purchase volume is still too low for Meta to learn from. Fired on
+    // every open, deliberately — each one is a real, separate intent, and
+    // deduplicating them would understate exactly the thing being measured.
+    window.fbq?.("track", "InitiateCheckout", {
+      content_ids: [itemId],
+      content_name: title,
+      content_type: "product",
+      currency: "INR",
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -244,6 +257,7 @@ export default function CheckoutModal({
           liveSession: liveSession ?? null,
           liveBlockId: liveBlockId ?? null,
           buyerGst: tax.b2bEnabled && gst.gstin.trim() ? gst : null,
+          attribution: readAttribution(),
           fbc: readCookie("_fbc"),
           fbp: readCookie("_fbp"),
           eventSourceUrl: window.location.href,

@@ -7,6 +7,7 @@ import { useModalViewport, HERO_COLLAPSE_HEIGHT, scrollFieldIntoView } from "@/l
 import { DEFAULT_REGISTRATION_FIELDS, type Category, type ImageFocal, type RegistrationField } from "@/lib/types";
 import { SITE_TZ } from "@/lib/dates";
 import { isValidEmail, isValidPhone, stripToPhoneChars } from "@/lib/validate";
+import { readAttribution } from "@/lib/attribution";
 
 declare global {
   interface Window {
@@ -124,6 +125,7 @@ export default function RegisterModal({
           answers: form,
           liveSession: liveSession ?? null,
           liveBlockId: liveBlockId ?? null,
+          attribution: readAttribution(),
           fbc: readCookie("_fbc"),
           fbp: readCookie("_fbp"),
           eventSourceUrl: window.location.href,

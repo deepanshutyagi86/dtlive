@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getItemById } from "@/lib/items";
-import { createOrder, setOrderCashfreeId, tagSource, upsertSetting } from "@/lib/admin-repo";
+import { createOrder, setOrderCashfreeId, tagAttribution, tagSource, upsertSetting } from "@/lib/admin-repo";
 import { createRazorpayOrder } from "@/lib/razorpay";
 import type { CourseDetails, WorkshopDetails } from "@/lib/types";
 import { rateLimit, clientIpFrom } from "@/lib/rate-limit";
@@ -8,6 +8,7 @@ import { isValidEmail, isValidPhone, normalisePhone } from "@/lib/validate";
 import { getBusinessSettings, getCoupons, getTaxSettings, livePriceFor } from "@/lib/site-settings";
 import { markCouponUsed } from "@/lib/coupons";
 import { quoteOrder } from "@/lib/checkout-pricing";
+import { sanitiseAttribution } from "@/lib/attribution";
 
 // A workshop whose start time has passed must stop selling seats. Nothing
 // checked this before, so a stale link — a WhatsApp forward, an old story
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { itemId, name, email, phone, couponCode, buyerGst, fbc, fbp, eventSourceUrl, liveSession, liveBlockId } =
+    const { itemId, name, email, phone, couponCode, buyerGst, fbc, fbp, eventSourceUrl, liveSession, liveBlockId, attribution } =
       await req.json();
 
     if (!itemId || !name || !email || !phone) {
@@ -152,6 +153,7 @@ export async function POST(req: NextRequest) {
     // errors, because losing a reporting tag must never cost a sale that
     // has already been paid for.
     if (live) await tagSource("orders", order.id, live.sourceTag);
+    await tagAttribution("orders", order.id, sanitiseAttribution(attribution));
 
     const rzpOrder = await createRazorpayOrder({
       orderId: order.id,

@@ -3,6 +3,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import Footer, { FooterLinks } from "@/components/Footer";
 import LiveBoard from "@/components/live/LiveBoard";
+import MetaPixelView from "@/components/MetaPixelView";
 import { getItemById, getSetting } from "@/lib/items";
 import {
   getBusinessSettings,
@@ -97,6 +98,11 @@ export default async function LiveSessionView({ slug }: { slug?: string }) {
 
   return (
     <>
+      {/* The webinar page is where cold ad traffic lands, so this is the
+          one that most needs to record a click's UTM tags — by checkout
+          the query string is long gone. */}
+      <MetaPixelView contentId={`live:${session.slug}`} contentName={session.title} contentType="product_group" />
+
       {/* No <Nav>. This page has one job and every link off it is a way to
           not do that job — the logo goes home and nothing else leaves. */}
       <header className="border-b border-ink">

@@ -11,6 +11,7 @@ import JsonLd from "@/components/JsonLd";
 import { Outcomes, WhoFor, Faq } from "@/components/ItemSections";
 import GuideCta from "@/components/GuideCta";
 import OverviewVideoButton from "@/components/OverviewVideo";
+import MetaPixelView from "@/components/MetaPixelView";
 import { getItemBySlug, getSetting } from "@/lib/items";
 import { hasTaxDetailsColumn } from "@/lib/admin-repo";
 import {
@@ -321,6 +322,11 @@ export default async function ItemDetailPage({ params }: { params: { slug: strin
           {item!.title}
         </h1>
         <p className="text-[17px] leading-relaxed text-ink-soft max-w-[620px]">{item!.description}</p>
+
+        {/* ViewContent for this specific course, so a campaign can optimise
+            for people who looked at THIS rather than for anyone who loaded
+            any page. Also where an ad click's UTM tags get recorded. */}
+        <MetaPixelView contentId={item!.id} contentName={item!.title} value={price} />
 
         {/* Module 0 first, syllabus second. Someone deciding whether to
             trust a course watches before they read, and this is the only

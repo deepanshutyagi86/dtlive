@@ -122,3 +122,55 @@ WHERE column_name = 'source' AND table_name IN ('leads', 'orders');
 ```
 
 Two rows back means you're done.
+
+---
+
+## 003 — `leads.attribution` and `orders.attribution` (which ad produced this)
+
+**Run this when you start spending money on ads.** Until you run it, every
+ad works, every sale is charged and saved correctly, and Meta's own
+dashboard still reports conversions — the only thing missing is being able
+to answer "which campaign produced BUYERS" from your own database.
+
+```sql
+ALTER TABLE leads  ADD COLUMN IF NOT EXISTS attribution JSONB;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS attribution JSONB;
+```
+
+Additive, nullable, instant. Safe to run in the same sitting as 002.
+
+**What it stores.** First touch, per browser session — the ad someone
+arrived from, not the last link they clicked before paying:
+
+```json
+{
+  "params": { "utm_source": "fb", "utm_medium": "paid",
+              "utm_campaign": "aug-webinar", "fbclid": "IwAR..." },
+  "landing": "https://www.deepanshutyagi.live/live?utm_source=fb",
+  "referrer": "https://www.instagram.com/",
+  "at": "2026-08-31T18:40:00.000Z"
+}
+```
+
+Only the seven keys in `ATTRIBUTION_KEYS` are ever stored, each capped at
+200 characters, and the object is rebuilt from that allowlist server-side
+in `sanitiseAttribution()` — the browser supplies this, so it is treated as
+hostile input, not as data. A same-site referrer is dropped: your own
+course page is not a traffic source, and counting it as one would make your
+own site look like your best-performing channel.
+
+**Why this is separate from `source` (migration 002).** They answer
+different questions and a single sale often has both answers: `source` says
+which surface — `live:aug-31` — and `attribution` says which ad paid to put
+the person in front of it. Folding them into one column would force a
+choice between the two on exactly the sales where you most want both.
+
+**To confirm it worked:**
+
+```sql
+SELECT table_name, column_name
+FROM information_schema.columns
+WHERE column_name = 'attribution' AND table_name IN ('leads', 'orders');
+```
+
+Two rows back means you're done.
