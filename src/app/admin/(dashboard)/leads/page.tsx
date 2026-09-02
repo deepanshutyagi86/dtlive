@@ -1,10 +1,11 @@
-import { listLeads } from "@/lib/admin-repo";
+import { listAllItems, listLeads } from "@/lib/admin-repo";
+import ExportBar from "../ExportBar";
 import LeadsTable from "./LeadsTable";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminLeadsPage() {
-  const leads = await listLeads();
+  const [leads, items] = await Promise.all([listLeads(), listAllItems()]);
 
   return (
     <div>
@@ -13,13 +14,9 @@ export default async function AdminLeadsPage() {
           <p className="font-mono text-[11px] tracking-wider uppercase text-muted mb-1.5">Inbox</p>
           <h1 className="font-display font-extrabold text-3xl tracking-tight">Leads</h1>
         </div>
-        <a
-          href="/api/leads/export"
-          className="bg-marigold text-ink px-5 py-2.5 rounded-full font-semibold text-sm hover:bg-ink hover:text-bone transition-colors whitespace-nowrap"
-        >
-          Download CSV
-        </a>
       </div>
+      <ExportBar type="leads" items={items.map((i) => ({ id: i.id, title: i.title }))} />
+
       <LeadsTable leads={leads.map((l) => ({ ...l, item: l.itemTitle ? { title: l.itemTitle } : null }))} />
     </div>
   );

@@ -375,6 +375,69 @@ export async function listOrders(limit = 100): Promise<(Order & { itemTitle: str
   return rows.map((r: any) => ({ ...toOrder(r), itemTitle: r.item_title, itemDetails: r.item_details }));
 }
 
+/**
+ * Orders for a CSV export, filtered.
+ *
+ * Deliberately NOT reusing listOrders(): that one is capped at 100 rows
+ * for a screen, and an export that silently stopped at 100 would be worse
+ * than no export at all — you would reconcile against it and never know.
+ *
+ * The date bounds arrive as UTC instants already converted from the IST
+ * calendar dates the admin typed (see istDateToUtc), so this function
+ * does no timezone reasoning of its own. `to` is EXCLUSIVE here because
+ * the caller passes the start of the following day; that is what makes
+ * "to 2 September" include everything that happened on 2 September.
+ *
+ * Every predicate is written as "(param IS NULL OR column = param)" so
+ * this stays ONE static parameterised statement whatever the filters are.
+ * No string concatenation touches this query, so there is nothing here to
+ * inject into.
+ */
+export async function exportOrders(filters: {
+  fromUtc?: string | null;
+  toUtc?: string | null;
+  itemId?: string | null;
+  status?: string | null;
+}): Promise<(Order & { itemTitle: string })[]> {
+  const { rows } = await sql`
+    SELECT o.*, i.title as item_title
+    FROM orders o JOIN items i ON i.id = o.item_id
+    WHERE (${filters.fromUtc ?? null}::timestamptz IS NULL OR o.created_at >= ${filters.fromUtc ?? null}::timestamptz)
+      AND (${filters.toUtc ?? null}::timestamptz IS NULL OR o.created_at < ${filters.toUtc ?? null}::timestamptz)
+      AND (${filters.itemId ?? null}::text IS NULL OR o.item_id = ${filters.itemId ?? null}::text)
+      AND (${filters.status ?? null}::text IS NULL OR o.status = ${filters.status ?? null}::text)
+    ORDER BY o.created_at DESC
+  `;
+  return rows.map((r: any) => ({ ...toOrder(r), itemTitle: r.item_title }));
+}
+
+/** Leads for a CSV export, same filter shape and same reasoning. */
+export async function exportLeads(filters: {
+  fromUtc?: string | null;
+  toUtc?: string | null;
+  itemId?: string | null;
+  status?: string | null;
+}): Promise<(Lead & { itemTitle: string | null; source: string | null })[]> {
+  const { rows } = await sql`
+    SELECT l.*, i.title as item_title
+    FROM leads l LEFT JOIN items i ON i.id = l.item_id
+    WHERE (${filters.fromUtc ?? null}::timestamptz IS NULL OR l.created_at >= ${filters.fromUtc ?? null}::timestamptz)
+      AND (${filters.toUtc ?? null}::timestamptz IS NULL OR l.created_at < ${filters.toUtc ?? null}::timestamptz)
+      AND (${filters.itemId ?? null}::text IS NULL OR l.item_id = ${filters.itemId ?? null}::text)
+      AND (${filters.status ?? null}::text IS NULL OR l.status = ${filters.status ?? null}::text)
+    ORDER BY l.created_at DESC
+  `;
+  // toLead() deliberately does not carry `source` — the Lead type predates
+  // migration 002 and nothing else needed it. The campaign-scoped export
+  // does, so it is read straight off the row here. `?? null` because before
+  // that migration the column does not exist and the key is simply absent.
+  return rows.map((r: any) => ({
+    ...toLead(r),
+    itemTitle: r.item_title,
+    source: r.source ?? null,
+  }));
+}
+
 export async function orderStats(monthStart: Date) {
   const { rows } = await sql`
     SELECT COUNT(*)::int as count, COALESCE(SUM(amount), 0)::int as total

@@ -4,6 +4,7 @@ import { getAllAdPages } from "@/lib/site-settings";
 import { adSourceTag } from "@/lib/settings-types";
 import { formatRupees } from "@/lib/tax";
 import { SITE_TZ } from "@/lib/dates";
+import ExportBar from "../../ExportBar";
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +66,19 @@ export default async function AdPageSignupsPage({ params }: { params: { slug: st
             <Stat label="Registered" value={String(rows.filter((r) => r.kind === "lead").length)} />
             <Stat label="Paid" value={String(paid.length)} />
             <Stat label="Revenue" value={formatRupees(Math.round(revenuePaise / 100))} />
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 mb-2">
+            <ExportBar
+              type="orders"
+              source={adSourceTag(params.slug)}
+              note="Buyers from this campaign only. Dates are Indian time, both ends included."
+            />
+            <ExportBar
+              type="leads"
+              source={adSourceTag(params.slug)}
+              note="Registrations from this campaign only, including people who never paid."
+            />
           </div>
 
           {rows.length === 0 ? (

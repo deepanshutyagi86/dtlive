@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { listOrders } from "@/lib/admin-repo";
+import { listAllItems, listOrders } from "@/lib/admin-repo";
+import ExportBar from "../ExportBar";
 import { getInvoiceSettings, invoiceAppliesTo } from "@/lib/site-settings";
 import { SITE_TZ } from "@/lib/dates";
 
@@ -12,12 +13,22 @@ const STATUS_STYLE: Record<string, string> = {
 };
 
 export default async function AdminOrdersPage() {
-  const [orders, invoiceSettings] = await Promise.all([listOrders(100), getInvoiceSettings()]);
+  const [orders, invoiceSettings, items] = await Promise.all([
+    listOrders(100),
+    getInvoiceSettings(),
+    listAllItems(),
+  ]);
 
   return (
     <div>
       <p className="font-mono text-[11px] tracking-wider uppercase text-muted mb-1.5">Sales</p>
       <h1 className="font-display font-extrabold text-3xl tracking-tight mb-8">Orders</h1>
+
+      <ExportBar
+        type="orders"
+        items={items.map((i) => ({ id: i.id, title: i.title }))}
+        note="Dates are Indian time and both ends are included. Amounts are in rupees, not paise. The list below shows the 100 most recent orders — the CSV is not capped."
+      />
 
       {orders.length === 0 ? (
         <p className="text-muted">No orders yet.</p>
