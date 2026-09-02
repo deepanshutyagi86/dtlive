@@ -4,6 +4,7 @@ import { getLiveSettings } from "@/lib/site-settings";
 import { liveSourceTag } from "@/lib/settings-types";
 import { formatRupees } from "@/lib/tax";
 import { SITE_TZ } from "@/lib/dates";
+import ExportBar from "../../ExportBar";
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +66,19 @@ export default async function LiveRegistrationsPage({ params }: { params: { slug
             <Stat label="Registered" value={String(rows.filter((r) => r.kind === "lead").length)} />
             <Stat label="Paid" value={String(paid.length)} />
             <Stat label="Revenue" value={formatRupees(Math.round(revenuePaise / 100))} />
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 mb-2">
+            <ExportBar
+              type="orders"
+              source={liveSourceTag(params.slug)}
+              note="Buyers from this webinar only. Dates are Indian time, both ends included."
+            />
+            <ExportBar
+              type="leads"
+              source={liveSourceTag(params.slug)}
+              note="Registrations from this webinar only, including people who never paid."
+            />
           </div>
 
           {rows.length === 0 ? (
