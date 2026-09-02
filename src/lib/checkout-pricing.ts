@@ -7,7 +7,14 @@
 // being charged something other than the number they were shown.
 
 import { applyCoupon, type CouponResult } from "./coupons";
-import { computePricing, isValidGstin, stateCodeFromGstin, type Pricing } from "./tax";
+import {
+  computePricing,
+  declaredRatePercent,
+  deemedInclusiveSplit,
+  isValidGstin,
+  stateCodeFromGstin,
+  type Pricing,
+} from "./tax";
 import type { Coupon, TaxSettings } from "./settings-types";
 import { stateNameForCode } from "./settings-types";
 import type { OrderTaxSnapshot } from "./order-tax";
@@ -38,6 +45,7 @@ export function quoteOrder({
   coupons,
   tax,
   sellerStateCode,
+  sellerGstin,
   buyerGst,
 }: {
   listPrice: number;
@@ -47,6 +55,13 @@ export function quoteOrder({
   tax: TaxSettings;
   /** The seller's own GST state code — from BusinessSettings.stateCode. */
   sellerStateCode: string;
+  /**
+   * The seller's own GSTIN — from BusinessSettings.gstin. Required, not
+   * optional: it decides the rate the invoice DECLARES even when no tax is
+   * added at checkout, and a call site that forgot it would silently start
+   * issuing ₹0-GST tax invoices. Make the compiler ask.
+   */
+  sellerGstin: string;
   buyerGst?: BuyerGstInput | null;
 }): QuoteResult {
   let coupon: CouponResult | null = null;
@@ -105,7 +120,7 @@ export function quoteOrder({
   // seller's GSTIN. That is an under-declaration, not a display bug.
   const invoiceSplit = pricing.taxApplied
     ? pricing
-    : deemedInclusiveSplit(pricing.payable, tax.ratePercent, pricing.intraState);
+    : deemedInclusiveSplit(pricing.payable, declaredRatePercent(tax, sellerGstin), pricing.intraState);
 
   const snapshot: OrderTaxSnapshot = {
     ratePercent: invoiceSplit.ratePercent,
@@ -131,6 +146,7 @@ export function quoteOrder({
 }
 
 function emptySnapshot(listPrice: number, tax: TaxSettings): OrderTaxSnapshot {
+  // Only ever returned alongside ok:false, so no order is created from it.
   return {
     ratePercent: tax.enabled ? tax.ratePercent : 0,
     mode: tax.mode,
@@ -141,26 +157,5 @@ function emptySnapshot(listPrice: number, tax: TaxSettings): OrderTaxSnapshot {
     igst: 0,
     discount: 0,
     listPrice,
-  };
-}
-
-/**
- * The tax deemed to be inside an amount that was charged without adding any.
- * Mirrors what the invoice fallback has always done, but frozen at purchase
- * so a later rate change cannot rewrite an already-issued document.
- */
-function deemedInclusiveSplit(paid: number, ratePercent: number, intraState: boolean) {
-  const rate = Number.isFinite(ratePercent) ? Math.max(ratePercent, 0) : 0;
-  const r2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
-  const taxableValue = rate > 0 ? r2((paid * 100) / (100 + rate)) : r2(paid);
-  const taxTotal = r2(paid - taxableValue);
-  const half = r2(taxTotal / 2);
-  return {
-    ratePercent: rate,
-    taxableValue,
-    taxTotal,
-    cgst: intraState ? half : 0,
-    sgst: intraState ? r2(taxTotal - half) : 0,
-    igst: intraState ? 0 : taxTotal,
   };
 }

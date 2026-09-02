@@ -150,6 +150,60 @@ export function computePricing({
   };
 }
 
+/**
+ * The GST rate a sale must DECLARE, which is not the same as the rate to
+ * ADD at checkout.
+ *
+ * TaxSettings.enabled — and the per-item / per-campaign overrides that beat
+ * it — answer only one question: "is GST added on top of the price I
+ * typed?" Switching it off does not make the supply exempt. For a
+ * registered seller the consideration is deemed INCLUSIVE of GST, so a ₹27
+ * ticket is ₹22.88 plus ₹4.12 of tax, and an invoice raised under that
+ * seller's GSTIN declaring ₹0 is an under-declaration, not a display
+ * choice.
+ *
+ * The only thing that makes the declared rate genuinely zero is having no
+ * GSTIN — an unregistered seller has nothing to declare and, strictly,
+ * should be issuing a bill of supply rather than a tax invoice.
+ *
+ * This exists as one exported function because the checkout snapshot and
+ * the invoice page each used to decide it for themselves, and they
+ * disagreed: checkout backed the tax out of the amount paid, while the
+ * invoice fallback zeroed the rate whenever charging was off. An order
+ * created before the tax_details migration therefore rendered a tax
+ * invoice reading "GST @ 0%" under a live GSTIN.
+ */
+export function declaredRatePercent(tax: TaxSettings, sellerGstin: string): number {
+  if (!String(sellerGstin ?? "").trim()) return 0;
+  return Number.isFinite(tax.ratePercent) ? Math.max(tax.ratePercent, 0) : 0;
+}
+
+/**
+ * The tax deemed to be inside an amount that was charged without adding any.
+ *
+ * Used by the checkout snapshot at purchase time and by the invoice page's
+ * fallback for orders that predate the snapshot. One implementation, so the
+ * frozen document and the recomputed one cannot disagree.
+ */
+export function deemedInclusiveSplit(
+  paid: number,
+  ratePercent: number,
+  intraState: boolean
+): { ratePercent: number; taxableValue: number; taxTotal: number; cgst: number; sgst: number; igst: number } {
+  const rate = Number.isFinite(ratePercent) ? Math.max(ratePercent, 0) : 0;
+  const taxableValue = rate > 0 ? round2((paid * 100) / (100 + rate)) : round2(paid);
+  const taxTotal = round2(paid - taxableValue);
+  const half = round2(taxTotal / 2);
+  return {
+    ratePercent: rate,
+    taxableValue,
+    taxTotal,
+    cgst: intraState ? half : 0,
+    sgst: intraState ? round2(taxTotal - half) : 0,
+    igst: intraState ? 0 : taxTotal,
+  };
+}
+
 /** Indian digit grouping: 6999 -> "6,999". */
 export function formatRupees(n: number): string {
   const rounded = Math.round((n + Number.EPSILON) * 100) / 100;

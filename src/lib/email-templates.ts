@@ -1,141 +1,44 @@
-// Admin-editable email copy. Each template is plain text with {token}
-// placeholders — the admin never authors HTML directly (matches "no heavy
-// HTML template framework"); the HTML body is derived from the same plain
-// text via emailHtml()'s wrapper plus a simple paragraph/line-break split.
+// Rendering an admin-edited template into a sendable email.
+//
+// The copy itself — the defaults, the token list, the substitution rules —
+// lives in ./email-copy, which has zero imports so the admin settings form
+// can import it too. This module is the SERVER half: it adds the HTML
+// wrapper and the sender identity footer, both of which come from ./email
+// and pull in the Resend SDK.
+//
+// Everything ./email-copy exports is re-exported here, so the existing
+// server call sites (order-notifications, api/leads) keep their imports.
 import { emailHtml, emailTextFooter, type EmailSender } from "./email";
+import { substitute, type PlaceholderValues } from "./email-copy";
+import type { EmailTemplate } from "./email-copy";
 
-export interface EmailTemplate {
-  subject: string;
-  body: string;
-}
+export {
+  DEFAULT_EMAIL_COPY,
+  EMAIL_TEMPLATE_META,
+  PLACEHOLDER_KEYS,
+  PLACEHOLDER_HELP,
+  resolveTemplate,
+  substitute,
+} from "./email-copy";
+export type {
+  EmailCopy,
+  EmailTemplate,
+  EmailTemplateKey,
+  PlaceholderKey,
+  PlaceholderValues,
+} from "./email-copy";
 
-export interface EmailCopy {
-  paidBuyer?: Partial<EmailTemplate>;
-  paidAdmin?: Partial<EmailTemplate>;
-  leadBuyer?: Partial<EmailTemplate>;
-  leadAdmin?: Partial<EmailTemplate>;
-}
-
-// The full set of tokens every template may use. A token with no value for
-// a given send renders as an empty string — never the literal "{token}"
-// and never "undefined".
-export type PlaceholderKey =
-  | "name"
-  | "firstName"
-  | "item"
-  | "amount"
-  | "orderId"
-  | "email"
-  | "phone"
-  // Joining + post-purchase tokens. Each resolves to "" when the item has
-  // no such detail configured, so a template that uses {groupUrl} on an
-  // item with no group link renders a blank rather than a broken link —
-  // the same rule every other token already followed.
-  | "date"
-  | "groupUrl"
-  | "meetingUrl"
-  | "calendarUrl"
-  | "invoiceUrl"
-  | "joiningNote";
-export type PlaceholderValues = Partial<Record<PlaceholderKey, string>>;
-
-export const PLACEHOLDER_KEYS: PlaceholderKey[] = [
-  "name",
-  "firstName",
-  "item",
-  "amount",
-  "orderId",
-  "email",
-  "phone",
-  "date",
-  "groupUrl",
-  "meetingUrl",
-  "calendarUrl",
-  "invoiceUrl",
-  "joiningNote",
-];
-
-export const DEFAULT_EMAIL_COPY: Record<"paidBuyer" | "paidAdmin" | "leadBuyer" | "leadAdmin", EmailTemplate> = {
-  paidBuyer: {
-    subject: "Payment confirmed — {item}",
-    body: `Hi {firstName},
-
-Payment received for {item} — thanks for joining.
-
-Amount: {amount}
-Order ID: {orderId}
-
-I'll be in touch directly if there's anything else you need before it starts. See you there.
-
-— Deepanshu`,
-  },
-  paidAdmin: {
-    subject: "New order — {item} ({amount})",
-    body: `New paid order.
-
-Item: {item}
-Amount: {amount}
-Order ID: {orderId}
-
-Buyer
-Name: {name}
-Email: {email}
-Phone: {phone}`,
-  },
-  leadBuyer: {
-    subject: "Got your details",
-    body: `Hi {firstName},
-
-Thanks for getting in touch. I've got your details and will follow up directly.
-
-Re: {item}
-
-— Deepanshu`,
-  },
-  leadAdmin: {
-    subject: "New lead",
-    body: `New lead.
-
-Item: {item}
-
-Name: {name}
-Email: {email}
-Phone: {phone}`,
-  },
-};
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-// Flat {token} substitution. `escape` is true only for the HTML body pass —
-// the surrounding admin-authored template text is trusted, but every
-// interpolated value (buyer name, email, item title, ...) is escaped there
-// so a crafted buyer-supplied value can't inject markup into the email.
-function substitute(template: string, values: PlaceholderValues, escape: boolean): string {
-  return template.replace(/\{(\w+)\}/g, (_match, key: string) => {
-    const value = values[key as PlaceholderKey];
-    if (value === undefined || value === null || value === "") return "";
-    return escape ? escapeHtml(value) : value;
-  });
-}
-
-// Blank admin-edited fields fall back to the code default, independently
-// per field (editing just the subject and leaving body blank keeps the
-// default body).
-export function resolveTemplate(
-  configured: Partial<EmailTemplate> | undefined,
-  fallback: EmailTemplate
-): EmailTemplate {
-  return {
-    subject: configured?.subject?.trim() || fallback.subject,
-    body: configured?.body?.trim() || fallback.body,
-  };
+/**
+ * Removes the hole an omitted optional block leaves behind.
+ *
+ * A block that sat on its own line between two paragraphs leaves three or
+ * more consecutive newlines when it is dropped, which the HTML pass then
+ * renders as an empty <p>. Collapsing to exactly one blank line is what a
+ * reader would have typed, and it also trims the trailing whitespace a
+ * block at the very end leaves.
+ */
+function tidy(body: string): string {
+  return body.replace(/\n{3,}/g, "\n\n").replace(/[ \t]+\n/g, "\n").trim();
 }
 
 export function renderTemplate(
@@ -148,11 +51,14 @@ export function renderTemplate(
 ): { subject: string; text: string; html: string } {
   // Subjects go out as a raw header field — strip any stray newline from a
   // substituted value rather than let it split into extra header lines.
-  const subject = substitute(template.subject, values, false).replace(/[\r\n]+/g, " ");
-  const text = substitute(template.body, values, false) + emailTextFooter(sender);
-  const htmlBody = substitute(template.body, values, true)
+  const subject = substitute(template.subject, values, false).replace(/[\r\n]+/g, " ").trim();
+
+  const text = tidy(substitute(template.body, values, false)) + emailTextFooter(sender);
+
+  const htmlBody = tidy(substitute(template.body, values, true))
     .split("\n\n")
     .map((para) => `<p style="margin:0 0 16px;line-height:1.6;">${para.replace(/\n/g, "<br>")}</p>`)
     .join("");
+
   return { subject, text, html: emailHtml(htmlBody, sender) };
 }

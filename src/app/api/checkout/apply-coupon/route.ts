@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
       coupons,
       tax: effectiveTax,
       sellerStateCode: business.stateCode,
+      sellerGstin: business.gstin,
       buyerGst: buyerGst && typeof buyerGst === "object" ? buyerGst : null,
     });
 

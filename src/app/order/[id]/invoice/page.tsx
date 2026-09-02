@@ -2,8 +2,8 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getOrderById } from "@/lib/admin-repo";
 import { getBusinessSettings, getInvoiceSettings, getTaxSettings, invoiceAppliesTo } from "@/lib/site-settings";
-import { taxFor, taxModeFor } from "@/lib/settings-types";
 import { amountInWords, computeInvoice, formatMoney, invoiceNumber } from "@/lib/invoice";
+import { declaredRatePercent } from "@/lib/tax";
 import { SITE_TZ } from "@/lib/dates";
 import PrintButton from "./PrintButton";
 
@@ -39,13 +39,17 @@ export default async function InvoicePage({ params }: { params: { id: string } }
   // changing the rate today must not rewrite a document already issued —
   // the live rate is only the fallback for orders created before the
   // snapshot existed. See computeInvoice.
-  // Fallback rate for an order with no snapshot: the item's own GST
-  // setting decides it, not the global rate alone. Without this, an item
-  // sold with tax switched OFF would produce an invoice back-computing
-  // GST out of the gross — a tax document claiming money that was never
-  // collected, which is the one error on this page that has consequences.
-  const fallbackTax = taxFor(tax, taxModeFor(order.item.details));
-  const fallbackRate = fallbackTax.enabled ? fallbackTax.ratePercent : 0;
+  // Fallback rate for an order with no snapshot.
+  //
+  // This used to read `fallbackTax.enabled ? rate : 0`, which was wrong and
+  // shipped a real ₹0-GST tax invoice. "Tax off" means GST is not ADDED to
+  // the price at checkout; it does not mean the supply is exempt. For a
+  // registered seller the amount collected is deemed GST-inclusive, so ₹27
+  // is ₹22.88 + ₹4.12 — the same split the checkout snapshot has always
+  // frozen. The two halves now call one function so they cannot diverge
+  // again; the item's own override deliberately plays no part, because it
+  // governs charging, not declaring.
+  const fallbackRate = declaredRatePercent(tax, business.gstin);
   const calc = computeInvoice(fallbackRate, gross, snapshot ? snapshot.igst <= 0 : true, snapshot);
   const buyerGstin = snapshot?.buyerGstin;
   // The taxable share of any discount. In exclusive mode that is the whole

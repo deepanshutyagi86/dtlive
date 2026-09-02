@@ -18,6 +18,16 @@ import { asArray, normaliseBoothSets } from "@/lib/admin-normalise";
 // Plain module, deliberately: the six settings PAGES are server
 // components and cannot import shared data out of this client file.
 import type { SettingsSectionKey } from "@/lib/settings-sections";
+// Same rule: the email defaults and the token list are DATA the server
+// also uses at send time, so they live in a zero-import module rather
+// than being hand-copied into this file. email-templates.ts is the
+// server half and pulls in the Resend SDK — never import it here.
+import {
+  DEFAULT_EMAIL_COPY,
+  EMAIL_TEMPLATE_META,
+  PLACEHOLDER_HELP,
+} from "@/lib/email-copy";
+import type { EmailCopy, EmailTemplateKey } from "@/lib/email-copy";
 import {
   DEFAULT_BIO,
   DEFAULT_BOOTH,
@@ -62,67 +72,11 @@ interface HeroCopy {
   line2?: string;
   subline?: string;
 }
-interface EmailTemplate {
-  subject?: string;
-  body?: string;
-}
-interface EmailCopy {
-  paidBuyer?: EmailTemplate;
-  paidAdmin?: EmailTemplate;
-  leadBuyer?: EmailTemplate;
-  leadAdmin?: EmailTemplate;
-}
-
 const HERO_DEFAULTS = {
   eyebrow: "DEEPANSHUTYAGI.LIVE — THE STOREFRONT",
   line1: "Live,",
   line2: "right now.",
   subline: "Everything I teach, build, and sell.",
-};
-
-// Kept in sync with DEFAULT_EMAIL_COPY in src/lib/email-templates.ts — this
-// copy is just what the placeholder text shows when a field is blank; the
-// actual fallback used at send time lives server-side in that file.
-const EMAIL_DEFAULTS: Record<keyof EmailCopy, Required<EmailTemplate>> = {
-  paidBuyer: {
-    subject: "Payment confirmed — {item}",
-    body: "Hi {firstName},\n\nPayment received for {item} — thanks for joining.\n\nAmount: {amount}\nOrder ID: {orderId}\n\nI'll be in touch directly if there's anything else you need before it starts. See you there.\n\n— Deepanshu",
-  },
-  paidAdmin: {
-    subject: "New order — {item} ({amount})",
-    body: "New paid order.\n\nItem: {item}\nAmount: {amount}\nOrder ID: {orderId}\n\nBuyer\nName: {name}\nEmail: {email}\nPhone: {phone}",
-  },
-  leadBuyer: {
-    subject: "Got your details",
-    body: "Hi {firstName},\n\nThanks for getting in touch. I've got your details and will follow up directly.\n\nRe: {item}\n\n— Deepanshu",
-  },
-  leadAdmin: {
-    subject: "New lead",
-    body: "New lead.\n\nItem: {item}\n\nName: {name}\nEmail: {email}\nPhone: {phone}",
-  },
-};
-
-const EMAIL_TEMPLATE_META: Record<keyof EmailCopy, { title: string; blurb: string; placeholders: string[] }> = {
-  paidBuyer: {
-    title: "Paid order — to the buyer",
-    blurb: "Sent the moment an order is confirmed paid.",
-    placeholders: ["firstName", "name", "item", "amount", "orderId", "email", "phone"],
-  },
-  paidAdmin: {
-    title: "Paid order — to you",
-    blurb: "Sent to the notification address below, same trigger.",
-    placeholders: ["firstName", "name", "item", "amount", "orderId", "email", "phone"],
-  },
-  leadBuyer: {
-    title: "New lead — to the registrant",
-    blurb: "Sent after a free registration or enquiry, if they gave an email.",
-    placeholders: ["firstName", "name", "item", "email", "phone"],
-  },
-  leadAdmin: {
-    title: "New lead — to you",
-    blurb: "Sent to the notification address below, same trigger.",
-    placeholders: ["firstName", "name", "item", "email", "phone"],
-  },
 };
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -273,7 +227,7 @@ export default function SettingsForm({ show }: { show?: SettingsSectionKey[] }) 
     setTimeout(() => setSaved(false), 2500);
   }
 
-  function updateTemplate(key: keyof EmailCopy, field: keyof EmailTemplate, value: string) {
+  function updateTemplate(key: EmailTemplateKey, field: "subject" | "body", value: string) {
     setEmailCopy({ ...emailCopy, [key]: { ...emailCopy[key], [field]: value } });
   }
 
@@ -381,18 +335,35 @@ export default function SettingsForm({ show }: { show?: SettingsSectionKey[] }) 
           Plain text only — placeholders get swapped in when each email sends. Blank subject or body falls back to
           the default independently.
         </p>
+        <p className="text-sm text-muted mb-4">
+          A placeholder with nothing behind it — no invoice, no group link — renders as blank. When it has a label
+          in front of it, wrap the whole line so the label disappears too:{" "}
+          <code className="font-mono text-[12px] bg-bone border border-line rounded px-1 py-0.5">
+            {"{?invoiceUrl}Your GST invoice: {invoiceUrl}{/invoiceUrl}"}
+          </code>
+        </p>
         <div className="space-y-6">
-          {(Object.keys(EMAIL_TEMPLATE_META) as (keyof EmailCopy)[]).map((key) => {
+          {(Object.keys(EMAIL_TEMPLATE_META) as EmailTemplateKey[]).map((key) => {
             const meta = EMAIL_TEMPLATE_META[key];
-            const defaults = EMAIL_DEFAULTS[key];
+            const defaults = DEFAULT_EMAIL_COPY[key];
             const template = emailCopy[key] ?? {};
             return (
               <div key={key} className="bg-card border border-line rounded-card p-4">
                 <p className="font-semibold text-sm">{meta.title}</p>
                 <p className="text-xs text-muted mb-3">{meta.blurb}</p>
-                <p className="font-mono text-[10px] text-muted mb-3">
-                  Placeholders: {meta.placeholders.map((p) => `{${p}}`).join("  ")}
-                </p>
+                <details className="mb-3 group">
+                  <summary className="font-mono text-[10px] text-muted cursor-pointer select-none hover:text-ink">
+                    {meta.placeholders.length} placeholders — {meta.placeholders.map((ph) => `{${ph}}`).join("  ")}
+                  </summary>
+                  <ul className="mt-2 space-y-1 border-l-2 border-line pl-3">
+                    {meta.placeholders.map((ph) => (
+                      <li key={ph} className="text-[11px] leading-snug">
+                        <code className="font-mono text-[11px] text-ink">{`{${ph}}`}</code>{" "}
+                        <span className="text-muted">— {PLACEHOLDER_HELP[ph]}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
                 <Field label="Subject">
                   <input
                     className={inputClass}
