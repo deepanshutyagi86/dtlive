@@ -18,10 +18,18 @@ const instrument = Instrument_Sans({
   weight: ["400", "500", "600"],
   variable: "--font-instrument",
 });
+// preload:false, deliberately. next/font emits <link rel=preload as=font>
+// for every preloaded face, which competes at top priority with the ad
+// page's preloaded hero image. Space Mono's two faces are 19KB of that
+// contention and they set 10-12px chip labels — the countdown units, the
+// LIVE pill, the seat line. They still load and still swap in; they just
+// stop racing the LCP. Bricolage and Instrument keep their preload: those
+// set the headline and the body, which ARE the LCP.
 const spaceMono = Space_Mono({
   subsets: ["latin"],
   weight: ["400", "700"],
   variable: "--font-space-mono",
+  preload: false,
 });
 
 const DEFAULT_TITLE = "Deepanshu Tyagi — Live";

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import CheckoutModal from "@/components/CheckoutModal";
@@ -32,9 +31,30 @@ import { type RegistrationField, type WorkshopDetails } from "@/lib/types";
 import { SITE_TZ } from "@/lib/dates";
 import type { Metadata } from "next";
 
-// Paid traffic, so speed is the priority and the settings read is cached
-// for 30s — see cachedAdPage. Safe because the price is re-resolved at
-// checkout: a stale page can show an old seat count, never an old price.
+// Paid traffic, so speed is the priority. Safe to cache because the price
+// is re-resolved at checkout: a stale page can show an old seat count,
+// never an old price, and a closed campaign is refused by adOfferClosed().
+//
+// force-static is LOAD-BEARING, not belt-and-braces. Without it this route
+// was fully dynamic and `revalidate = 30` had never once taken effect —
+// confirmed from the build output, where prerender-manifest.json listed
+// `dynamicRoutes: []` and no .html/.rsc was emitted for /w/[slug].
+//
+// The cause is db.ts: the Neon driver is constructed with
+// `fetchOptions: { cache: "no-store" }`, and Next's patched fetch throws
+// DynamicServerError on a no-store fetch during static generation, which
+// silently rewrites this route's revalidate to 0. That no-store is correct
+// and must stay — without it a parameterless query's first result gets
+// cached forever. `force-static` is the documented escape hatch: Next
+// checks `!forceStatic` before that throw, so the queries stop opting the
+// route out and the whole page becomes genuine ISR at 30s, served from the
+// edge PoP nearest the visitor instead of an origin round trip plus eight
+// Neon calls per ad click.
+//
+// Checked before doing this: the page reads no searchParams, no cookies()
+// and no headers(), and UTM/fbclid capture is entirely client-side in
+// MetaPixelView, so nothing about attribution depends on a dynamic render.
+export const dynamic = "force-static";
 export const revalidate = 30;
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
@@ -488,15 +508,15 @@ export default async function AdLandingPage({ params }: { params: { slug: string
         {/* The only links off this page, and only the ones a page taking
             payment is obliged to carry. */}
         <p className={`flex flex-wrap items-center justify-center gap-x-4 gap-y-1 font-mono text-[10px] mt-14 ${t.muted}`}>
-          <Link href="/terms" className={`${t.accentHover} transition-colors`}>
+          <a href="/terms" className={`${t.accentHover} transition-colors`}>
             Terms
-          </Link>
-          <Link href="/privacy" className={`${t.accentHover} transition-colors`}>
+          </a>
+          <a href="/privacy" className={`${t.accentHover} transition-colors`}>
             Privacy
-          </Link>
-          <Link href="/refund-policy" className={`${t.accentHover} transition-colors`}>
+          </a>
+          <a href="/refund-policy" className={`${t.accentHover} transition-colors`}>
             Refunds
-          </Link>
+          </a>
           <span>{business.tradeName}</span>
         </p>
       </main>

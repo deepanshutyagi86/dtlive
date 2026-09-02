@@ -8,6 +8,12 @@ const nextConfig = {
     staleTimes: { dynamic: 0 },
   },
   images: {
+    // AVIF first. The ad page's LCP is a photographic 16:9 hero, where
+    // AVIF lands 20-30% smaller than WebP at the same perceptual quality —
+    // the cheapest real win available on a phone in India. Next 14
+    // defaults to WebP only. The first transform per size is slower; every
+    // one after it is an edge cache hit.
+    formats: ["image/avif", "image/webp"],
     // Scoped to Vercel Blob only. `hostname: "**"` was harmless while
     // next/image was unused, but every card renders through the optimiser
     // now: an open allowlist lets anyone point /_next/image at any URL on

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { getAdminSession } from "@/lib/auth";
 import { getAllSettings, hasTaxDetailsColumn, upsertSetting } from "@/lib/admin-repo";
 
@@ -49,6 +50,24 @@ export async function PUT(req: NextRequest) {
   const updates = Object.entries(body).filter(([key]) => ALLOWED_KEYS.includes(key));
 
   await Promise.all(updates.map(([key, value]) => upsertSetting(key, value)));
+
+  // The ad page is now genuine ISR (see the force-static comment in
+  // src/app/w/[slug]/page.tsx), so without this an admin edit would sit
+  // invisible behind the CDN for up to 30 seconds — and cachedAdPage has
+  // carried a `tags: ["ad-pages"]` label since the day it was written with
+  // nothing anywhere in the repo ever invalidating it. This is the other
+  // half of that contract: change the row, drop the cache, see it live.
+  //
+  // Deliberately after the write and deliberately not awaited into the
+  // response's success condition — a failed cache bust must never make a
+  // saved setting report as unsaved. The worst case is the old 30s wait.
+  if (updates.some(([key]) => key === "adPages")) {
+    try {
+      revalidateTag("ad-pages");
+    } catch (err) {
+      console.error("Settings saved, but the ad-page cache could not be busted:", err);
+    }
+  }
 
   return NextResponse.json({ ok: true });
 }
