@@ -128,7 +128,13 @@ export default async function AdLandingPage({ params }: { params: { slug: string
   // would otherwise read "0 people have joined" on launch day.
   const joinedCount = (page.joinedBaseline ?? 0) + paidHere;
   const showJoined = page.showJoined === true && joinedCount > 0;
-  const soldOut = page.showSeats !== false && seatsLeft !== null && seatsLeft <= 0;
+  // NOT gated on page.showSeats. That flag is a DISPLAY choice — "show
+  // how many seats are left" — and gating sold-out on it meant a campaign
+  // with the seat line switched off kept rendering a live Enroll button
+  // for a sold-out workshop: the buyer filled in the modal, tapped pay,
+  // and only then got create-order's 409 "This workshop is sold out."
+  // What is shown and what is sellable are two different questions.
+  const soldOut = seatsLeft !== null && seatsLeft <= 0;
 
   // Picked by position, and filtered against the current list — a
   // testimonial deleted in Appearance leaves a gap here rather than an

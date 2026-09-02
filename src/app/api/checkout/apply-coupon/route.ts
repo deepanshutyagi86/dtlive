@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getItemById } from "@/lib/items";
-import { getBusinessSettings, getCoupons, getTaxSettings, adPriceFor, adTaxModeFor, livePriceFor } from "@/lib/site-settings";
+import {
+  getBusinessSettings,
+  getCoupons,
+  getTaxSettings,
+  adOfferClosed,
+  adPriceFor,
+  adTaxModeFor,
+  livePriceFor,
+} from "@/lib/site-settings";
 import { quoteOrder } from "@/lib/checkout-pricing";
 import { taxFor, taxModeFor } from "@/lib/settings-types";
 import { rateLimit, clientIpFrom } from "@/lib/rate-limit";
@@ -40,6 +48,16 @@ export async function POST(req: NextRequest) {
     // browser named — livePriceFor() is the same call create-order makes,
     // so the number previewed here is the number charged there.
     const live = await livePriceFor(item.id, liveSession, liveBlockId);
+
+    // Same refusal create-order makes, and for the same reason: without
+    // it, a closed campaign's PREVIEW silently jumped to the item's own
+    // (usually much higher) price with ok:true and no error — a buyer
+    // watched the number change with no explanation, then got a 409 only
+    // once they tried to actually pay. The two responses must agree.
+    if (!live && (await adOfferClosed(item.id, adPage))) {
+      return NextResponse.json({ ok: false, reason: "Registration for this has closed." }, { status: 409 });
+    }
+
     const offer = live ?? (await adPriceFor(item.id, adPage));
     const listPrice = offer ? offer.price : (item.details as CourseDetails | WorkshopDetails).price;
     if (!Number.isFinite(listPrice) || listPrice <= 0) {

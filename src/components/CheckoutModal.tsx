@@ -154,7 +154,12 @@ export default function CheckoutModal({
           body: JSON.stringify({ itemId, code: code ?? "", buyerGst: gstDetails, liveSession, liveBlockId, adPage }),
         });
         const data = (await res.json()) as Quote & { ok: boolean; reason?: string };
-        if (!data.ok && code) return null;
+        // Not just `&& code`: a closed campaign can now fail the very
+        // first, no-code fetch this modal makes on open (adOfferClosed),
+        // and that response has none of Quote's real fields. Setting it
+        // anyway rendered "₹NaN" in the breakdown instead of leaving the
+        // last good quote — or none — on screen.
+        if (!data.ok) return null;
         setQuote(data);
         return data;
       } catch {

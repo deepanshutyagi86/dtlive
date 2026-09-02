@@ -533,6 +533,17 @@ export async function getAdPages(): Promise<AdPagesSettings> {
       // recognise must not be live, and — through isOfferSellable — must
       // not be sellable either.
       enabled: p.enabled === true,
+      // Validated the same way taxModeFor() validates an item's own
+      // override. This line was missing: the type declared taxMode, the
+      // admin panel wrote it, adTaxModeFor() read it, and this map — which
+      // builds a NEW object rather than spreading ...p — deleted it on
+      // every read, so the per-campaign GST override was dead from the day
+      // it shipped. The admin normaliser DOES spread, which is why the
+      // panel showed the setting persisting correctly.
+      taxMode:
+        p.taxMode === "on" || p.taxMode === "off" || p.taxMode === "default"
+          ? (p.taxMode as TaxMode)
+          : undefined,
       headline: clean(p.headline) || "",
       subheadline: clean(p.subheadline) || "",
       heroImageUrl: clean(p.heroImageUrl),
@@ -628,6 +639,42 @@ export async function adPriceFor(
   const offer = resolveAdOffer(await getAdPages(), slug, itemId);
   if (!offer) return null;
   return { price: offer.price, sourceTag: adSourceTag(offer.page.slug) };
+}
+
+/**
+ * True when a named ad page exists but can no longer sell.
+ *
+ * adPriceFor() collapses five different situations into `null`, and only
+ * one of them means "this campaign sells at the item's normal price". The
+ * other four mean "this offer is not valid" — and create-order used to
+ * treat all five the same way, by falling back to `details.price`. So a
+ * buyer who opened the checkout at 23:59 against a deadline of midnight
+ * was quoted the ad price, and charged the ITEM's price on tap. The page
+ * itself is ISR-cached for 30s and Meta keeps delivering the ad for hours
+ * after a deadline, so this is an ordinary Sunday-night race, not an
+ * attack.
+ *
+ * Deliberately narrow: an unknown slug is NOT closed. That falls through
+ * to the item's own price, which is the correct answer for a deleted
+ * campaign or a mangled link, and refusing there would break ordinary
+ * purchases. Only a campaign we can see, and can see is finished, refuses.
+ */
+export async function adOfferClosed(
+  itemId: string,
+  slug: string | null | undefined
+): Promise<boolean> {
+  if (!slug) return false;
+  // NOT adPageBySlug(): that helper already returns null for a disabled
+  // page, same as an unknown one — which would make the `!page.enabled`
+  // check below unreachable and silently let a disabled campaign's
+  // checkout fall through to the item's price exactly like the deadline
+  // bug this function exists to close. Looked up directly so "disabled"
+  // and "doesn't exist" stay distinguishable.
+  const settings = await getAdPages();
+  const page = settings.pages.find((p) => p.slug === slug) ?? null;
+  if (!page) return false;
+  if (page.itemId !== itemId) return false;
+  return !page.enabled || isDeadlinePassed(page.deadlineIso);
 }
 
 /** The source tag for a free registration from an ad page, which has no

@@ -5,7 +5,15 @@ import { createRazorpayOrder } from "@/lib/razorpay";
 import type { CourseDetails, WorkshopDetails } from "@/lib/types";
 import { rateLimit, clientIpFrom } from "@/lib/rate-limit";
 import { isValidEmail, isValidPhone, normalisePhone } from "@/lib/validate";
-import { getBusinessSettings, getCoupons, getTaxSettings, adPriceFor, adTaxModeFor, livePriceFor } from "@/lib/site-settings";
+import {
+  getBusinessSettings,
+  getCoupons,
+  getTaxSettings,
+  adOfferClosed,
+  adPriceFor,
+  adTaxModeFor,
+  livePriceFor,
+} from "@/lib/site-settings";
 import { markCouponUsed } from "@/lib/coupons";
 import { quoteOrder } from "@/lib/checkout-pricing";
 import { taxFor, taxModeFor } from "@/lib/settings-types";
@@ -69,6 +77,17 @@ export async function POST(req: NextRequest) {
     // come from one surface, so live wins if somehow both are named.
     const ad = live ? null : await adPriceFor(item.id, adPage);
     const offer = live ?? ad;
+
+    // A campaign that has closed must REFUSE, never quietly reprice to the
+    // item's own price. Same message the page shows once the deadline has
+    // passed, so the two surfaces say the same thing.
+    if (!live && (await adOfferClosed(item.id, adPage))) {
+      return NextResponse.json(
+        { error: "Registration for this has closed." },
+        { status: 409 }
+      );
+    }
+
     const listPrice = offer ? offer.price : details.price;
 
     if (!Number.isFinite(listPrice) || listPrice <= 0) {
