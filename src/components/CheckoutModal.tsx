@@ -6,6 +6,7 @@ import { useModalBehavior } from "@/lib/useModalBehavior";
 import { useModalViewport, HERO_COLLAPSE_HEIGHT, scrollFieldIntoView } from "@/lib/useModalViewport";
 import { isValidEmail, isValidPhone, stripToPhoneChars } from "@/lib/validate";
 import { readAttribution } from "@/lib/attribution";
+import { fbTrack, genEventId } from "@/lib/fbq";
 import { formatRupees, isValidGstin } from "@/lib/tax";
 import { GST_STATES, type TaxSettings } from "@/lib/settings-types";
 import type { Category, ImageFocal } from "@/lib/types";
@@ -60,6 +61,7 @@ export default function CheckoutModal({
   thumbnail,
   imageFocal,
   priceLabel,
+  price,
   tax,
   gstin,
   triggerClassName,
@@ -75,6 +77,10 @@ export default function CheckoutModal({
   thumbnail: string | null;
   imageFocal?: ImageFocal | null;
   priceLabel: string;
+  /** List price, for the InitiateCheckout `value`. Analytics only — the
+   *  server re-quotes the real payable amount at create-order regardless
+   *  of whether this is passed. */
+  price?: number;
   /** Drives the breakdown and whether the GSTIN block is offered at all. */
   tax: TaxSettings;
   /** The seller's own GSTIN, from getBusinessSettings() — never hardcoded. */
@@ -184,12 +190,21 @@ export default function CheckoutModal({
     // Purchase volume is still too low for Meta to learn from. Fired on
     // every open, deliberately — each one is a real, separate intent, and
     // deduplicating them would understate exactly the thing being measured.
-    window.fbq?.("track", "InitiateCheckout", {
-      content_ids: [itemId],
-      content_name: title,
-      content_type: "product",
-      currency: "INR",
-    });
+    // A fresh genEventId() per open, not a reused one: unlike Purchase there
+    // is no natural id yet (no order exists until create-order succeeds),
+    // and no server-side CAPI mirror sends this same event today — the id
+    // is generated now so that future CAPI work has one available.
+    fbTrack(
+      "InitiateCheckout",
+      {
+        content_ids: [itemId],
+        content_name: title,
+        content_type: "product",
+        ...(price !== undefined ? { value: price } : {}),
+        currency: "INR",
+      },
+      genEventId()
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 

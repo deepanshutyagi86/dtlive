@@ -1,12 +1,7 @@
 "use client";
 import { useEffect } from "react";
 import { captureAttribution } from "@/lib/attribution";
-
-declare global {
-  interface Window {
-    fbq?: (...args: unknown[]) => void;
-  }
-}
+import { fbTrack } from "@/lib/fbq";
 
 /**
  * Fires ViewContent, and records where this visitor came from.
@@ -49,7 +44,7 @@ export default function MetaPixelView({
       // failure than no signal at all.
     }
 
-    window.fbq("track", "ViewContent", {
+    fbTrack("ViewContent", {
       content_ids: [contentId],
       content_name: contentName,
       content_type: contentType,

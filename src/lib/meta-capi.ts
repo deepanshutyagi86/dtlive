@@ -6,6 +6,7 @@
 
 import { createHash } from "crypto";
 import type { Order, Lead } from "./db";
+import { META_PIXEL_ID_SERVER } from "./meta-config";
 
 const GRAPH_VERSION = "v21.0";
 
@@ -27,7 +28,7 @@ function hashPhone(phone: string): string {
 }
 
 export async function sendMetaPurchaseEvent(order: Order): Promise<void> {
-  const pixelId = process.env.META_PIXEL_ID;
+  const pixelId = META_PIXEL_ID_SERVER;
   const accessToken = process.env.META_CAPI_TOKEN;
   if (!pixelId || !accessToken) {
     console.warn("Meta CAPI: META_PIXEL_ID/META_CAPI_TOKEN not configured, skipping Purchase event");
@@ -80,7 +81,7 @@ export async function sendMetaPurchaseEvent(order: Order): Promise<void> {
 // "value: 0" call) stops free registrations from polluting the ad
 // account's purchase-optimization signal.
 export async function sendMetaLeadEvent(lead: Lead): Promise<void> {
-  const pixelId = process.env.META_PIXEL_ID;
+  const pixelId = META_PIXEL_ID_SERVER;
   const accessToken = process.env.META_CAPI_TOKEN;
   if (!pixelId || !accessToken) {
     console.warn("Meta CAPI: META_PIXEL_ID/META_CAPI_TOKEN not configured, skipping Lead event");

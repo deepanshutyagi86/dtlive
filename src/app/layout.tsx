@@ -5,6 +5,8 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Bricolage_Grotesque, Instrument_Sans, Space_Mono } from "next/font/google";
 import "./globals.css";
 import { getBranding, SITE_URL } from "@/lib/site-settings";
+import MetaPixelRouteTracker from "@/components/MetaPixelRouteTracker";
+import { META_PIXEL_ID_CLIENT } from "@/lib/meta-config";
 
 // Variable font (wght 200-800) — no weight array on purpose, so the whole
 // range is available and font-bold/font-extrabold both resolve to a real
@@ -94,16 +96,30 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const pixelId = process.env.META_PIXEL_ID;
+  // The browser-facing value, from meta-config.ts — never process.env.*
+  // read directly here. See meta-config.ts for why this must be the SAME
+  // pixel ID the server-side Conversions API call uses.
+  const pixelId = META_PIXEL_ID_CLIENT;
 
   return (
     <html lang="en" className={`${bricolage.variable} ${instrument.variable} ${spaceMono.variable}`}>
       <body className="font-body">
         {pixelId && (
           <>
+            <MetaPixelRouteTracker />
+            {/* beforeInteractive, not afterInteractive: this IIFE's first job is
+                defining window.fbq as a synchronous queueing stub — that has to
+                exist before ANY component's mount-time useEffect can run, or a
+                call made in that race window (ViewContent on this ad page,
+                InitiateCheckout, Purchase on /order/confirmed) finds window.fbq
+                genuinely undefined and is silently dropped for good, not queued.
+                afterInteractive gives no such guarantee: Next injects it "early
+                but after some hydration on the page occurs," which is exactly
+                the gap. beforeInteractive is only valid in the root layout,
+                which is where this already lives. */}
             <Script
               id="meta-pixel"
-              strategy="afterInteractive"
+              strategy="beforeInteractive"
               dangerouslySetInnerHTML={{
                 __html: `
 !function(f,b,e,v,n,t,s)

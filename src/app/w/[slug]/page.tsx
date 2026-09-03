@@ -241,6 +241,7 @@ export default async function AdLandingPage({ params }: { params: { slug: string
         thumbnail={item.thumbnail}
         imageFocal={details.imageFocal ?? null}
         priceLabel={priceLabel ?? ""}
+        price={page.kind === "paid" ? price : undefined}
         tax={tax}
         gstin={business.gstin}
         triggerClassName={ctaClass}
@@ -551,6 +552,7 @@ export default async function AdLandingPage({ params }: { params: { slug: string
                   thumbnail={item.thumbnail}
                   imageFocal={details.imageFocal ?? null}
                   priceLabel={priceLabel ?? ""}
+                  price={price}
                   tax={tax}
                   gstin={business.gstin}
                   triggerClassName="block w-full text-center bg-marigold text-ink font-semibold text-[15px] px-4 py-3 rounded-full hover:bg-marigold-deep transition-colors"
