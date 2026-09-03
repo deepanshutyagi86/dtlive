@@ -9,7 +9,9 @@
     "lint": "next lint",
     "db:push": "tsx db/migrate.ts",
     "db:seed": "tsx db/seed.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "verify:live": "curl -s https://www.deepanshutyagi.live/api/health | jq",
+    "verify:local": "curl -s http://localhost:3000/api/health | jq"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",

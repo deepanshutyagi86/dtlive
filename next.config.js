@@ -1,5 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Bakes the deployed commit into the client bundle at build time — see
+  // DEPLOY.md and /api/health. VERCEL_GIT_COMMIT_SHA is only set by
+  // Vercel on a Git-triggered build; its absence ('local') on a deployment
+  // IS the signal that something bypassed Git (a CLI deploy, a redeploy of
+  // an old build) — exactly the failure mode that shipped two sessions of
+  // Meta Pixel work without ever reaching production.
+  env: {
+    NEXT_PUBLIC_COMMIT_SHA: process.env.VERCEL_GIT_COMMIT_SHA || "local",
+    NEXT_PUBLIC_BUILT_AT: new Date().toISOString(),
+  },
   experimental: {
     // Without this, the client Router Cache can reuse a recently-visited
     // route's rendered output on top of stale useState initializers (e.g.

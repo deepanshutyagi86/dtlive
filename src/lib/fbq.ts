@@ -13,6 +13,32 @@ declare global {
   }
 }
 
+const DEBUG_KEY = "fbdebug";
+
+/**
+ * Debug mode is sticky in sessionStorage, not just the URL: the Razorpay
+ * checkout flow ends in a full-page redirect to /order/confirmed?order_id=…
+ * with no fbdebug param on it, and that redirect is exactly the hop this
+ * mode exists to make visible (it's the one place a dropped Purchase event
+ * can otherwise never be observed). Checking sessionStorage first, and
+ * writing it back on first sight of ?fbdebug=1, means debug logging
+ * survives that redirect instead of silently switching off mid-flow.
+ */
+function isDebugMode(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    if (sessionStorage.getItem(DEBUG_KEY)) return true;
+    if (new URLSearchParams(window.location.search).get("fbdebug") === "1") {
+      sessionStorage.setItem(DEBUG_KEY, "1");
+      return true;
+    }
+  } catch {
+    // Storage blocked (private mode, etc.) — debug logging just won't
+    // persist across a redirect; nothing here should ever throw upward.
+  }
+  return false;
+}
+
 /**
  * Fires a Meta Pixel event. Silently does nothing if fbq hasn't loaded —
  * before the init script runs, on a page where the Pixel isn't configured,
@@ -23,6 +49,12 @@ declare global {
  * folds the two into one event instead of double-counting.
  */
 export function fbTrack(event: string, params?: Record<string, unknown>, eventID?: string): void {
+  if (isDebugMode()) {
+    // Logged unconditionally — including when fbq isn't ready yet below —
+    // so a dropped-vs-never-attempted call is distinguishable while
+    // debugging the exact race this file exists to close.
+    console.log(`[fbq] ${event}`, params ?? {}, `eventID=${eventID ?? "(none)"}`);
+  }
   if (typeof window === "undefined" || typeof window.fbq !== "function") return;
   if (eventID) {
     window.fbq("track", event, params ?? {}, { eventID });
