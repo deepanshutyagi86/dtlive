@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import { claimMetaPurchaseEvent, claimOrderPaid, decrementWorkshopSeats, getOrderById } from "@/lib/admin-repo";
 import { verifyRazorpayPaymentSignature } from "@/lib/razorpay";
 import { sendMetaPurchaseEvent } from "@/lib/meta-capi";
@@ -78,8 +79,22 @@ export async function POST(req: NextRequest) {
 
     // Claimed independently of the status flip above: whichever of the
     // three paths gets here first sends the Purchase event, exactly once.
+    // The claim itself must still be awaited — it's the atomic UPDATE that
+    // decides whether to send at all. The send is a POST to
+    // graph.facebook.com, on the critical path between the buyer's card
+    // being charged and their browser starting the redirect to
+    // /order/confirmed — it must not hold that redirect up. waitUntil
+    // keeps the function alive to finish the POST after the response has
+    // already gone back to the browser. sendMetaPurchaseEvent already
+    // catches its own errors internally (see meta-capi.ts); the .catch
+    // here is belt-and-suspenders against an unhandled rejection if that
+    // ever changes.
     if (await claimMetaPurchaseEvent(order.id)) {
-      await sendMetaPurchaseEvent(order);
+      waitUntil(
+        sendMetaPurchaseEvent(order).catch((err) => {
+          console.error("Meta CAPI Purchase event failed for order", order.id, err);
+        })
+      );
     }
 
     return NextResponse.json({ ok: true });

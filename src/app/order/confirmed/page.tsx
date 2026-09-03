@@ -18,15 +18,33 @@ export default async function OrderConfirmedPage({
 }: {
   searchParams: { order_id?: string };
 }) {
-  const [footerLinks, nav, bio, invoiceSettings] = await Promise.all([
+  const orderId = searchParams.order_id;
+
+  // getOrderById has no dependency on the other four — it used to run
+  // strictly after them, paying a full extra sequential round trip to the
+  // database for nothing. Folded into the same Promise.all so all five
+  // fire together instead. This is the single biggest lever available
+  // here: each sequential round trip to Neon (ap-southeast-1) from a
+  // us-east-1 function pays ~400ms round-trip; from the co-located sin1
+  // region (see vercel.json) each one drops to double digits, but even at
+  // same-region latency a saved round trip is a saved round trip.
+  const [footerLinks, nav, bio, invoiceSettings, orderResult] = await Promise.all([
     getSetting<FooterLinks>("footerLinks", {}),
     getNav(),
     getBio(),
     getInvoiceSettings(),
+    orderId ? getOrderById(orderId) : Promise.resolve(null),
   ]);
-  const orderId = searchParams.order_id;
+  let order = orderResult;
 
-  let order = orderId ? await getOrderById(orderId) : null;
+  // Independent of everything in the `pending` branch below — it only
+  // needs order.source, known the instant getOrderById resolves above.
+  // Started here rather than after that branch so it overlaps with
+  // whatever that branch awaits (Razorpay lookup, seat decrement, emails)
+  // on the rare path where it actually runs, instead of paying for it as
+  // one more sequential hop afterward.
+  const adPagesPromise =
+    order?.source?.startsWith("ad:") ? getAllAdPages().catch(() => []) : null;
 
   // This page is usually reached AFTER /api/checkout/verify-payment has
   // already marked the order paid — that's the primary path, fired from
@@ -62,19 +80,21 @@ export default async function OrderConfirmedPage({
 
           if (claimed) {
             // Guarded for the same reason as the other two paths: the claim
-            // has committed, so a throw here can never be retried.
-            if (order.item.category === "workshop") {
-              try {
-                await decrementWorkshopSeats(order.itemId);
-              } catch (err) {
-                console.error("Order confirmed page: seat decrement failed:", err);
-              }
-            }
-            try {
-              await sendPaidOrderNotifications(order);
-            } catch (err) {
+            // has committed, so a throw here can never be retried. The two
+            // are independent of each other (one touches items, the other
+            // sends email) and used to run one after the other; Promise.all
+            // runs them concurrently instead, each still isolated by its
+            // own catch so a failure in one can never suppress the other.
+            const seatsPromise =
+              order.item.category === "workshop"
+                ? decrementWorkshopSeats(order.itemId).catch((err) => {
+                    console.error("Order confirmed page: seat decrement failed:", err);
+                  })
+                : Promise.resolve();
+            const notifyPromise = sendPaidOrderNotifications(order).catch((err) => {
               console.error("Order confirmed page: paid order notifications failed:", err);
-            }
+            });
+            await Promise.all([seatsPromise, notifyPromise]);
           }
         }
       }
@@ -95,8 +115,8 @@ export default async function OrderConfirmedPage({
   // Falls back to the item's joining link whenever there is no override,
   // no source, or the column has not been migrated yet.
   let campaignGroup: { url: string; label?: string } | null = null;
-  if (order?.source?.startsWith("ad:")) {
-    const pages = await getAllAdPages().catch(() => []);
+  if (adPagesPromise) {
+    const pages = await adPagesPromise;
     const match = pages.find((p) => adSourceTag(p.slug) === order!.source);
     if (match?.groupUrl) campaignGroup = { url: match.groupUrl, label: match.groupLabel };
   }

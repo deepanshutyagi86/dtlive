@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import { claimMetaPurchaseEvent, claimOrderPaid, decrementWorkshopSeats, getOrderById, setOrderStatus } from "@/lib/admin-repo";
 import { verifyRazorpayWebhookSignature } from "@/lib/razorpay";
 import { sendMetaPurchaseEvent } from "@/lib/meta-capi";
@@ -64,8 +65,16 @@ export async function POST(req: NextRequest) {
 
     // Claimed independently of the status flip above: whichever of the
     // three paths gets here first sends the Purchase event, exactly once.
+    // Razorpay's webhook delivery has its own retry/timeout expectations —
+    // fired via waitUntil rather than awaited, same reasoning as
+    // verify-payment, so a slow graph.facebook.com response can't turn
+    // into a slow (or retried) webhook ack.
     if (await claimMetaPurchaseEvent(order.id)) {
-      await sendMetaPurchaseEvent(order);
+      waitUntil(
+        sendMetaPurchaseEvent(order).catch((err) => {
+          console.error("Meta CAPI Purchase event failed for order", order.id, err);
+        })
+      );
     }
   } else if (event === "payment.failed") {
     const orderId: string | undefined = payload?.payload?.order?.entity?.receipt;
