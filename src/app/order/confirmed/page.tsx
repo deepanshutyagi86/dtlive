@@ -114,7 +114,12 @@ export default async function OrderConfirmedPage({
           </>
         ) : paid ? (
           <>
-            <MetaPixelPurchase orderId={order.id} value={order.amount / 100} />
+            <MetaPixelPurchase
+              orderId={order.id}
+              value={order.amount / 100}
+              itemId={order.itemId}
+              itemName={order.item.title}
+            />
             <span className="inline-flex items-center gap-2 font-mono text-[11px] font-bold tracking-wider text-marigold-ink">
               ✓ PAYMENT CONFIRMED
             </span>
