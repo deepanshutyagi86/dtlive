@@ -1,133 +1,175 @@
-import Nav from "@/components/Nav";
-import LiveStream, { StreamItem } from "@/components/LiveStream";
-import Spotlight, { SpotlightData } from "@/components/Spotlight";
-import Doors from "@/components/Doors";
-import type { CardItem } from "@/components/ItemCard";
-import Ticker from "@/components/Ticker";
-import Testimonials, { Testimonial } from "@/components/Testimonials";
-import Footer, { FooterLinks } from "@/components/Footer";
-import StarterRouter from "@/components/StarterRouter";
+import type { FooterLinks } from "@/components/Footer";
 import JsonLd from "@/components/JsonLd";
-import { getDoorCounts, getFeaturedItem, getLiveStreamItems, getSetting } from "@/lib/items";
-import { getBio, getNav, getStarter, getStreamSettings, getTaxSettingsForDisplay, SITE_URL } from "@/lib/site-settings";
+import V4Home from "@/components/v4/V4Home";
+import { V4_FONT_VARS } from "@/components/v4/fonts";
+import type { V4Course, V4NextLive, V4PastLive, V4Shipped, V4Studio } from "@/components/v4/types";
+import { getLiveStreamItems, getSetting } from "@/lib/items";
+import { getBio, getBusinessSettings, getTaxSettingsForDisplay, SITE_URL } from "@/lib/site-settings";
+import { hasTaxDetailsColumn } from "@/lib/admin-repo";
 import { taxFor, taxModeFor } from "@/lib/settings-types";
-import { priceLabel } from "@/lib/tax";
-import { metaFor, externalFor } from "@/lib/homepage";
-import type { CourseDetails, WorkshopDetails } from "@/lib/types";
+import { priceLabel, priceSubLabel } from "@/lib/tax";
+import { overviewVideoFor } from "@/lib/types";
+import type { AgencyDetails, CourseDetails, ShopDetails, VentureDetails, WorkshopDetails } from "@/lib/types";
 import { SITE_TZ } from "@/lib/dates";
 
 // Always fetch fresh — this page changes the moment something goes live
-// or featured in the admin panel.
+// in the admin panel.
 export const dynamic = "force-dynamic";
 
+const strings = (v: unknown): string[] =>
+  Array.isArray(v) ? v.map((s) => String(s ?? "").trim()).filter(Boolean) : [];
+
+function dateLabel(iso: string): string {
+  return new Date(iso).toLocaleString("en-IN", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: SITE_TZ,
+  });
+}
+
+// wa.me / api.whatsapp links accept a prefilled message; anything else
+// (or no WhatsApp at all) falls back to the workshops page, which always
+// shows the next date first.
+function waitlistHref(whatsapp?: string): string {
+  if (!whatsapp) return "/workshops";
+  try {
+    const url = new URL(whatsapp);
+    if (/(^|\.)wa\.me$|whatsapp\.com$/.test(url.hostname)) {
+      url.searchParams.set("text", "Hi Deepanshu, add me to the waitlist for the next live workshop.");
+      return url.toString();
+    }
+    return whatsapp;
+  } catch {
+    return "/workshops";
+  }
+}
+
 export default async function HomePage() {
-  const [items, featured, counts, ticker, testimonials, footerLinks, heroCopySetting, nav, bio, starter, tax, streamSettings] =
-    await Promise.all([
-      getLiveStreamItems(),
-      getFeaturedItem(),
-      getDoorCounts(),
-      getSetting<string[]>("ticker", DEFAULT_TICKER),
-      getSetting<Testimonial[]>("testimonials", DEFAULT_TESTIMONIALS),
-      getSetting<FooterLinks>("footerLinks", DEFAULT_FOOTER),
-      getSetting<Partial<HeroCopy>>("heroCopy", {}),
-      getNav(),
-      getBio(),
-      getStarter(),
-      getTaxSettingsForDisplay(),
-      getStreamSettings(),
-    ]);
+  const [items, ticker, footerLinks, bio, taxSettings, business, b2bReady] = await Promise.all([
+    getLiveStreamItems(),
+    getSetting<string[]>("ticker", DEFAULT_TICKER),
+    getSetting<FooterLinks>("footerLinks", DEFAULT_FOOTER),
+    getBio(),
+    getTaxSettingsForDisplay(),
+    getBusinessSettings(),
+    hasTaxDetailsColumn().catch(() => false),
+  ]);
 
-  // Blank/missing fields fall back to the default individually, never
-  // render empty.
-  const hero: HeroCopy = {
-    eyebrow: heroCopySetting.eyebrow?.trim() || DEFAULT_HERO_COPY.eyebrow,
-    line1: heroCopySetting.line1?.trim() || DEFAULT_HERO_COPY.line1,
-    line2: heroCopySetting.line2?.trim() || DEFAULT_HERO_COPY.line2,
-    subline: heroCopySetting.subline?.trim() || DEFAULT_HERO_COPY.subline,
-  };
+  const now = Date.now();
 
-  const streamItems: StreamItem[] = items.map((i) => ({
-    id: i.id,
-    slug: i.slug,
-    title: i.title,
-    description: i.description,
-    category: i.category,
-    meta: metaFor(i, tax),
-    external: externalFor(i),
-    thumbnail: i.thumbnail,
-    imageFocal: i.details?.imageFocal ?? null,
-  }));
+  const courses: V4Course[] = items
+    .filter((i) => i.category === "course")
+    .map((i) => {
+      const d = (i.details ?? {}) as CourseDetails;
+      const resolved = taxFor(taxSettings, taxModeFor(i.details));
+      const tax = { ...resolved, b2bEnabled: resolved.b2bEnabled && b2bReady };
+      return {
+        id: i.id,
+        slug: i.slug,
+        title: i.title,
+        description: i.description,
+        category: i.category,
+        thumbnail: i.thumbnail,
+        imageFocal: i.details?.imageFocal ?? null,
+        price: d.price,
+        priceLabel: priceLabel(d.price, tax),
+        priceNote: priceSubLabel(d.price, tax),
+        tax,
+        bestFor: d.bestFor?.trim() || null,
+        level: d.level?.trim() || null,
+        forWho: strings(d.forWho),
+        notForWho: strings(d.notForWho),
+        outcomes: strings(d.outcomes),
+        modules: (d.curriculum ?? []).map((b) => String(b?.title ?? "").trim()).filter(Boolean),
+        hasFreeLesson: !!overviewVideoFor(i.details),
+      };
+    });
 
-  // Same rows the carousel already fetched — grouped by category inside the
-  // Doors component rather than re-queried per category.
-  const cardItems: CardItem[] = items.map((i) => ({
-    id: i.id,
-    slug: i.slug,
-    title: i.title,
-    description: i.description,
-    category: i.category,
-    details: i.details,
-    thumbnail: i.thumbnail,
-    imageFocal: i.details?.imageFocal ?? null,
-  }));
+  // Next live = the soonest live workshop that hasn't started. A past one
+  // is never offered — only mentioned as "previously", as proof it runs.
+  const workshops = items
+    .filter((i) => i.category === "workshop" && (i.details as WorkshopDetails)?.date)
+    .map((i) => ({ item: i, d: i.details as WorkshopDetails, at: new Date((i.details as WorkshopDetails).date).getTime() }))
+    .filter((w) => !Number.isNaN(w.at));
+  const upcoming = workshops.filter((w) => w.at > now).sort((a, b) => a.at - b.at)[0];
+  const past = workshops.filter((w) => w.at <= now).sort((a, b) => b.at - a.at)[0];
 
-  let spotlight: SpotlightData | null = null;
-  if (featured && (featured.category === "course" || featured.category === "workshop")) {
-    const d = featured.details as any;
-    // This one item's resolved GST, so the hero chip agrees with the
-    // price on the item's own page and at checkout.
-    const itemTax = taxFor(tax, taxModeFor(featured.details));
-    const showSeats = featured.category === "workshop" && !d.unlimitedSeats && d.showSeatsBadge !== false;
-    const showPrice = d.showPriceBadge !== false;
-
-    const chips: string[] = [];
-    if (featured.category === "workshop") {
-      chips.push(
-        new Date((d as WorkshopDetails).date).toLocaleString("en-IN", {
-          weekday: "short",
+  let nextLive: V4NextLive | null = null;
+  if (upcoming) {
+    const w = upcoming.d;
+    const tax = taxFor(taxSettings, taxModeFor(w));
+    nextLive = {
+      slug: upcoming.item.slug,
+      title: upcoming.item.title,
+      dateLabel: dateLabel(w.date),
+      seatsLabel:
+        !w.unlimitedSeats && w.showSeatsBadge !== false && Number.isFinite(w.seatsLeft)
+          ? `${w.seatsLeft} seats left`
+          : null,
+      priceLabel: priceLabel(w.price, tax),
+    };
+  }
+  const pastLive: V4PastLive | null = past
+    ? {
+        title: past.item.title,
+        dateLabel: new Date(past.d.date).toLocaleDateString("en-IN", {
           day: "numeric",
           month: "short",
-          hour: "2-digit",
-          minute: "2-digit",
+          year: "numeric",
           timeZone: SITE_TZ,
         }),
-        "Live on Zoom"
-      );
-      if (showSeats) chips.push(`${(d as WorkshopDetails).seatsLeft} seats left`);
-      if (showPrice) chips.push(`${priceLabel((d as WorkshopDetails).price, itemTax)} early bird`);
-    } else {
-      if (showPrice) chips.push(priceLabel((d as CourseDetails).price, itemTax));
-      chips.push((d as CourseDetails).duration ?? "self-paced");
-    }
+      }
+    : null;
 
-    spotlight = {
-      slug: featured.slug,
-      title: featured.title,
-      description: featured.description,
-      chips,
-      category: featured.category,
-      thumbnail: featured.thumbnail,
-      imageFocal: featured.details?.imageFocal ?? null,
-      // A course has no real deadline, so the old fallback counted down to
-      // "six days from whenever you loaded the page" — a timer that silently
-      // resets on every visit and pressures a stranger with a date that does
-      // not exist. Only a workshop, which has a genuine start time, gets a
-      // countdown now; a featured course shows the CTA without one.
-      showCountdown: featured.category === "workshop" && d.showCountdown !== false,
-      deadlineISO: featured.category === "workshop" ? (d as WorkshopDetails).date : "",
-      ctaLabel: featured.category === "workshop" ? "Reserve my seat" : "Enroll now",
+  const agency = items.find((i) => i.category === "agency");
+  let studio: V4Studio | null = null;
+  if (agency) {
+    const a = agency.details as AgencyDetails;
+    studio = {
+      slug: agency.slug,
+      title: agency.title,
+      description: agency.description,
+      priceLabel:
+        a?.priceType === "from" && a.priceValue
+          ? `From ₹${Number(a.priceValue).toLocaleString("en-IN")}`
+          : "Custom quote",
     };
   }
 
-  // Person + WebSite, so a search for the name resolves to this site and
-  // the sitelinks searchbox / knowledge panel have something to bind to.
+  const shipped: V4Shipped[] = items
+    .filter((i) => i.category === "shop" || i.category === "venture")
+    .map((i) => {
+      if (i.category === "shop") {
+        const s = i.details as ShopDetails;
+        return {
+          id: i.id,
+          title: i.title,
+          label: `Shop · ${s?.platform || "Store"}`,
+          href: s?.externalUrl || "/shop",
+          external: !!s?.externalUrl,
+          thumbnail: i.thumbnail,
+          imageFocal: i.details?.imageFocal ?? null,
+          category: i.category,
+        };
+      }
+      const v = i.details as VentureDetails;
+      return {
+        id: i.id,
+        title: i.title,
+        label: `Venture${v?.equityPercent ? ` · ${v.equityPercent}%` : ""}`,
+        href: v?.externalUrl || "/ventures",
+        external: !!v?.externalUrl,
+        thumbnail: i.thumbnail,
+        imageFocal: i.details?.imageFocal ?? null,
+        category: i.category,
+      };
+    });
+
   const structured = [
-    {
-      "@context": "https://schema.org",
-      "@type": "WebSite",
-      name: "Deepanshu Tyagi Live",
-      url: SITE_URL,
-    },
+    { "@context": "https://schema.org", "@type": "WebSite", name: "Deepanshu Tyagi Live", url: SITE_URL },
     {
       "@context": "https://schema.org",
       "@type": "Person",
@@ -143,75 +185,27 @@ export default async function HomePage() {
   return (
     <>
       <JsonLd data={structured} />
-      <Nav nav={nav} />
-      <header className="max-w-[1200px] mx-auto px-5 pt-[92px] pb-1">
-        <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-muted mb-2">{hero.eyebrow}</p>
-        <h1 className="font-display font-extrabold tracking-tight text-[34px] md:text-[104px] leading-[0.95]">
-          <span className="inline-block w-[0.35em] h-[0.35em] rounded-full bg-live live-dot mr-[0.18em] align-[0.08em]" />
-          {hero.line1}
-          <br />
-          <span className="text-marigold-deep">{hero.line2}</span>
-        </h1>
-        <p className="mt-3 max-w-[560px] text-[15px] md:text-[17px] leading-6 md:leading-7 text-ink-soft">
-          {hero.subline}
-        </p>
-      </header>
-
-      <div className="max-w-[1200px] mx-auto px-5 flex items-center justify-between gap-3 mt-6 mb-2.5">
-        <div className="flex items-center gap-2.5 font-mono text-[11px] tracking-[0.14em] uppercase font-semibold">
-          <span className="w-2.5 h-2.5 rounded-full bg-live live-dot" />
-          The stream
-        </div>
-        <div className="font-mono text-[11px] tracking-[0.14em] uppercase text-muted">drag to scroll →</div>
-      </div>
-      <LiveStream items={streamItems} cardSize={streamSettings.cardSize} />
-
-      {spotlight && <Spotlight data={spotlight} />}
-
-      <Ticker lines={ticker} />
-
-      <StarterRouter data={starter} />
-
-      <Doors counts={counts} items={cardItems} tax={tax} />
-      <Testimonials items={testimonials} />
-      <Footer links={footerLinks} nav={nav} bio={bio} />
+      <V4Home
+        fontVars={V4_FONT_VARS}
+        courses={courses}
+        nextLive={nextLive}
+        pastLive={pastLive}
+        studio={studio}
+        shipped={shipped}
+        credentials={ticker.length ? ticker : DEFAULT_TICKER}
+        links={footerLinks}
+        waitlistHref={waitlistHref(footerLinks.whatsapp)}
+        bioName={bio.name}
+        bioAvatar={bio.avatarUrl || null}
+        gstin={business.gstin}
+      />
     </>
   );
 }
 
-// Three, not five — kept the claims a stranger can parse with zero prior
-// context (self-contained numbers, no unexplained proper nouns) and that
-// span distinct kinds of work rather than three variations on one theme:
-// teaching (students), building (apps shipped), and client delivery
-// (websites shipped). Dropped "10% equity · Muchhad" and "HackArena · 6
-// cities" — both lean on a brand/event name a first-time visitor has no
-// context for yet; they read better as asides once someone's already
-// exploring (ventures page, testimonials) than as a cold trust strip.
 const DEFAULT_TICKER = ["100+ students taught", "Apps live on the Play Store", "15+ websites shipped"];
 
-interface HeroCopy {
-  eyebrow: string;
-  line1: string;
-  line2: string;
-  subline: string;
-}
-
-const DEFAULT_HERO_COPY: HeroCopy = {
-  eyebrow: "DEEPANSHUTYAGI.LIVE — THE STOREFRONT",
-  line1: "Live,",
-  line2: "right now.",
-  subline: "Everything I teach, build, and sell.",
-};
-
-const DEFAULT_TESTIMONIALS: Testimonial[] = [
-  { quote: "Made my first ₹300 before the Sunday session even ended.", who: "Priya, workshop attendee" },
-  { quote: "The course is the only one I finished. Short lessons, real tasks.", who: "Business Foundations student" },
-  { quote: "Store, cart and Cashfree live in two weeks, exactly as promised.", who: "D2C founder" },
-];
-
-// Only reached if the footerLinks settings row is missing entirely. The
-// old placeholder WhatsApp number was a live dead link in that case — a
-// blank field renders no button at all, which is the correct fallback.
+// Only reached if the footerLinks settings row is missing entirely.
 const DEFAULT_FOOTER: FooterLinks = {
   instagram: "https://www.instagram.com/thedeepanshutyagii",
   youtube: "https://www.youtube.com/@thedeepanshutyagi",
