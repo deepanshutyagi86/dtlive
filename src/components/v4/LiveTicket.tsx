@@ -1,6 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { createPortal } from "react-dom";
+import { useModalBehavior } from "@/lib/useModalBehavior";
+import type { RegistrationField } from "@/lib/types";
 import Link from "next/link";
 import CheckoutModal from "@/components/CheckoutModal";
 import { readAttribution } from "@/lib/attribution";
@@ -82,19 +85,59 @@ function calendarLink(title: string, iso: string): string {
   )}/${stamp(end)}&details=${encodeURIComponent(`${title}, live on Zoom. The link comes on WhatsApp and email.`)}`;
 }
 
-function Register({ nl }: { nl: V4NextLive }) {
+const WA_ICON =
+  "M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.8 11.9 11.9 0 0 0 4.6 4c1.7.7 2.4.8 3.2.7a2.8 2.8 0 0 0 1.8-1.3 2.3 2.3 0 0 0 .2-1.3c-.1-.1-.3-.2-.6-.3Z";
+
+function GroupButton({ group }: { group: { url: string; label: string } }) {
+  return (
+    <a href={group.url} target="_blank" rel="noopener noreferrer" className="v4-btn v4-b-wa v4-w-full">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d={WA_ICON} />
+      </svg>
+      {group.label}
+    </a>
+  );
+}
+
+const WAITLIST_FIELDS: RegistrationField[] = [
+  { key: "name", label: "Your name", type: "text", required: true },
+  { key: "phone", label: "WhatsApp number", type: "tel", required: true },
+];
+
+/**
+ * The ticket shows ONE button. The form only appears after a tap, in a
+ * sheet: up from the bottom on a phone (thumb reach, keyboard-safe), from
+ * the side on desktop — the same sheet the course "Details" use.
+ *
+ *   mode "register" — a free workshop: the workshop's own fields → Leads,
+ *                     then the WhatsApp group button
+ *   mode "waitlist" — nothing scheduled, or full: name + WhatsApp → Leads
+ */
+function LiveForm({ mode, nl, fontVars }: { mode: "register" | "waitlist"; nl: V4NextLive | null; fontVars: string }) {
+  const fields = mode === "register" && nl ? nl.fields : WAITLIST_FIELDS;
+  const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [form, setForm] = useState<Record<string, string>>({});
   const [errs, setErrs] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState("");
   const [group, setGroup] = useState<{ url: string; label: string } | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => setOpen(false), []);
+  useEffect(() => setMounted(true), []);
+  useModalBehavior({ open, onClose: close, panelRef, triggerRef });
+
+  const first = (form.name ?? "").trim().split(" ")[0];
+  const when = nl ? `${nl.bigDate}, ${nl.smallDate.replace(" · ", " ")}` : "";
+  const isReg = mode === "register" && !!nl;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (status === "sending") return;
     // Same per-field checks as the server, so a typo is caught here first.
     const next: Record<string, string> = {};
-    for (const f of nl.fields) {
+    for (const f of fields) {
       const v = (form[f.key] ?? "").trim();
       if (f.required && !v) next[f.key] = `${f.label} is required.`;
       else if (v && f.type === "email" && !isValidEmail(v)) next[f.key] = "Check this email for a typo.";
@@ -109,19 +152,25 @@ function Register({ nl }: { nl: V4NextLive }) {
       const res = await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          itemId: nl.id,
-          answers: form,
-          attribution: readAttribution(),
-          fbc: readCookie("_fbc"),
-          fbp: readCookie("_fbp"),
-          eventSourceUrl: window.location.href,
-        }),
+        body: JSON.stringify(
+          isReg
+            ? {
+                itemId: nl!.id,
+                answers: form,
+                attribution: readAttribution(),
+                fbc: readCookie("_fbc"),
+                fbp: readCookie("_fbp"),
+                eventSourceUrl: window.location.href,
+              }
+            : { waitlist: "live", answers: form, eventSourceUrl: window.location.href }
+        ),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "That didn’t go through. Try once more.");
-      // Same event id the server used for its Conversions API call, so Meta counts one lead.
-      window.fbq?.("track", "Lead", { content_name: nl.title }, { eventID: data.id });
+      if (isReg) {
+        // Same event id the server used for its Conversions API call, so Meta counts one lead.
+        window.fbq?.("track", "Lead", { content_name: nl!.title }, { eventID: data.id });
+      }
       setGroup(data.group ?? null);
       setStatus("done");
     } catch (err) {
@@ -130,168 +179,145 @@ function Register({ nl }: { nl: V4NextLive }) {
     }
   }
 
-  if (status === "done") {
-    const first = (form.name ?? "").trim().split(" ")[0];
-    return (
-      <div className="v4-reg-done" role="status">
-        <p className="v4-reg-done-t">
+  const done = status === "done";
+  const doneTitle = isReg ? `You’re in${first ? `, ${first}` : ""}.` : "You’re on the list.";
+
+  return (
+    <>
+      {done ? (
+        // Back on the ticket after closing the sheet, the outcome stays visible.
+        <div className="v4-reg-mini" role="status">
           <span className="v4-wl-tick" aria-hidden="true">
             ✓
           </span>
-          <span>
-            You&rsquo;re in{first ? `, ${first}` : ""}. Seat reserved for{" "}
-            <b>
-              {nl.bigDate}, {nl.smallDate.replace(" · ", " ")}
-            </b>
-            .
-          </span>
-        </p>
-        {group ? (
-          <>
-            <a href={group.url} target="_blank" rel="noopener noreferrer" className="v4-btn v4-b-wa v4-w-full">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.8 11.9 11.9 0 0 0 4.6 4c1.7.7 2.4.8 3.2.7a2.8 2.8 0 0 0 1.8-1.3 2.3 2.3 0 0 0 .2-1.3c-.1-.1-.3-.2-.6-.3Z" />
-              </svg>
-              {group.label}
+          <span>{doneTitle}</span>
+          {group && (
+            <a href={group.url} target="_blank" rel="noopener noreferrer" className="v4-reg-mini-wa">
+              Join the group →
             </a>
-            <p className="v4-m v4-muted-dark">Join now — the Zoom link is shared in the group.</p>
-          </>
-        ) : (
-          <p className="v4-t-p">The Zoom link comes to you on WhatsApp and email before it starts.</p>
+          )}
+        </div>
+      ) : (
+        <button ref={triggerRef} type="button" className="v4-btn v4-b-gold v4-reg-open" onClick={() => setOpen(true)}>
+          {isReg ? "Reserve my seat" : "Notify me"} <Arrow />
+        </button>
+      )}
+
+      {mounted &&
+        open &&
+        createPortal(
+          <div className={`v4 ${fontVars}`}>
+            <div className="v4-scrim" onClick={close} aria-hidden="true" />
+            <div
+              ref={panelRef}
+              className="v4-sheet v4-regsheet"
+              role="dialog"
+              aria-modal="true"
+              aria-label={isReg ? `Register for ${nl!.title}` : "Join the waitlist"}
+            >
+              <div className="v4-grab" aria-hidden="true" />
+              <div className="v4-sheet-head">
+                <div>
+                  <span className="v4-m v4-gold-ink">{isReg ? `Free · ${when}` : "Waitlist · free"}</span>
+                  <h3 className="v4-d v4-sheet-title">
+                    {done ? doneTitle : isReg ? nl!.title : "Get the next date first."}
+                  </h3>
+                </div>
+                <button type="button" className="v4-x" aria-label="Close" onClick={close}>
+                  ×
+                </button>
+              </div>
+
+              {done ? (
+                <div className="v4-regsheet-done">
+                  {isReg ? (
+                    <>
+                      <p className="v4-sheet-lede">
+                        Your seat is reserved for <b>{when}</b>.{" "}
+                        {group
+                          ? "Join the group now — the Zoom link is shared there."
+                          : "The Zoom link comes to you on WhatsApp and email before it starts."}
+                      </p>
+                      {group && <GroupButton group={group} />}
+                      <a
+                        href={calendarLink(nl!.title, nl!.dateIso)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="v4-btn v4-b-line v4-w-full"
+                      >
+                        Add to calendar
+                      </a>
+                    </>
+                  ) : (
+                    <p className="v4-sheet-lede">You hear the next date first, on WhatsApp, before it goes public.</p>
+                  )}
+                </div>
+              ) : (
+                <form className="v4-regsheet-form" onSubmit={submit} noValidate>
+                  <p className="v4-sheet-lede">
+                    {isReg
+                      ? "Takes ten seconds. You get the WhatsApp group link the moment you’re in."
+                      : "Leave your number and you hear the date first."}
+                  </p>
+                  {fields.map((f) => {
+                    const id = `v4-reg-${mode}-${f.key}`;
+                    const err = errs[f.key];
+                    return (
+                      <div key={f.key} className="v4-reg-f">
+                        <label className="v4-m v4-muted" htmlFor={id}>
+                          {f.label}
+                          {!f.required && " (optional)"}
+                        </label>
+                        <input
+                          id={id}
+                          className={`v4-in ${err ? "is-bad" : ""}`}
+                          type={f.type}
+                          inputMode={f.type === "tel" ? "tel" : f.type === "email" ? "email" : undefined}
+                          autoComplete={
+                            f.key === "name" ? "name" : f.type === "email" ? "email" : f.type === "tel" ? "tel" : undefined
+                          }
+                          placeholder={f.type === "tel" ? "98765 43210" : f.type === "email" ? "you@example.com" : "Your full name"}
+                          value={form[f.key] ?? ""}
+                          aria-invalid={err ? true : undefined}
+                          aria-describedby={err ? `${id}-e` : undefined}
+                          onChange={(e) => {
+                            const v = f.type === "tel" ? stripToPhoneChars(e.target.value) : e.target.value;
+                            setForm({ ...form, [f.key]: v });
+                            if (err) setErrs({ ...errs, [f.key]: "" });
+                          }}
+                        />
+                        {err && (
+                          <span id={`${id}-e`} className="v4-in-err">
+                            {err}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                  <div className="v4-sheet-buy">
+                    {status === "error" && (
+                      <p className="v4-in-err" role="alert">
+                        {error}
+                      </p>
+                    )}
+                    <button type="submit" className="v4-btn v4-b-ink v4-w-full" disabled={status === "sending"}>
+                      {status === "sending"
+                        ? isReg
+                          ? "Reserving…"
+                          : "Adding you…"
+                        : isReg
+                          ? "Reserve my free seat →"
+                          : "Notify me →"}
+                    </button>
+                    <span className="v4-m v4-muted v4-center">Free · your number is only used for this</span>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>,
+          document.body
         )}
-        <a href={calendarLink(nl.title, nl.dateIso)} target="_blank" rel="noopener noreferrer" className="v4-m v4-reg-cal">
-          + Add to calendar
-        </a>
-      </div>
-    );
-  }
-
-  return (
-    <form className="v4-reg" onSubmit={submit} noValidate>
-      {nl.fields.map((f) => {
-        const id = `v4-reg-${f.key}`;
-        const err = errs[f.key];
-        return (
-          <div key={f.key} className={`v4-reg-f ${f.type === "text" && f.key === "name" ? "is-wide" : ""}`}>
-            <label className="v4-sr" htmlFor={id}>
-              {f.label}
-            </label>
-            <input
-              id={id}
-              className={`v4-wl-in ${err ? "is-bad" : ""}`}
-              type={f.type}
-              inputMode={f.type === "tel" ? "tel" : f.type === "email" ? "email" : undefined}
-              autoComplete={f.key === "name" ? "name" : f.type === "email" ? "email" : f.type === "tel" ? "tel" : undefined}
-              placeholder={`${f.label.charAt(0).toUpperCase()}${f.label.slice(1)}${f.required ? "" : " (optional)"}`}
-              value={form[f.key] ?? ""}
-              aria-invalid={err ? true : undefined}
-              aria-describedby={err ? `${id}-e` : undefined}
-              onChange={(e) => {
-                const v = f.type === "tel" ? stripToPhoneChars(e.target.value) : e.target.value;
-                setForm({ ...form, [f.key]: v });
-                if (err) setErrs({ ...errs, [f.key]: "" });
-              }}
-            />
-            {err && (
-              <span id={`${id}-e`} className="v4-wl-err">
-                {err}
-              </span>
-            )}
-          </div>
-        );
-      })}
-      <button type="submit" className="v4-btn v4-b-gold v4-reg-btn" disabled={status === "sending"}>
-        {status === "sending" ? "Reserving…" : "Reserve my free seat"} <Arrow />
-      </button>
-      {status === "error" && (
-        <p className="v4-wl-err" role="alert">
-          {error}
-        </p>
-      )}
-    </form>
-  );
-}
-
-function Waitlist() {
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [status, setStatus] = useState<Status>("idle");
-  const [error, setError] = useState("");
-
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    if (status === "sending") return;
-    setStatus("sending");
-    setError("");
-    try {
-      const res = await fetch("/api/leads", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          waitlist: "live",
-          answers: { name: name.trim(), phone: phone.trim() },
-          eventSourceUrl: window.location.href,
-        }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body?.error || "That didn’t go through. Try once more.");
-      }
-      setStatus("done");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "That didn’t go through. Try once more.");
-      setStatus("error");
-    }
-  }
-
-  if (status === "done") {
-    return (
-      <p className="v4-wl-done" role="status">
-        <span className="v4-wl-tick" aria-hidden="true">
-          ✓
-        </span>
-        You&rsquo;re on the list, {name.trim().split(" ")[0] || "friend"}. You hear the date first, on WhatsApp.
-      </p>
-    );
-  }
-
-  return (
-    <form className="v4-wl" onSubmit={submit} noValidate>
-      <label className="v4-sr" htmlFor="v4-wl-name">
-        Your name
-      </label>
-      <input
-        id="v4-wl-name"
-        className="v4-wl-in"
-        placeholder="Your name"
-        autoComplete="name"
-        required
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-      />
-      <label className="v4-sr" htmlFor="v4-wl-phone">
-        WhatsApp number
-      </label>
-      <input
-        id="v4-wl-phone"
-        className="v4-wl-in"
-        placeholder="WhatsApp number"
-        type="tel"
-        inputMode="tel"
-        autoComplete="tel"
-        required
-        value={phone}
-        onChange={(e) => setPhone(e.target.value)}
-      />
-      <button type="submit" className="v4-btn v4-b-gold v4-wl-btn" disabled={status === "sending"}>
-        {status === "sending" ? "Adding you…" : "Notify me"} <Arrow />
-      </button>
-      {status === "error" && (
-        <p className="v4-wl-err" role="alert">
-          {error}
-        </p>
-      )}
-    </form>
+    </>
   );
 }
 
@@ -302,6 +328,7 @@ export default function LiveTicket({
   hostFallback,
   bioName,
   gstin,
+  fontVars,
 }: {
   nextLive: V4NextLive | null;
   pastLive: V4PastLive | null;
@@ -309,6 +336,7 @@ export default function LiveTicket({
   hostFallback: string | null;
   bioName: string;
   gstin: string;
+  fontVars: string;
 }) {
   // Flips when the countdown reaches zero — registration is closed from
   // that second on (the API refuses it too), so the form must go with it.
@@ -389,7 +417,7 @@ export default function LiveTicket({
               ) : nextLive.isFull ? (
                 <>
                   <p className="v4-t-p">This one filled up. Leave your number for the next date.</p>
-                  <Waitlist />
+                  <LiveForm mode="waitlist" nl={null} fontVars={fontVars} />
                 </>
               ) : nextLive.price > 0 ? (
                 <div className="v4-row">
@@ -412,7 +440,12 @@ export default function LiveTicket({
                   </Link>
                 </div>
               ) : (
-                <Register nl={nextLive} />
+                <div className="v4-row">
+                  <LiveForm mode="register" nl={nextLive} fontVars={fontVars} />
+                  <Link href={`/items/${nextLive.slug}`} className="v4-m v4-muted-dark v4-inline-link">
+                    Full details
+                  </Link>
+                </div>
               )}
             </>
           ) : (
@@ -422,7 +455,7 @@ export default function LiveTicket({
                 Get the next date <span className="v4-sf v4-gold">first.</span>
               </h3>
               <p className="v4-t-p">{live.waitlistPitch}</p>
-              <Waitlist />
+              <LiveForm mode="waitlist" nl={null} fontVars={fontVars} />
             </>
           )}
           {pastLive && (
