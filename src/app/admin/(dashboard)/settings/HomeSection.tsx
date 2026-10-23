@@ -5,8 +5,12 @@ import type { ReactNode } from "react";
 import FocalPointPicker from "@/components/admin/FocalPointPicker";
 import { ImageUploadField, LinesField, Repeater, TextField } from "@/components/admin/AdminFields";
 import {
-  DEFAULT_HOME,
+  cardFade,
+  cardFadeBackground,
+    DEFAULT_HOME,
   HOME_CARD_LABELS,
+  MAX_TEXT_LIFT,
+  SOFT_FADE_BELOW,
   type HomeCardKey,
   type HomeImage,
   type HomeSettings,
@@ -77,7 +81,9 @@ function PhotoField({
         sizeHint={sizeHint}
         help={help}
         value={value.url}
-        onChange={(url) => onChange(url ? { url, focal: url === value.url ? value.focal : undefined } : { url: "" })}
+        onChange={(url) =>
+          onChange(url ? { ...value, url, focal: url === value.url ? value.focal : undefined } : { url: "" })
+        }
         pathPrefix={PREFIX}
         maxWidth={screenshot ? 1440 : undefined}
         hidePreview
@@ -94,7 +100,10 @@ function PhotoField({
             <FocalPointPicker
               thumbnail={value.url}
               imageFocal={value.focal}
-              onChange={(focal) => onChange({ url: value.url, ...(focal ? { focal } : {}) })}
+              onChange={(focal) => {
+                const { focal: _old, ...rest } = value;
+                onChange(focal ? { ...rest, focal } : rest);
+              }}
               aspectClassName={aspect}
               showPreview={!preview}
             />
@@ -115,12 +124,14 @@ const CARD_TONE: Record<HomeCardKey, { bg: string; fg: string; sub: string }> = 
   shipped: { bg: "#ffffff", fg: "#0e0e0c", sub: "Brands · ventures" },
 };
 
-/** A small copy of the homepage card, so the gradient + label can be judged before saving. */
+/** A small copy of the homepage card — same fade formula as the site, so the sliders preview exactly. */
 function CardPreview({ k, img }: { k: HomeCardKey; img: HomeImage }) {
   const tone = CARD_TONE[k];
+  const soft = cardFade(img) < SOFT_FADE_BELOW;
+  const glow = soft ? `0 0 2px ${tone.bg}, 0 1px 14px ${tone.bg}, 0 0 28px ${tone.bg}` : undefined;
   return (
     <div
-      className="relative w-full max-w-[220px] aspect-[4/3.6] rounded-[18px] overflow-hidden border border-line"
+      className="relative w-full max-w-[240px] aspect-[4/3.6] rounded-[18px] overflow-hidden border border-line"
       style={{ background: tone.bg, color: tone.fg }}
     >
       {img.url && (
@@ -132,16 +143,98 @@ function CardPreview({ k, img }: { k: HomeCardKey; img: HomeImage }) {
           style={img.focal ? { objectPosition: `${img.focal.x}% ${img.focal.y}%` } : { objectPosition: "top" }}
         />
       )}
-      <span
-        className="absolute inset-0"
-        style={{
-          background: `linear-gradient(180deg, transparent 0%, color-mix(in srgb, ${tone.bg} 30%, transparent) calc(100% - 110px), color-mix(in srgb, ${tone.bg} 92%, transparent) calc(100% - 70px), ${tone.bg} calc(100% - 50px))`,
-        }}
-      />
-      <span className="absolute left-3 bottom-3">
-        <b className="block font-display text-[18px] tracking-tight leading-none">{HOME_CARD_LABELS[k]}</b>
-        <span className="block font-mono text-[9px] uppercase tracking-wider opacity-70 mt-1">{tone.sub}</span>
+      <span className="absolute inset-0" style={{ background: cardFadeBackground(tone.bg, cardFade(img)) }} />
+      <span className="absolute left-3.5 bottom-3.5" style={{ transform: `translateY(-${img.textLift ?? 0}px)` }}>
+        <b className="block font-display text-[20px] tracking-tight leading-none" style={{ textShadow: glow }}>
+          {HOME_CARD_LABELS[k]}
+        </b>
+        <span className="block font-mono text-[9px] uppercase tracking-wider opacity-75 mt-1.5" style={{ textShadow: glow }}>
+          {tone.sub}
+        </span>
       </span>
+    </div>
+  );
+}
+
+function Slider({
+  label,
+  hint,
+  value,
+  min,
+  max,
+  unit,
+  onChange,
+  onReset,
+}: {
+  label: string;
+  hint: string;
+  value: number;
+  min: number;
+  max: number;
+  unit: string;
+  onChange: (v: number) => void;
+  onReset: () => void;
+}) {
+  return (
+    <label className="adm-slider">
+      <span className="adm-slider-top">
+        <span className="font-mono text-[10.5px] uppercase tracking-wider text-muted">{label}</span>
+        <span className="adm-slider-val">
+          {value}
+          {unit}
+          <button type="button" onClick={(e) => (e.preventDefault(), onReset())}>
+            reset
+          </button>
+        </span>
+      </span>
+      <input type="range" min={min} max={max} step={1} value={value} onChange={(e) => onChange(Number(e.target.value))} />
+      <span className="text-[12px] text-muted">{hint}</span>
+    </label>
+  );
+}
+
+/** Photo + preview + the two sliders, for one shortcut card. */
+function CardField({ k, value, onChange }: { k: HomeCardKey; value: HomeImage; onChange: (v: HomeImage) => void }) {
+  return (
+    <div className="adm-cardfield">
+      <PhotoField
+        label={`${HOME_CARD_LABELS[k]} card`}
+        sizeHint="1200 × 900 px"
+        value={value}
+        onChange={onChange}
+        aspect="aspect-[4/3.6]"
+        preview={
+          <div className="space-y-4">
+            <CardPreview k={k} img={value} />
+            <Slider
+              label="Photo fade"
+              hint="Lower = more of your photo shows. The label gets a soft glow when the fade is light."
+              value={cardFade(value)}
+              min={0}
+              max={100}
+              unit="%"
+              onChange={(fade) => onChange({ ...value, fade })}
+              onReset={() => {
+                const { fade: _f, ...rest } = value;
+                onChange(rest);
+              }}
+            />
+            <Slider
+              label="Text position"
+              hint="Moves “Learn / Live / …” up from the bottom edge."
+              value={value.textLift ?? 0}
+              min={0}
+              max={MAX_TEXT_LIFT}
+              unit="px"
+              onChange={(textLift) => onChange({ ...value, textLift })}
+              onReset={() => {
+                const { textLift: _t, ...rest } = value;
+                onChange(rest);
+              }}
+            />
+          </div>
+        }
+      />
     </div>
   );
 }
@@ -190,19 +283,17 @@ export default function HomeSection({
         blurb="Optional background photo for Learn, Live, Studio and Shipped."
       >
         <p className="adm-note">
-          The photo fades into the card&rsquo;s own colour at the bottom, so the label always stays readable. A face or a
-          single object near the top of the photo works best. Leave a card empty to keep it plain.
+          The photo fades into the card&rsquo;s own colour at the bottom so the label stays readable. Use{" "}
+          <b>Photo fade</b> to show more or less of the photo and <b>Text position</b> to move the label — the small card
+          shows exactly how it will look. Leave a card empty to keep it plain.
         </p>
         <div className="grid sm:grid-cols-2 gap-x-6">
           {(Object.keys(HOME_CARD_LABELS) as HomeCardKey[]).map((k) => (
-            <PhotoField
+            <CardField
               key={k}
-              label={`${HOME_CARD_LABELS[k]} card`}
-              sizeHint="1200 × 900 px"
+              k={k}
               value={value.cards[k]}
               onChange={(img) => set("cards", { [k]: img } as Partial<HomeSettings["cards"]>)}
-              aspect="aspect-[4/3.6]"
-              preview={<CardPreview k={k} img={value.cards[k]} />}
             />
           ))}
         </div>

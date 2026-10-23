@@ -234,17 +234,12 @@
 .v4 .v4-cut-gold { --cut-bg: var(--gold); }
 .v4 .v4-cut .v4-pic { z-index: 0; }
 .v4 .v4-cut:hover .v4-pic { transform: scale(1.06); }
-.v4 .v4-cut-fade {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--cut-bg) 5%, transparent) 0%,
-    color-mix(in srgb, var(--cut-bg) 30%, transparent) calc(100% - 150px),
-    color-mix(in srgb, var(--cut-bg) 92%, transparent) calc(100% - 92px),
-    var(--cut-bg) calc(100% - 66px)
-  );
+.v4 .v4-cut-fade { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+/* Admin → Homepage sliders: label lift, and a glow when the fade is set light. */
+.v4 .v4-cut > span:last-child { transform: translateY(calc(var(--lift, 0px) * -1)); }
+.v4 .v4-cut.is-soft .v4-cut-t,
+.v4 .v4-cut.is-soft .v4-cut-t + .v4-m {
+  text-shadow: 0 0 2px var(--cut-bg), 0 1px 14px var(--cut-bg), 0 0 28px var(--cut-bg);
 }
 .v4 .v4-ic, .v4 .v4-cut > span:last-child { position: relative; z-index: 1; }
 .v4 .v4-go { z-index: 2; }

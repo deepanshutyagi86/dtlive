@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import CheckoutModal from "@/components/CheckoutModal";
 import { useModalBehavior } from "@/lib/useModalBehavior";
-import type { HomeCardKey, HomeImage } from "@/lib/home-settings";
+import { cardFade, cardFadeBackground, SOFT_FADE_BELOW, type HomeCardKey, type HomeImage } from "@/lib/home-settings";
 import LiveTicket from "./LiveTicket";
 import StudioDemo, { type DemoProject } from "./StudioDemo";
 import { Arrow, Pic } from "./parts";
@@ -73,9 +73,19 @@ function CardPhoto({ img }: { img: HomeImage }) {
   return (
     <>
       <Pic src={img.url} alt="" sizes="(min-width: 861px) 25vw, 50vw" focal={img.focal} />
-      <span className="v4-cut-fade" aria-hidden="true" />
+      <span className="v4-cut-fade" aria-hidden="true" style={{ background: cardFadeBackground("var(--cut-bg)", cardFade(img)) }} />
     </>
   );
+}
+
+/** Class + inline vars for a shortcut card: photo, label lift, and a glow when the fade is light. */
+function cardProps(img: HomeImage): { className: string; style?: CSSProperties } {
+  if (!img.url) return { className: "" };
+  const soft = cardFade(img) < SOFT_FADE_BELOW ? " is-soft" : "";
+  return {
+    className: `has-photo${soft}`,
+    style: img.textLift ? ({ ["--lift" as string]: `${img.textLift}px` } as CSSProperties) : undefined,
+  };
 }
 
 function Band({ items, variant }: { items: string[]; variant: "a" | "b" }) {
@@ -259,7 +269,8 @@ export default function V4Home(props: V4HomeProps) {
   const tabs = TABS.filter((t) => t.id !== "studio" || studio).filter((t) => t.id !== "shipped" || shipped.length);
   const year = new Date().getFullYear();
 
-  const cardClass = (key: HomeCardKey) => (home.cards[key].url ? "has-photo" : "");
+  const cardClass = (key: HomeCardKey) => cardProps(home.cards[key]).className;
+  const cardStyle = (key: HomeCardKey) => cardProps(home.cards[key]).style;
   const anyCardPhoto = (Object.keys(home.cards) as HomeCardKey[]).some((k) => home.cards[k].url);
 
   // Proof tiles: the admin's own list, or the first two ticker lines as before.
@@ -360,7 +371,7 @@ export default function V4Home(props: V4HomeProps) {
       {/* ---------- shortcuts ---------- */}
       <div className="v4-wrap" aria-label="Start here" role="navigation">
         <div className={`v4-cuts ${anyCardPhoto ? "has-photos" : ""}`}>
-          <a href="#learn" className={`v4-cut ${cardClass("learn")}`}>
+          <a href="#learn" className={`v4-cut ${cardClass("learn")}`} style={cardStyle("learn")}>
             <CardPhoto img={home.cards.learn} />
             <span className="v4-go" aria-hidden="true">↗</span>
             <span className="v4-ic">
@@ -373,7 +384,7 @@ export default function V4Home(props: V4HomeProps) {
               </span>
             </span>
           </a>
-          <a href="#live" className={`v4-cut v4-cut-dark ${cardClass("live")}`}>
+          <a href="#live" className={`v4-cut v4-cut-dark ${cardClass("live")}`} style={cardStyle("live")}>
             <CardPhoto img={home.cards.live} />
             <span className="v4-go" aria-hidden="true">↗</span>
             <span className="v4-ic">
@@ -385,7 +396,7 @@ export default function V4Home(props: V4HomeProps) {
             </span>
           </a>
           {studio && (
-            <a href="#studio" className={`v4-cut v4-cut-gold ${cardClass("studio")}`}>
+            <a href="#studio" className={`v4-cut v4-cut-gold ${cardClass("studio")}`} style={cardStyle("studio")}>
               <CardPhoto img={home.cards.studio} />
               <span className="v4-go" aria-hidden="true">↗</span>
               <span className="v4-ic">
@@ -398,7 +409,7 @@ export default function V4Home(props: V4HomeProps) {
             </a>
           )}
           {shipped.length > 0 && (
-            <a href="#shipped" className={`v4-cut ${cardClass("shipped")}`}>
+            <a href="#shipped" className={`v4-cut ${cardClass("shipped")}`} style={cardStyle("shipped")}>
               <CardPhoto img={home.cards.shipped} />
               <span className="v4-go" aria-hidden="true">↗</span>
               <span className="v4-ic">

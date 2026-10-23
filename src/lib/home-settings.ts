@@ -16,6 +16,32 @@ export interface HomeImage {
   /** Blob URL. "" = no photo (the surface falls back to its plain design). */
   url: string;
   focal?: ImageFocal;
+  /** Shortcut cards only: how far up the colour fade reaches, 0–100 (% of card). */
+  fade?: number;
+  /** Shortcut cards only: lift the label off the bottom edge, in px. */
+  textLift?: number;
+}
+
+export const DEFAULT_CARD_FADE = 60;
+export const MAX_TEXT_LIFT = 90;
+/** Below this the fade is too weak to carry the label alone, so the text gets a soft glow. */
+export const SOFT_FADE_BELOW = 45;
+
+/**
+ * The shortcut-card fade, as one CSS background. Shared by the homepage and
+ * the admin preview, so the slider shows exactly what the site will draw.
+ * `bg` is the card's own colour (white, ink or gold) — the label always
+ * sits on that colour at the bottom, whatever the photo is.
+ */
+export function cardFadeBackground(bg: string, fade: number = DEFAULT_CARD_FADE): string {
+  const f = Math.min(100, Math.max(0, fade));
+  if (f === 0) return "none";
+  const at = (k: number) => `${(f * k).toFixed(1)}%`;
+  return `linear-gradient(0deg, ${bg} 0%, ${bg} ${at(0.32)}, color-mix(in srgb, ${bg} 72%, transparent) ${at(0.62)}, color-mix(in srgb, ${bg} 25%, transparent) ${at(0.85)}, transparent ${at(1)})`;
+}
+
+export function cardFade(img: HomeImage): number {
+  return typeof img.fade === "number" ? img.fade : DEFAULT_CARD_FADE;
 }
 
 export type HomeCardKey = "learn" | "live" | "studio" | "shipped";
@@ -124,11 +150,22 @@ function focal(v: unknown): ImageFocal | undefined {
   return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : undefined;
 }
 
+function clampNum(v: unknown, min: number, max: number): number | undefined {
+  const n = Number(v);
+  return v === undefined || v === null || v === "" || !Number.isFinite(n) ? undefined : Math.min(max, Math.max(min, Math.round(n)));
+}
+
 export function normaliseImage(v: unknown): HomeImage {
   if (typeof v === "string") return { url: v.trim() };
   if (!isObj(v)) return { url: "" };
+  const out: HomeImage = { url: str(v.url).trim() };
   const f = focal(v.focal);
-  return f ? { url: str(v.url).trim(), focal: f } : { url: str(v.url).trim() };
+  if (f) out.focal = f;
+  const fade = clampNum(v.fade, 0, 100);
+  if (fade !== undefined) out.fade = fade;
+  const lift = clampNum(v.textLift, 0, MAX_TEXT_LIFT);
+  if (lift !== undefined) out.textLift = lift;
+  return out;
 }
 
 function strings(v: unknown): string[] {

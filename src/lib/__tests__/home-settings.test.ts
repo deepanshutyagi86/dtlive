@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { DEFAULT_HOME, normaliseHome, resolveHome } from "../home-settings";
+import { cardFadeBackground, DEFAULT_HOME, MAX_TEXT_LIFT, normaliseHome, resolveHome } from "../home-settings";
 
 // GET /api/settings hands the admin panel RAW stored JSON. normaliseHome is
 // the boundary that makes any stored shape — missing, partial, a string
@@ -61,5 +61,25 @@ describe("resolveHome", () => {
     });
     expect(h.studio.showcase.map((s) => s.name)).toEqual(["b"]);
     expect(h.proof).toEqual([{ text: "100+ students", image: { url: "" } }]);
+  });
+});
+
+describe("card fade + text lift", () => {
+  it("keeps the slider values and clamps them to their ranges", () => {
+    const c = normaliseHome({ cards: { learn: { url: "u", fade: 140, textLift: -5 }, live: { url: "u", fade: "30", textLift: 999 } } }).cards;
+    expect(c.learn.fade).toBe(100);
+    expect(c.learn.textLift).toBe(0);
+    expect(c.live.fade).toBe(30);
+    expect(c.live.textLift).toBe(MAX_TEXT_LIFT);
+  });
+
+  it("leaves them unset when never touched, so the default applies", () => {
+    const c = normaliseHome({ cards: { learn: { url: "u" } } }).cards.learn;
+    expect(c).toEqual({ url: "u" });
+  });
+
+  it("draws no gradient at 0 and a solid base above it", () => {
+    expect(cardFadeBackground("#fff", 0)).toBe("none");
+    expect(cardFadeBackground("#fff", 50)).toMatch(/^linear-gradient\(0deg, #fff 0%, #fff 16\.0%/);
   });
 });
