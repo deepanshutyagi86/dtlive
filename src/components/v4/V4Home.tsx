@@ -494,6 +494,7 @@ export default function V4Home(props: V4HomeProps) {
             live={home.live}
             hostFallback={bioAvatar}
             bioName={bioName || "Deepanshu Tyagi"}
+            gstin={gstin}
           />
         </div>
       </Section>

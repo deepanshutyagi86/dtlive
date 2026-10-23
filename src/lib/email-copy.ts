@@ -130,7 +130,11 @@ Invoice: {invoiceUrl}{/invoiceUrl}`,
 Thanks for getting in touch. I've got your details and will follow up directly.
 
 Re: {item}
-
+{?date}When: {date}
+{/date}{?groupUrl}
+Join the WhatsApp group so you don't miss the joining link:
+{groupUrl}
+{/groupUrl}
 — Deepanshu`,
   },
   leadAdmin: {

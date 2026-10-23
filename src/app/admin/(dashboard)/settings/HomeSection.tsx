@@ -230,12 +230,20 @@ export default function HomeSection({
           <Link href="/admin/items" className="underline">
             Items
           </Link>{" "}
-          on that workshop. The ticket always shows the next upcoming workshop. With none scheduled it turns into a waitlist
-          form, and sign-ups land in{" "}
+          on that workshop. The ticket always shows the next upcoming workshop, with a live countdown to its start.
+          <br />
+          <br />
+          <b>Free workshop:</b> the registration form sits right on the ticket (same fields as the workshop&rsquo;s own
+          form). Registrations land in{" "}
           <Link href="/admin/leads" className="underline">
             Leads
           </Link>{" "}
-          tagged <code>waitlist:live</code>.
+          under that workshop, and the person immediately gets a &ldquo;Join the WhatsApp group&rdquo; button — set the link
+          in Items → workshop → Joining info → Group link. It goes in their confirmation email too.
+          <br />
+          <b>Paid workshop:</b> the button opens checkout right there; orders land in Orders.
+          <br />
+          <b>Nothing scheduled:</b> a waitlist form, tagged <code>waitlist:live</code> in Leads.
         </p>
         <PhotoField
           label="Your photo"

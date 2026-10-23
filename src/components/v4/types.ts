@@ -1,4 +1,4 @@
-import type { Category, ImageFocal } from "@/lib/types";
+import type { Category, ImageFocal, RegistrationField } from "@/lib/types";
 import type { TaxSettings } from "@/lib/settings-types";
 import type { HomeSettings } from "@/lib/home-settings";
 
@@ -28,6 +28,16 @@ export interface V4Course {
 }
 
 export interface V4NextLive {
+  id: string;
+  /** ISO start time — the countdown runs to this. */
+  dateIso: string;
+  price: number;
+  priceNote: string;
+  tax: TaxSettings;
+  /** The workshop's own registration form (Items → workshop). */
+  fields: RegistrationField[];
+  /** Seats are tracked and none are left. */
+  isFull: boolean;
   slug: string;
   title: string;
   description: string;

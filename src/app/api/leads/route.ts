@@ -8,6 +8,7 @@ import { sanitiseAttribution } from "@/lib/attribution";
 import { DEFAULT_REGISTRATION_FIELDS } from "@/lib/types";
 import type { RegistrationField, WorkshopDetails } from "@/lib/types";
 import { rateLimit, clientIpFrom } from "@/lib/rate-limit";
+import { SITE_TZ } from "@/lib/dates";
 import { isValidEmail, isValidPhone, normalisePhone } from "@/lib/validate";
 import { sendEmail } from "@/lib/email";
 import { DEFAULT_EMAIL_COPY, resolveTemplate, renderTemplate } from "@/lib/email-templates";
@@ -164,12 +165,31 @@ export async function POST(req: NextRequest) {
   // in that case, and the {item} token in either template below already
   // renders as an empty string rather than "undefined" (see substitute()
   // in email-templates.ts).
+  // The joining tokens were listed as available in the registrant template
+  // ({groupUrl}, {date}, …) but never filled, so a free registrant's email
+  // could not carry the WhatsApp group link at all.
+  const joining = details?.joining ?? {};
+  const workshopDate = workshopDetails?.date ? new Date(workshopDetails.date) : null;
   const leadValues = {
     name: lead.name,
     firstName: lead.name.split(" ")[0],
     item: item?.title ?? "",
     email: lead.email ?? "",
     phone: lead.phone ?? "",
+    date:
+      workshopDate && !Number.isNaN(workshopDate.getTime())
+        ? workshopDate.toLocaleString("en-IN", {
+            weekday: "short",
+            day: "numeric",
+            month: "short",
+            hour: "2-digit",
+            minute: "2-digit",
+            timeZone: SITE_TZ,
+          }) + " IST"
+        : "",
+    groupUrl: joining.groupUrl?.trim() ?? "",
+    meetingUrl: joining.meetingUrl?.trim() ?? "",
+    joiningNote: joining.note?.trim() ?? "",
   };
 
   if (lead.email) {
@@ -220,7 +240,12 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, id: lead.id }, { status: 201 });
+  // The group link goes back ONLY to someone who just registered — it is
+  // never in the page itself, so it can't be lifted without signing up.
+  const group = joining.groupUrl?.trim()
+    ? { url: joining.groupUrl.trim(), label: joining.groupLabel?.trim() || "Join the WhatsApp group" }
+    : null;
+  return NextResponse.json({ ok: true, id: lead.id, group }, { status: 201 });
 }
 
 export async function GET() {

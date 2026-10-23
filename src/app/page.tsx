@@ -8,7 +8,7 @@ import { getBio, getBusinessSettings, getHomeSettings, getTaxSettingsForDisplay,
 import { hasTaxDetailsColumn } from "@/lib/admin-repo";
 import { taxFor, taxModeFor } from "@/lib/settings-types";
 import { priceLabel, priceSubLabel } from "@/lib/tax";
-import { overviewVideoFor } from "@/lib/types";
+import { DEFAULT_REGISTRATION_FIELDS, overviewVideoFor } from "@/lib/types";
 import type { AgencyDetails, CourseDetails, ShopDetails, VentureDetails, WorkshopDetails } from "@/lib/types";
 import { SITE_TZ } from "@/lib/dates";
 
@@ -86,6 +86,13 @@ export default async function HomePage() {
     const w = upcoming.d;
     const tax = taxFor(taxSettings, taxModeFor(w));
     nextLive = {
+      id: upcoming.item.id,
+      dateIso: w.date,
+      price: Number(w.price) || 0,
+      priceNote: priceSubLabel(w.price, tax),
+      tax: { ...tax, b2bEnabled: tax.b2bEnabled && b2bReady },
+      fields: Array.isArray(w.registrationFields) && w.registrationFields.length ? w.registrationFields : DEFAULT_REGISTRATION_FIELDS,
+      isFull: !w.unlimitedSeats && Number.isFinite(w.seatsLeft) && w.seatsLeft <= 0,
       slug: upcoming.item.slug,
       title: upcoming.item.title,
       description: upcoming.item.description,
