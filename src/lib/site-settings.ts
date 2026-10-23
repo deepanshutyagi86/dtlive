@@ -56,6 +56,7 @@ import {
   type TaxSettings,
 } from "./settings-types";
 import type { ItemSyllabus } from "./types";
+import { resolveHome, type HomeSettings } from "./home-settings";
 
 export const SITE_URL = "https://www.deepanshutyagi.live";
 
@@ -755,4 +756,14 @@ export async function getEmailSender(): Promise<EmailSender> {
     phone: business.phone,
     siteUrl: SITE_URL,
   };
+}
+
+/* ------------------------------------------------------------------ */
+/* Homepage (V4) — text, card photos, the live ticket, studio showcase */
+/* ------------------------------------------------------------------ */
+
+// Chrome-class read: a missing or unreadable row renders the homepage with
+// the words it shipped with, never an error page.
+export async function getHomeSettings(): Promise<HomeSettings> {
+  return resolveHome(await readChromeSetting<unknown>("home", {}));
 }

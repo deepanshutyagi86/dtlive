@@ -4,9 +4,7 @@ import {
   BrandingSection,
   NavSection,
   BioSection,
-  StarterSection,
   GuideCtaSection,
-  StreamSection,
   SyllabusSection,
   BoothSection,
   CouponsSection,
@@ -14,6 +12,8 @@ import {
   BusinessSection,
   InvoiceSection,
 } from "./SettingsSections";
+import HomeSection from "./HomeSection";
+import { normaliseHome, type HomeSettings } from "@/lib/home-settings";
 import { asArray, normaliseBoothSets } from "@/lib/admin-normalise";
 // Plain module, deliberately: the six settings PAGES are server
 // components and cannot import shared data out of this client file.
@@ -72,12 +72,6 @@ interface HeroCopy {
   line2?: string;
   subline?: string;
 }
-const HERO_DEFAULTS = {
-  eyebrow: "DEEPANSHUTYAGI.LIVE — THE STOREFRONT",
-  line1: "Live,",
-  line2: "right now.",
-  subline: "Everything I teach, build, and sell.",
-};
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -95,7 +89,10 @@ export default function SettingsForm({ show }: { show?: SettingsSectionKey[] }) 
   // form keeps working unchanged.
   const visible = (key: SettingsSectionKey) => !show || show.includes(key);
 
+  // Retired with the old homepage (nothing reads them any more) but still
+  // loaded and saved, so a stored value round-trips instead of being wiped.
   const [heroCopy, setHeroCopy] = useState<HeroCopy>({});
+  const [home, setHome] = useState<HomeSettings>(normaliseHome({}));
   const [ticker, setTicker] = useState<string[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [emailCopy, setEmailCopy] = useState<EmailCopy>({});
@@ -122,6 +119,7 @@ export default function SettingsForm({ show }: { show?: SettingsSectionKey[] }) 
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     // Each stored value is merged OVER its defaults rather than replacing
@@ -131,6 +129,7 @@ export default function SettingsForm({ show }: { show?: SettingsSectionKey[] }) 
       .then((r) => r.json())
       .then((d) => {
         setHeroCopy(d.heroCopy ?? {});
+        setHome(normaliseHome(d.home));
         setTicker(asArray<string>(d.ticker));
         setTestimonials(asArray<Testimonial>(d.testimonials));
         setEmailCopy(d.emailCopy ?? {});
@@ -196,12 +195,20 @@ export default function SettingsForm({ show }: { show?: SettingsSectionKey[] }) 
   async function save() {
     setSaving(true);
     setSaved(false);
-    await fetch("/api/settings", {
+    setSaveError(null);
+    // It used to say "Saved ✓" whatever the server answered — an expired
+    // session or a failed write looked exactly like success.
+    const res = await fetch("/api/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         heroCopy,
-        ticker,
+        home: {
+          ...home,
+          credos: home.credos.map((c) => c.trim()).filter(Boolean),
+          seeker: { ...home.seeker, books: home.seeker.books.map((b) => b.trim()).filter(Boolean) },
+        },
+        ticker: ticker.map((t) => t.trim()).filter(Boolean),
         testimonials,
         emailCopy,
         footerLinks: links,
@@ -221,8 +228,16 @@ export default function SettingsForm({ show }: { show?: SettingsSectionKey[] }) 
         tax,
         invoice,
       }),
-    });
+    }).catch(() => null);
     setSaving(false);
+    if (!res || !res.ok) {
+      setSaveError(
+        res?.status === 401
+          ? "Your login expired — nothing was saved. Log in again in another tab, then save."
+          : "Could not save. Check your connection and try again."
+      );
+      return;
+    }
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   }
@@ -241,59 +256,16 @@ export default function SettingsForm({ show }: { show?: SettingsSectionKey[] }) 
   }
 
   return (
-    <div className="max-w-[640px] space-y-12">
-      {visible("hero") && <section>
-        <h2 className="font-display font-bold text-lg mb-1">Homepage hero</h2>
-        <p className="text-sm text-muted mb-3">The first thing a visitor reads. Blank fields fall back to the default shown.</p>
-        <Field label="Eyebrow">
-          <input
-            className={inputClass}
-            placeholder={HERO_DEFAULTS.eyebrow}
-            value={heroCopy.eyebrow ?? ""}
-            onChange={(e) => setHeroCopy({ ...heroCopy, eyebrow: e.target.value })}
-          />
-        </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Headline, line 1">
-            <input
-              className={inputClass}
-              placeholder={HERO_DEFAULTS.line1}
-              value={heroCopy.line1 ?? ""}
-              onChange={(e) => setHeroCopy({ ...heroCopy, line1: e.target.value })}
-            />
-          </Field>
-          <Field label="Headline, line 2">
-            <input
-              className={inputClass}
-              placeholder={HERO_DEFAULTS.line2}
-              value={heroCopy.line2 ?? ""}
-              onChange={(e) => setHeroCopy({ ...heroCopy, line2: e.target.value })}
-            />
-          </Field>
-        </div>
-        <Field label="Subline">
-          <input
-            className={inputClass}
-            placeholder={HERO_DEFAULTS.subline}
-            value={heroCopy.subline ?? ""}
-            onChange={(e) => setHeroCopy({ ...heroCopy, subline: e.target.value })}
-          />
-        </Field>
-      </section>}
-
-      {visible("ticker") && <section>
-        <h2 className="font-display font-bold text-lg mb-3">Ticker lines</h2>
-        <p className="text-sm text-muted mb-3">One proof point per line — scrolls on the homepage.</p>
-        <textarea
-          className={`${inputClass} leading-6`}
-          rows={5}
-          value={ticker.join("\n")}
-          onChange={(e) => setTicker(e.target.value.split("\n"))}
-        />
-      </section>}
+    <div className="max-w-[760px] space-y-12">
+      {visible("home") && (
+        <HomeSection value={home} onChange={setHome} ticker={ticker} onTickerChange={setTicker} />
+      )}
 
       {visible("testimonials") && <section>
-        <h2 className="font-display font-bold text-lg mb-3">Testimonials</h2>
+        <h2 className="font-display font-bold text-lg mb-1">Testimonials</h2>
+        <p className="text-sm text-muted mb-3">
+          The pool your ad pages pick quotes from (Ad pages → each page → testimonials). Not shown on the homepage.
+        </p>
         {testimonials.map((t, i) => (
           <div key={i} className="flex gap-2 mb-2">
             <input
@@ -416,13 +388,9 @@ export default function SettingsForm({ show }: { show?: SettingsSectionKey[] }) 
         </div>
       </section>}
 
-      <hr className="border-line" />
-
       {visible("branding") && <BrandingSection value={branding} onChange={setBranding} />}
       {visible("nav") && <NavSection value={nav} onChange={setNav} />}
-      {visible("starter") && <StarterSection value={starter} onChange={setStarter} />}
       {visible("guideCta") && <GuideCtaSection value={guideCta} onChange={setGuideCta} />}
-      {visible("stream") && <StreamSection value={stream} onChange={setStream} />}
       {visible("syllabus") && <SyllabusSection value={syllabus} onChange={setSyllabus} />}
       {visible("booth") && <BoothSection value={booth} onChange={setBooth} />}
       {visible("bio") && <BioSection value={bio} onChange={setBio} />}
@@ -431,15 +399,14 @@ export default function SettingsForm({ show }: { show?: SettingsSectionKey[] }) 
       {visible("business") && <BusinessSection value={business} onChange={setBusiness} />}
       {visible("invoice") && <InvoiceSection value={invoice} onChange={setInvoice} />}
 
-      <div className="flex items-center gap-4">
-        <button
-          onClick={save}
-          disabled={saving}
-          className="bg-ink text-bone px-6 py-3 rounded-full font-semibold text-sm hover:bg-marigold hover:text-ink transition-colors disabled:opacity-60"
-        >
-          {saving ? "Saving…" : "Save settings"}
+      {/* Sticky: the Homepage page alone is several screens tall, and the
+          only save button used to be at the very bottom of it. */}
+      <div className="adm-savebar">
+        <button onClick={save} disabled={saving} className="adm-btn adm-btn-ink">
+          {saving ? "Saving…" : "Save changes"}
         </button>
-        {saved && <span className="text-marigold-ink font-medium text-sm">Saved ✓</span>}
+        {saved && <span className="adm-saved">Saved ✓ — live now</span>}
+        {saveError && <span className="adm-save-err">{saveError}</span>}
       </div>
     </div>
   );

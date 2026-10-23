@@ -1,5 +1,6 @@
 import type { Category, ImageFocal } from "@/lib/types";
 import type { TaxSettings } from "@/lib/settings-types";
+import type { HomeSettings } from "@/lib/home-settings";
 
 // Everything the V4 homepage needs, already shaped on the server. Plain
 // serialisable data only — this crosses the server → client boundary.
@@ -29,14 +30,24 @@ export interface V4Course {
 export interface V4NextLive {
   slug: string;
   title: string;
+  description: string;
+  thumbnail: string | null;
+  imageFocal: ImageFocal | null;
   dateLabel: string;
+  /** "30 Sept" — the big line on the ticket stub. */
+  bigDate: string;
+  /** "Sat · 10:00 am IST" — under it. */
+  smallDate: string;
   seatsLabel: string | null;
   priceLabel: string;
 }
 
 export interface V4PastLive {
+  slug: string;
   title: string;
   dateLabel: string;
+  thumbnail: string | null;
+  imageFocal: ImageFocal | null;
 }
 
 export interface V4Studio {
@@ -74,7 +85,7 @@ export interface V4HomeProps {
   shipped: V4Shipped[];
   credentials: string[];
   links: V4Links;
-  waitlistHref: string;
+  home: HomeSettings;
   bioName: string;
   bioAvatar: string | null;
   gstin: string;

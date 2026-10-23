@@ -14,7 +14,7 @@ import { SECTION_GROUPS, type SettingsSectionKey } from "../settings-sections";
 // which is the quiet version of the same failure.
 
 const ALL_KEYS: SettingsSectionKey[] = [
-  "hero", "ticker", "testimonials", "starter", "stream",
+  "home", "testimonials",
   "bio", "branding", "nav", "footer",
   "emails", "notify",
   "coupons", "tax", "invoice", "business",

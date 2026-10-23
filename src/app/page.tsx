@@ -4,7 +4,7 @@ import V4Home from "@/components/v4/V4Home";
 import { V4_FONT_VARS } from "@/components/v4/fonts";
 import type { V4Course, V4NextLive, V4PastLive, V4Shipped, V4Studio } from "@/components/v4/types";
 import { getLiveStreamItems, getSetting } from "@/lib/items";
-import { getBio, getBusinessSettings, getTaxSettingsForDisplay, SITE_URL } from "@/lib/site-settings";
+import { getBio, getBusinessSettings, getHomeSettings, getTaxSettingsForDisplay, SITE_URL } from "@/lib/site-settings";
 import { hasTaxDetailsColumn } from "@/lib/admin-repo";
 import { taxFor, taxModeFor } from "@/lib/settings-types";
 import { priceLabel, priceSubLabel } from "@/lib/tax";
@@ -30,25 +30,8 @@ function dateLabel(iso: string): string {
   });
 }
 
-// wa.me / api.whatsapp links accept a prefilled message; anything else
-// (or no WhatsApp at all) falls back to the workshops page, which always
-// shows the next date first.
-function waitlistHref(whatsapp?: string): string {
-  if (!whatsapp) return "/workshops";
-  try {
-    const url = new URL(whatsapp);
-    if (/(^|\.)wa\.me$|whatsapp\.com$/.test(url.hostname)) {
-      url.searchParams.set("text", "Hi Deepanshu, add me to the waitlist for the next live workshop.");
-      return url.toString();
-    }
-    return whatsapp;
-  } catch {
-    return "/workshops";
-  }
-}
-
 export default async function HomePage() {
-  const [items, ticker, footerLinks, bio, taxSettings, business, b2bReady] = await Promise.all([
+  const [items, ticker, footerLinks, bio, taxSettings, business, b2bReady, home] = await Promise.all([
     getLiveStreamItems(),
     getSetting<string[]>("ticker", DEFAULT_TICKER),
     getSetting<FooterLinks>("footerLinks", DEFAULT_FOOTER),
@@ -56,6 +39,7 @@ export default async function HomePage() {
     getTaxSettingsForDisplay(),
     getBusinessSettings(),
     hasTaxDetailsColumn().catch(() => false),
+    getHomeSettings(),
   ]);
 
   const now = Date.now();
@@ -104,7 +88,16 @@ export default async function HomePage() {
     nextLive = {
       slug: upcoming.item.slug,
       title: upcoming.item.title,
+      description: upcoming.item.description,
+      thumbnail: upcoming.item.thumbnail,
+      imageFocal: w.imageFocal ?? null,
       dateLabel: dateLabel(w.date),
+      bigDate: new Date(w.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: SITE_TZ }),
+      smallDate:
+        new Date(w.date).toLocaleDateString("en-IN", { weekday: "short", timeZone: SITE_TZ }) +
+        " · " +
+        new Date(w.date).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: SITE_TZ }) +
+        " IST",
       seatsLabel:
         !w.unlimitedSeats && w.showSeatsBadge !== false && Number.isFinite(w.seatsLeft)
           ? `${w.seatsLeft} seats left`
@@ -114,7 +107,10 @@ export default async function HomePage() {
   }
   const pastLive: V4PastLive | null = past
     ? {
+        slug: past.item.slug,
         title: past.item.title,
+        thumbnail: past.item.thumbnail,
+        imageFocal: past.d.imageFocal ?? null,
         dateLabel: new Date(past.d.date).toLocaleDateString("en-IN", {
           day: "numeric",
           month: "short",
@@ -168,6 +164,9 @@ export default async function HomePage() {
       };
     });
 
+  // A blank line in the admin textarea is saved as "" — never a band item.
+  const cleanTicker = ticker.map((t) => String(t ?? "").trim()).filter(Boolean);
+
   const structured = [
     { "@context": "https://schema.org", "@type": "WebSite", name: "Deepanshu Tyagi Live", url: SITE_URL },
     {
@@ -192,9 +191,9 @@ export default async function HomePage() {
         pastLive={pastLive}
         studio={studio}
         shipped={shipped}
-        credentials={ticker.length ? ticker : DEFAULT_TICKER}
+        credentials={cleanTicker.length ? cleanTicker : DEFAULT_TICKER}
         links={footerLinks}
-        waitlistHref={waitlistHref(footerLinks.whatsapp)}
+        home={home}
         bioName={bio.name}
         bioAvatar={bio.avatarUrl || null}
         gstin={business.gstin}

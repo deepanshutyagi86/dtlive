@@ -29,7 +29,19 @@ function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number):
 // plain <img> decode, which does NOT correct rotation — hand-rolling EXIF
 // byte parsing just to cover that fallback isn't cheap, so it's skipped
 // rather than faked.
-export async function compressImage(file: File): Promise<CompressedImage> {
+export interface CompressOptions {
+  /**
+   * Cap the WIDTH instead of the longest edge. For full-page website
+   * screenshots: a 1440×7000 capture capped at 1600 on its longest edge
+   * would come out ~330px wide and unreadable. Height is still bounded,
+   * below WebP's 16383px limit.
+   */
+  maxWidth?: number;
+}
+
+const MAX_SCREENSHOT_HEIGHT = 9000;
+
+export async function compressImage(file: File, options: CompressOptions = {}): Promise<CompressedImage> {
   const originalBytes = file.size;
 
   let source: CanvasImageSource;
@@ -54,7 +66,9 @@ export async function compressImage(file: File): Promise<CompressedImage> {
     sourceHeight = img.naturalHeight;
   }
 
-  const scale = Math.min(1, MAX_DIMENSION / Math.max(sourceWidth, sourceHeight));
+  const scale = options.maxWidth
+    ? Math.min(1, options.maxWidth / sourceWidth, MAX_SCREENSHOT_HEIGHT / sourceHeight)
+    : Math.min(1, MAX_DIMENSION / Math.max(sourceWidth, sourceHeight));
   const targetWidth = Math.round(sourceWidth * scale);
   const targetHeight = Math.round(sourceHeight * scale);
 

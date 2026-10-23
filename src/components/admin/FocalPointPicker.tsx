@@ -20,11 +20,14 @@ export default function FocalPointPicker({
   // prop anyway so the preview box can't silently drift from whatever the
   // surface it's previewing actually uses.
   aspectClassName = ITEM_IMAGE_ASPECT_CLASS,
+  showPreview = true,
 }: {
   thumbnail: string;
   imageFocal: ImageFocal | undefined;
   onChange: (focal: ImageFocal | undefined) => void;
   aspectClassName?: string;
+  /** Off when the caller already draws a truer preview of the surface. */
+  showPreview?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const focal = imageFocal ?? { x: 50, y: 0 };
@@ -79,7 +82,7 @@ export default function FocalPointPicker({
           />
         </div>
 
-        <div className="w-full sm:max-w-[200px]">
+        {showPreview && <div className="w-full sm:max-w-[200px]">
           <p className="font-mono text-[10px] uppercase tracking-wider text-muted mb-1.5">Card preview</p>
           <div className={`relative w-full ${aspectClassName} rounded-[10px] overflow-hidden border border-line`}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -91,7 +94,7 @@ export default function FocalPointPicker({
               draggable={false}
             />
           </div>
-        </div>
+        </div>}
       </div>
 
       <p className="text-[11px] text-muted mt-2">Click or drag on the photo to set what stays in frame on the card.</p>

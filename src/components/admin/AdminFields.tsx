@@ -150,6 +150,8 @@ export function ImageUploadField({
   sizeHint,
   help,
   previewClassName = "w-24 h-24",
+  maxWidth,
+  hidePreview = false,
 }: {
   label: string;
   value: string;
@@ -158,6 +160,10 @@ export function ImageUploadField({
   sizeHint?: string;
   help?: string;
   previewClassName?: string;
+  /** Screenshot mode — cap width, not the longest edge. See compressImage. */
+  maxWidth?: number;
+  /** When the caller renders its own, richer preview. */
+  hidePreview?: boolean;
 }) {
   const id = useId();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -171,7 +177,7 @@ export function ImageUploadField({
     setUploading(true);
     setProgress(0);
     try {
-      const compressed = await compressImage(file);
+      const compressed = await compressImage(file, { maxWidth });
       const pathname = `${pathPrefix}${crypto.randomUUID()}.${compressed.extension}`;
       const result = await upload(pathname, compressed.blob, {
         access: "public",
@@ -228,7 +234,7 @@ export function ImageUploadField({
       />
       {help && <p className="text-[12px] text-muted mt-2 leading-relaxed">{help}</p>}
       {error && <p className="text-live-ink text-sm mt-2">{error}</p>}
-      {value && (
+      {value && !hidePreview && (
         <div className="mt-3">
           {broken ? (
             <div className={`${previewClassName} rounded-[10px] border border-live-ink flex items-center justify-center text-[10.5px] text-live-ink font-mono text-center px-2`}>

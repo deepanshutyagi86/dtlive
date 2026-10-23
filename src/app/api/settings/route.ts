@@ -29,6 +29,7 @@ const ALLOWED_KEYS = [
   "booth",
   "live",
   "adPages",
+  "home",
 ];
 
 export async function GET() {

@@ -6,12 +6,21 @@ import { getItemById, getNotifyEmail, getSetting } from "@/lib/items";
 import { adSourceFor, getEmailSender, liveSourceFor } from "@/lib/site-settings";
 import { sanitiseAttribution } from "@/lib/attribution";
 import { DEFAULT_REGISTRATION_FIELDS } from "@/lib/types";
-import type { WorkshopDetails } from "@/lib/types";
+import type { RegistrationField, WorkshopDetails } from "@/lib/types";
 import { rateLimit, clientIpFrom } from "@/lib/rate-limit";
 import { isValidEmail, isValidPhone, normalisePhone } from "@/lib/validate";
 import { sendEmail } from "@/lib/email";
 import { DEFAULT_EMAIL_COPY, resolveTemplate, renderTemplate } from "@/lib/email-templates";
 import type { EmailCopy } from "@/lib/email-templates";
+
+const WAITLIST_FIELDS: RegistrationField[] = [
+  { key: "name", label: "Name", type: "text", required: true },
+  { key: "phone", label: "WhatsApp number", type: "tel", required: true },
+  { key: "email", label: "Email", type: "email", required: false },
+];
+// Shows in the Leads table's source column, so the list can be filtered
+// down to exactly the people to message when a date is announced.
+const WAITLIST_SOURCE = "waitlist:live";
 
 export async function POST(req: NextRequest) {
   if (!rateLimit(`leads:${clientIpFrom(req)}`, 5, 60_000)) {
@@ -21,7 +30,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { itemId, answers, fbc, fbp, eventSourceUrl, liveSession, liveBlockId, adPage, attribution } = await req.json();
+  const { itemId, answers, fbc, fbp, eventSourceUrl, liveSession, liveBlockId, adPage, attribution, waitlist } =
+    await req.json();
+  // The homepage's "next live date" waitlist. Name + WhatsApp only — the
+  // ask is one tap, so email is optional rather than a third required box.
+  // Never combined with an item: there is no date to register for yet.
+  const isWaitlist = waitlist === "live" && !itemId;
   if (!answers || typeof answers !== "object") {
     return NextResponse.json({ error: "Missing form answers." }, { status: 400 });
   }
@@ -59,8 +73,9 @@ export async function POST(req: NextRequest) {
   }
 
   const details = workshopDetails ?? (item?.details as WorkshopDetails | undefined);
-  const fields =
-    details?.registrationFields && details.registrationFields.length > 0
+  const fields = isWaitlist
+    ? WAITLIST_FIELDS
+    : details?.registrationFields && details.registrationFields.length > 0
       ? details.registrationFields
       : DEFAULT_REGISTRATION_FIELDS;
 
@@ -133,6 +148,7 @@ export async function POST(req: NextRequest) {
     ? (await liveSourceFor(itemId, liveSession, liveBlockId)) ?? (await adSourceFor(itemId, adPage))
     : null;
   if (liveTag) await tagSource("leads", lead.id, liveTag);
+  else if (isWaitlist) await tagSource("leads", lead.id, WAITLIST_SOURCE);
   await tagAttribution("leads", lead.id, sanitiseAttribution(attribution));
 
   if (await claimMetaLeadEvent(lead.id)) {

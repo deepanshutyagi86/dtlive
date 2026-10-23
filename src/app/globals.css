@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 :root {
-  --bone: #f2f1ec;
-  --ink: #191913;
+  --bone: #efede6;
+  --ink: #0e0e0c;
   --ink-soft: #41403a;
   --muted: #6e6d63;
   --card: #ffffff;
@@ -83,7 +83,7 @@ body {
    reads its colour off these custom properties instead of a selector per
    child, so one class toggle flips the whole bar at once. */
 .site-nav {
-  --nav-bg: rgba(242, 241, 236, 0.85);
+  --nav-bg: rgba(239, 237, 230, 0.85);
   --nav-fg: var(--ink);
   --nav-fg-soft: var(--ink-soft);
   --nav-accent: var(--marigold-ink);

@@ -2,12 +2,13 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import Image from "next/image";
 import Link from "next/link";
 import CheckoutModal from "@/components/CheckoutModal";
 import { useModalBehavior } from "@/lib/useModalBehavior";
-import { isOptimisableImage } from "@/lib/image-hosts";
-import type { ImageFocal } from "@/lib/types";
+import type { HomeCardKey, HomeImage } from "@/lib/home-settings";
+import LiveTicket from "./LiveTicket";
+import StudioDemo, { type DemoProject } from "./StudioDemo";
+import { Arrow, Pic } from "./parts";
 import type { V4Course, V4HomeProps } from "./types";
 import "./v4.css";
 
@@ -19,25 +20,6 @@ import "./v4.css";
 // talk, I spiral." The headline is that spiral run through a compressor.
 const SPIRAL_TEXT =
   "AI is where I’m putting everything · I meditate · I dance · thoughts are things · attention has weight · we’re thinking that learned to be meat · when a group locks onto one thing, physics gets strange · death is the most interesting unsolved problem · clarity is the new scarce resource · build for humans or don’t bother · execution is the only proof · I don’t have an answer for this one · I sat with it for a week · ";
-
-const CREDOS = [
-  "Execution is the only proof",
-  "Clarity over speed",
-  "Built, broke, fixed",
-  "Build for humans",
-  "Calm intensity",
-  "Shipped, not learned",
-];
-
-const BOOKS = [
-  "The Book · Alan Watts",
-  "Bhagavad Gita, Ch. 2",
-  "The Beginning of Infinity",
-  "The War of Art",
-  "Finite and Infinite Games",
-];
-
-const STEPS = ["Day 1 · Brief", "Day 7 · Build", "Day 14 · Live"];
 
 function spiralPath(): string {
   let d = "";
@@ -67,43 +49,6 @@ const TABS: { id: SectionId; label: string; icon: string }[] = [
 
 /* ------------------------------------------------------------------ */
 
-function Pic({
-  src,
-  alt,
-  sizes,
-  focal,
-  priority = false,
-}: {
-  src: string | null;
-  alt: string;
-  sizes: string;
-  focal?: ImageFocal | null;
-  priority?: boolean;
-}) {
-  if (!src) return <div className="v4-pic-empty" aria-hidden="true" />;
-  return (
-    <Image
-      src={src}
-      alt={alt}
-      fill
-      sizes={sizes}
-      priority={priority}
-      unoptimized={!isOptimisableImage(src)}
-      className="v4-pic"
-      style={focal ? { objectPosition: `${focal.x}% ${focal.y}%` } : undefined}
-      draggable={false}
-    />
-  );
-}
-
-function Arrow() {
-  return (
-    <span className="v4-arr" aria-hidden="true">
-      →
-    </span>
-  );
-}
-
 function Icon({ d, size = 22 }: { d: string; size?: number }) {
   return (
     <svg
@@ -119,6 +64,17 @@ function Icon({ d, size = 22 }: { d: string; size?: number }) {
     >
       <path d={d} />
     </svg>
+  );
+}
+
+/** A shortcut card's background photo, faded into the card's own colour so the label stays readable. */
+function CardPhoto({ img }: { img: HomeImage }) {
+  if (!img.url) return null;
+  return (
+    <>
+      <Pic src={img.url} alt="" sizes="(min-width: 861px) 25vw, 50vw" focal={img.focal} />
+      <span className="v4-cut-fade" aria-hidden="true" />
+    </>
   );
 }
 
@@ -262,26 +218,17 @@ function Section({ id, className = "", children }: { id: SectionId | string; cla
 }
 
 export default function V4Home(props: V4HomeProps) {
-  const { fontVars, courses, nextLive, pastLive, studio, shipped, credentials, links, waitlistHref, bioName, bioAvatar, gstin } =
+  const { fontVars, courses, nextLive, pastLive, studio, shipped, credentials, links, home, bioName, bioAvatar, gstin } =
     props;
 
   const [replay, setReplay] = useState(0);
   const [active, setActive] = useState<SectionId>("home");
   const [sheetId, setSheetId] = useState<string | null>(null);
-  const [step, setStep] = useState(0);
-  const [autoStep, setAutoStep] = useState(true);
   const [inhale, setInhale] = useState(true);
   const [mounted, setMounted] = useState(false);
   const sheetTrigger = useRef<HTMLElement>(null);
 
   useEffect(() => setMounted(true), []);
-
-  // Studio demo: Brief → Build → Live, until someone picks a step.
-  useEffect(() => {
-    if (!autoStep) return;
-    const t = setInterval(() => setStep((s) => (s + 1) % STEPS.length), 3200);
-    return () => clearInterval(t);
-  }, [autoStep]);
 
   useEffect(() => {
     const t = setInterval(() => setInhale((v) => !v), 4000);
@@ -311,6 +258,29 @@ export default function V4Home(props: V4HomeProps) {
   const sheetCourse = courses.find((c) => c.id === sheetId) ?? null;
   const tabs = TABS.filter((t) => t.id !== "studio" || studio).filter((t) => t.id !== "shipped" || shipped.length);
   const year = new Date().getFullYear();
+
+  const cardClass = (key: HomeCardKey) => (home.cards[key].url ? "has-photo" : "");
+  const anyCardPhoto = (Object.keys(home.cards) as HomeCardKey[]).some((k) => home.cards[k].url);
+
+  // Proof tiles: the admin's own list, or the first two ticker lines as before.
+  const proof = home.proof.length
+    ? home.proof
+    : credentials.slice(0, 2).map((text) => ({ text, image: { url: "" } as HomeImage }));
+
+  // Studio showcase: real screenshots from the admin first; otherwise the
+  // shipped tiles' photos, so the demo always shows real work.
+  const demo: DemoProject[] = home.studio.showcase.length
+    ? home.studio.showcase.map((x) => ({ ...x, screenshot: true }))
+    : shipped
+        .filter((x) => x.thumbnail)
+        .map((x) => ({
+          name: x.title,
+          url: x.external ? x.href : "",
+          tag: x.label,
+          desktop: { url: x.thumbnail as string, focal: x.imageFocal ?? undefined },
+          mobile: { url: "" },
+          screenshot: false,
+        }));
 
   return (
     <div className={`v4 ${fontVars}`}>
@@ -346,16 +316,16 @@ export default function V4Home(props: V4HomeProps) {
             </svg>
           </div>
           <div className="v4-wrap v4-hero-copy">
-            <p className="v4-m v4-muted">{bioName || "Deepanshu Tyagi"} · Builder / Seeker</p>
+            <p className="v4-m v4-muted">
+              {bioName || "Deepanshu Tyagi"} · {home.hero.eyebrow}
+            </p>
             <h1 className="v4-h1 v4-d">
-              I ship things.
+              {home.hero.line1}
               <br />
-              <span className="v4-sf v4-gold-ink">Then I teach how.</span>
+              <span className="v4-sf v4-gold-ink">{home.hero.line2}</span>
             </h1>
             <div className="v4-after">
-              <p className="v4-lede">
-                AI courses, live workshops, a studio that builds your site in 14 days, and the brands I run.
-              </p>
+              <p className="v4-lede">{home.hero.lede}</p>
               <div className="v4-row">
                 <a href="#learn" className="v4-btn v4-b-ink">
                   Start learning <Arrow />
@@ -389,10 +359,13 @@ export default function V4Home(props: V4HomeProps) {
 
       {/* ---------- shortcuts ---------- */}
       <div className="v4-wrap" aria-label="Start here" role="navigation">
-        <div className="v4-cuts">
-          <a href="#learn" className="v4-cut">
+        <div className={`v4-cuts ${anyCardPhoto ? "has-photos" : ""}`}>
+          <a href="#learn" className={`v4-cut ${cardClass("learn")}`}>
+            <CardPhoto img={home.cards.learn} />
             <span className="v4-go" aria-hidden="true">↗</span>
-            <Icon d={TABS[1].icon} size={26} />
+            <span className="v4-ic">
+              <Icon d={TABS[1].icon} size={26} />
+            </span>
             <span>
               <b className="v4-d v4-cut-t">Learn</b>
               <span className="v4-m v4-muted">
@@ -400,18 +373,24 @@ export default function V4Home(props: V4HomeProps) {
               </span>
             </span>
           </a>
-          <a href="#live" className="v4-cut v4-cut-dark">
+          <a href="#live" className={`v4-cut v4-cut-dark ${cardClass("live")}`}>
+            <CardPhoto img={home.cards.live} />
             <span className="v4-go" aria-hidden="true">↗</span>
-            <span className="v4-dot v4-dot-lg" />
+            <span className="v4-ic">
+              <span className="v4-dot v4-dot-lg" />
+            </span>
             <span>
               <b className="v4-d v4-cut-t">Live</b>
               <span className="v4-m v4-muted-dark">{nextLive ? nextLive.dateLabel : "Workshops · waitlist open"}</span>
             </span>
           </a>
           {studio && (
-            <a href="#studio" className="v4-cut v4-cut-gold">
+            <a href="#studio" className={`v4-cut v4-cut-gold ${cardClass("studio")}`}>
+              <CardPhoto img={home.cards.studio} />
               <span className="v4-go" aria-hidden="true">↗</span>
-              <Icon d={TABS[3].icon} size={26} />
+              <span className="v4-ic">
+                <Icon d={TABS[3].icon} size={26} />
+              </span>
               <span>
                 <b className="v4-d v4-cut-t">Studio</b>
                 <span className="v4-m">{studio.priceLabel}</span>
@@ -419,9 +398,12 @@ export default function V4Home(props: V4HomeProps) {
             </a>
           )}
           {shipped.length > 0 && (
-            <a href="#shipped" className="v4-cut">
+            <a href="#shipped" className={`v4-cut ${cardClass("shipped")}`}>
+              <CardPhoto img={home.cards.shipped} />
               <span className="v4-go" aria-hidden="true">↗</span>
-              <Icon d={TABS[4].icon} size={26} />
+              <span className="v4-ic">
+                <Icon d={TABS[4].icon} size={26} />
+              </span>
               <span>
                 <b className="v4-d v4-cut-t">Shipped</b>
                 <span className="v4-m v4-muted">Brands · ventures</span>
@@ -432,7 +414,7 @@ export default function V4Home(props: V4HomeProps) {
       </div>
 
       <div className="v4-bands" aria-hidden="true">
-        <Band items={CREDOS} variant="a" />
+        <Band items={home.credos} variant="a" />
         <Band items={credentials} variant="b" />
       </div>
 
@@ -506,41 +488,13 @@ export default function V4Home(props: V4HomeProps) {
           <h2 className="v4-h2 v4-d">
             Learn it <span className="v4-sf">with me.</span>
           </h2>
-          <div className="v4-ticket">
-            <div className="v4-stub">
-              <span className="v4-m">Next live session</span>
-              <span className="v4-d v4-stub-big">{nextLive ? nextLive.dateLabel : "TBA"}</span>
-              <span className="v4-m">
-                {nextLive ? nextLive.seatsLabel || nextLive.priceLabel : "Seats go to the waitlist first"}
-              </span>
-            </div>
-            <div className="v4-tbody">
-              {nextLive ? (
-                <>
-                  <p className="v4-t-p">{nextLive.title}. A few focused hours, live. You build it with me and ask as you go.</p>
-                  <Link href={`/items/${nextLive.slug}`} className="v4-btn v4-b-gold">
-                    Reserve my seat <Arrow />
-                  </Link>
-                </>
-              ) : (
-                <>
-                  <p className="v4-t-p">A few focused hours, live. You build the workflow with me and ask questions as you go.</p>
-                  <a
-                    href={waitlistHref}
-                    className="v4-btn v4-b-gold"
-                    {...(waitlistHref.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-                  >
-                    Get the date on WhatsApp <Arrow />
-                  </a>
-                </>
-              )}
-              {pastLive && (
-                <p className="v4-m v4-muted-dark">
-                  Previously · {pastLive.title} · {pastLive.dateLabel} · ran ✓
-                </p>
-              )}
-            </div>
-          </div>
+          <LiveTicket
+            nextLive={nextLive}
+            pastLive={pastLive}
+            live={home.live}
+            hostFallback={bioAvatar}
+            bioName={bioName || "Deepanshu Tyagi"}
+          />
         </div>
       </Section>
 
@@ -561,68 +515,7 @@ export default function V4Home(props: V4HomeProps) {
                 <b className="v4-d v4-studio-price">{studio.priceLabel}</b>
               </div>
             </div>
-            <div className="v4-demo">
-              <div className="v4-tabs" role="tablist" aria-label="How a studio project runs">
-                {STEPS.map((label, i) => (
-                  <button
-                    key={label}
-                    type="button"
-                    role="tab"
-                    aria-selected={i === step}
-                    className={`v4-tab ${i === step ? "is-on" : i < step ? "is-done" : ""}`}
-                    onClick={() => {
-                      setAutoStep(false);
-                      setStep(i);
-                    }}
-                  >
-                    <i>
-                      <b key={`${i}-${step}`} />
-                    </i>
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <div className="v4-browser" aria-hidden="true">
-                <div className="v4-bar">
-                  <span />
-                  <span />
-                  <span />
-                  <div className="v4-url v4-m">yourbrand.in</div>
-                </div>
-                <div className={`v4-canvas v4-st${step}`}>
-                  {step === 0 ? (
-                    <p className="v4-typing">
-                      &gt; brief.txt
-                      <br />
-                      brand: your business
-                      <br />
-                      goal: more enquiries
-                      <br />
-                      pages: home, menu, book
-                      <span className="v4-caret" />
-                    </p>
-                  ) : (
-                    <div className="v4-blocks">
-                      <div className="v4-blk v4-b1" />
-                      <div className="v4-blk v4-b2" />
-                      <div className="v4-blk-row">
-                        <div className="v4-blk v4-b3" />
-                        <div className="v4-blk v4-b4" />
-                        <div className="v4-blk v4-b5" />
-                      </div>
-                    </div>
-                  )}
-                  {step === 1 && <div className="v4-scanline" />}
-                  {step === 2 && (
-                    <span className="v4-livebadge v4-m">
-                      <span className="v4-dot" />
-                      Live · day 14
-                    </span>
-                  )}
-                </div>
-              </div>
-              <p className="v4-m v4-muted">Concept preview</p>
-            </div>
+            <StudioDemo projects={demo} />
           </div>
         </Section>
       )}
@@ -656,12 +549,22 @@ export default function V4Home(props: V4HomeProps) {
                   </span>
                 </a>
               ))}
-              {credentials.slice(0, 2).map((c, i) => (
-                <div key={c} className={`v4-tile v4-stat ${i === 1 ? "v4-stat-dark" : ""}`}>
-                  <span className="v4-m">Proof</span>
-                  <b className="v4-d v4-stat-t">{c}</b>
-                </div>
-              ))}
+              {proof.map((c, i) =>
+                c.image.url ? (
+                  <div key={`${c.text}-${i}`} className="v4-tile v4-tile-proof">
+                    <Pic src={c.image.url} alt="" sizes="(min-width: 861px) 33vw, 50vw" focal={c.image.focal} />
+                    <span className="v4-tt">
+                      <span className="v4-m v4-gold">Proof</span>
+                      {c.text && <b className="v4-d v4-tile-t">{c.text}</b>}
+                    </span>
+                  </div>
+                ) : (
+                  <div key={`${c.text}-${i}`} className={`v4-tile v4-stat ${i % 2 === 1 ? "v4-stat-dark" : ""}`}>
+                    <span className="v4-m">Proof</span>
+                    <b className="v4-d v4-stat-t">{c.text}</b>
+                  </div>
+                )
+              )}
             </div>
           </div>
         </Section>
@@ -678,13 +581,12 @@ export default function V4Home(props: V4HomeProps) {
             <span className="v4-m v4-breath-w">{inhale ? "Breathe in" : "Breathe out"}</span>
           </div>
           <p className="v4-d v4-seek-t">
-            I meditate. I dance.{" "}
-            <span className="v4-sf v4-gold">I think about death more than most people think about lunch.</span>
+            {home.seeker.line} <span className="v4-sf v4-gold">{home.seeker.accent}</span>
           </p>
-          <p className="v4-seek-p">Those aren&rsquo;t the opposite of building. They&rsquo;re the same engine.</p>
+          <p className="v4-seek-p">{home.seeker.sub}</p>
           <p className="v4-m v4-muted-dark">On my desk</p>
           <div className="v4-books">
-            {BOOKS.map((b) => (
+            {home.seeker.books.map((b) => (
               <span key={b} className="v4-book">
                 {b}
               </span>
@@ -698,10 +600,8 @@ export default function V4Home(props: V4HomeProps) {
         <div className="v4-wrap">
           <div className="v4-note">
             <span className="v4-m v4-gold-ink">A note from me</span>
-            <p className="v4-d v4-note-t">
-              Learning without shipping is a very comfortable way to hide. I did it for years. Not anymore.
-            </p>
-            <p className="v4-note-p">Everything here, I built, broke and fixed first. Take what helps.</p>
+            <p className="v4-d v4-note-t">{home.note.text}</p>
+            <p className="v4-note-p">{home.note.sub}</p>
             <div className="v4-sign">
               {bioAvatar && (
                 <span className="v4-avatar">

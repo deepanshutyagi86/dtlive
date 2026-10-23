@@ -29,9 +29,11 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-bone px-5">
+    <div className="adm-login">
       <form onSubmit={submit} className="w-full max-w-[380px] bg-card border border-line rounded-card p-8">
-        <p className="font-mono text-[11px] tracking-wider uppercase text-muted mb-1.5">DT.live</p>
+        <p className="font-display font-bold text-[19px] mb-5">
+          deepanshu<span className="text-marigold">.live</span>
+        </p>
         <h1 className="font-display font-extrabold text-2xl tracking-tight mb-6">Admin sign in</h1>
 
         <div className="mb-4">

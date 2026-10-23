@@ -5,8 +5,8 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        bone: "#F2F1EC",
-        ink: "#191913",
+        bone: "#EFEDE6",
+        ink: "#0E0E0C",
         "ink-soft": "#41403a",
         // Small print — 10-11px mono captions, eyebrows, placeholder text —
         // on the bone background. #6E6D63 measured 4.59:1, which clears the

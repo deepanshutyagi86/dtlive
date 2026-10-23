@@ -14,7 +14,7 @@
 // module that is neither.
 
 export type SettingsSectionKey =
-  | "hero" | "ticker" | "testimonials" | "starter" | "stream"
+  | "home" | "testimonials"
   | "bio" | "branding" | "nav" | "footer"
   | "emails" | "notify"
   | "coupons" | "tax" | "invoice" | "business"
@@ -37,12 +37,12 @@ export interface SettingsGroup {
 export const SECTION_GROUPS: Record<string, SettingsGroup> = {
   homepage: {
     title: "Homepage",
-    blurb: "What a first-time visitor reads, in the order they read it.",
-    sections: ["hero", "ticker", "testimonials", "starter", "stream"],
+    blurb: "Everything on deepanshutyagi.live, top to bottom — the same order a visitor scrolls it. Open a block, change it, hit Save.",
+    sections: ["home"],
   },
   appearance: {
     title: "Appearance",
-    blurb: "The frame around every page — menu, footer, icons, and the card that shows when a link is shared.",
+    blurb: "The frame around every other page — menu, footer, icons, your photo, and the card that shows when a link is shared. (The homepage has its own menu, built from its sections.)",
     sections: ["branding", "nav", "footer", "bio"],
   },
   emails: {
@@ -63,6 +63,6 @@ export const SECTION_GROUPS: Record<string, SettingsGroup> = {
   extras: {
     title: "Extras",
     blurb: "Smaller features that have their own switches.",
-    sections: ["syllabus", "guideCta", "booth"],
+    sections: ["syllabus", "guideCta", "testimonials", "booth"],
   },
 };

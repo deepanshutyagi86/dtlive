@@ -125,8 +125,9 @@ export function NavSection({ value, onChange }: { value: NavSettings; onChange: 
     <section>
       <h2 className="font-display font-bold text-lg mb-1">Navigation</h2>
       <p className="text-sm text-muted mb-5">
-        The links in the top bar, the phone menu, and the footer&apos;s Explore column — one list, three
-        places. Untick &ldquo;Show&rdquo; to hide a link everywhere without deleting it.
+        The links in the top bar, the phone menu, and the footer&apos;s Explore column on every page except
+        the homepage — the homepage&apos;s menu is built from its own sections (Learn, Live, Studio, Shipped).
+        Untick &ldquo;Show&rdquo; to hide a link without deleting it.
       </p>
 
       <Repeater
