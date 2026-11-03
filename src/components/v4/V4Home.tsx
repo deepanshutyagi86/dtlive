@@ -8,6 +8,7 @@ import { useModalBehavior } from "@/lib/useModalBehavior";
 import { cardFade, cardFadeBackground, SOFT_FADE_BELOW, type HomeCardKey, type HomeImage } from "@/lib/home-settings";
 import LiveTicket from "./LiveTicket";
 import StudioDemo, { type DemoProject } from "./StudioDemo";
+import ThoughtNotes from "./ThoughtNotes";
 import { Arrow, Pic } from "./parts";
 import type { V4Course, V4HomeProps } from "./types";
 import "./v4.css";
@@ -16,22 +17,7 @@ import "./v4.css";
 /* Static persona content — Deepanshu's own lines, not marketing copy  */
 /* ------------------------------------------------------------------ */
 
-// The hero's spiral is literally how he describes his thinking: "When I
-// talk, I spiral." The headline is that spiral run through a compressor.
-const SPIRAL_TEXT =
-  "AI is where I’m putting everything · I meditate · I dance · thoughts are things · attention has weight · we’re thinking that learned to be meat · when a group locks onto one thing, physics gets strange · death is the most interesting unsolved problem · clarity is the new scarce resource · build for humans or don’t bother · execution is the only proof · I don’t have an answer for this one · I sat with it for a week · ";
 
-function spiralPath(): string {
-  let d = "";
-  for (let t = 0; t <= Math.PI * 11; t += 0.06) {
-    const r = 14 + 5.6 * t;
-    const x = 200 + r * Math.cos(t);
-    const y = 200 + r * Math.sin(t);
-    d += `${t === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)} `;
-  }
-  return d;
-}
-const SPIRAL_D = spiralPath();
 
 type SectionId = "home" | "learn" | "live" | "studio" | "shipped";
 
@@ -316,17 +302,8 @@ export default function V4Home(props: V4HomeProps) {
       {/* ---------- hero ---------- */}
       <Section id="home" className="v4-hero">
         <div key={replay} className="v4-hero-anim">
-          <div className="v4-spiral" aria-hidden="true">
-            <svg viewBox="0 0 400 400">
-              <defs>
-                <path id="v4-spi" d={SPIRAL_D} />
-              </defs>
-              <text className="v4-spiral-text">
-                <textPath href="#v4-spi">{SPIRAL_TEXT + SPIRAL_TEXT + SPIRAL_TEXT}</textPath>
-              </text>
-            </svg>
-          </div>
-          <div className="v4-wrap v4-hero-copy">
+          <div className="v4-wrap v4-hero-grid">
+          <div className="v4-hero-copy">
             <p className="v4-m v4-muted">
               {bioName || "Deepanshu Tyagi"} · {home.hero.eyebrow}
             </p>
@@ -360,10 +337,12 @@ export default function V4Home(props: V4HomeProps) {
                   </a>
                 )}
                 <button type="button" className="v4-replay" onClick={() => setReplay((r) => r + 1)}>
-                  ↺ how I think
+                  ↺ replay thoughts
                 </button>
               </div>
             </div>
+          </div>
+          <ThoughtNotes replayKey={replay} />
           </div>
         </div>
       </Section>
